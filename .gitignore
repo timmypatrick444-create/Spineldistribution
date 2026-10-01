@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Temporary & Cache
+*.map
+*.log
+.DS_Store
+.cache/
+tmp/
+*.zip
+*.tar.gz
+bun.lock*
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+!.env.example

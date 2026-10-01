@@ -1,0 +1,21 @@
+---
+# =====================================================================
+# cPanel Git Version Control Automated Deployment Configuration
+# =====================================================================
+# How to use:
+# 1. In cPanel, navigate to: "Git™ Version Control"
+# 2. Clone or link your repository to your cPanel hosting account.
+# 3. When you push changes or click "Update from Remote", cPanel reads
+#    this file and automatically runs npm install, compiles the project,
+#    and restarts Phusion Passenger. Zero manual zip uploads required!
+# =====================================================================
+
+deployment:
+  tasks:
+    - export DEPLOYPATH=$(pwd)
+    - echo "Deploying Spinel Distribution in $DEPLOYPATH..."
+    - npm install
+    - npm run build
+    - mkdir -p tmp
+    - touch tmp/restart.txt
+    - echo "Spinel Distribution successfully built and reloaded on cPanel!"

@@ -1,0 +1,6 @@
+{
+  "name": "SPINEL DISTRIBUTION",
+  "description": "International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and renewable energy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
