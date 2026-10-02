@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Eye, EyeOff, ArrowLeft, ShieldCheck, Mail, KeyRound, Building2, Phone, User, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, ArrowLeft, ShieldCheck, Mail, KeyRound, User, CheckCircle2 } from 'lucide-react';
 
 interface SignupPageProps {
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
+  onNavigateToOtp: (email: string, fullName: string) => void;
 }
 
-export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate }) => {
-  const { customerLogin } = useAuth();
+export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, onNavigateToOtp }) => {
+  const { customerRegisterInitiate } = useAuth();
   const [fullName, setFullName] = useState('');
-  const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,21 +24,15 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate })
     setError('');
 
     const cleanFullName = fullName.trim();
-    const cleanEmail = email.trim();
-    const cleanPhone = phoneNumber.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanFullName) {
       setError('Please provide your full legal or corporate contact name.');
       return;
     }
 
-    if (!cleanEmail) {
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       setError('Please provide a valid official business email.');
-      return;
-    }
-
-    if (!cleanPhone) {
-      setError('Please provide your corporate telephone or WhatsApp number.');
       return;
     }
 
@@ -60,10 +53,16 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate })
 
     try {
       setLoading(true);
-      await customerLogin(cleanEmail, cleanFullName);
-      onSuccess();
+      const res = await customerRegisterInitiate(cleanFullName, cleanEmail, password);
+      if (!res.success) {
+        setError(res.error || 'An account with this email address already exists. Please sign in or use a different email.');
+        return;
+      }
+
+      // Immediately navigate user to the OTP page
+      onNavigateToOtp(cleanEmail, cleanFullName);
     } catch (err: any) {
-      setError(err?.message || 'Failed to create enterprise account.');
+      setError(err?.message || 'Failed to initiate account registration. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -137,24 +136,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate })
               </div>
             </div>
 
-            {/* Company / Organization (Optional) */}
-            <div>
-              <label className="block font-bold text-gray-800 mb-1 text-xs sm:text-sm">
-                Company / Organization <span className="text-gray-400 font-normal text-xs">(Optional)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  autoComplete="organization"
-                  placeholder="e.g. Apex Security Systems Ltd"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 transition-all bg-white"
-                />
-                <Building2 size={16} className="absolute left-3 top-3 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-
             {/* Business Email */}
             <div>
               <label className="block font-bold text-gray-800 mb-1 text-xs sm:text-sm">
@@ -171,25 +152,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate })
                   className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 transition-all bg-white"
                 />
                 <Mail size={16} className="absolute left-3 top-3 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Phone Number */}
-            <div>
-              <label className="block font-bold text-gray-800 mb-1 text-xs sm:text-sm">
-                Phone / WhatsApp Number <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  required
-                  autoComplete="tel"
-                  placeholder="+234 816 963 2070"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 transition-all bg-white"
-                />
-                <Phone size={16} className="absolute left-3 top-3 text-gray-400 pointer-events-none" />
               </div>
             </div>
 

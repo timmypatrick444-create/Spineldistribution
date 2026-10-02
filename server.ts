@@ -3,6 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
@@ -154,11 +156,48 @@ async function ensureQuoteTableExists(pool: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
     await pool.query(tableSql);
-    // Also create lowercase alias table for cross-platform Linux case-sensitivity compatibility
-    await pool.query(tableSql.replace(/`Request_Quote`/g, '`request_quote`'));
+    // Explicitly drop redundant lowercase `request_quote` table if it was previously created
+    try {
+      await pool.query('DROP TABLE IF EXISTS `request_quote`');
+    } catch {}
     console.log('[MySQL] "Request_Quote" table verified and ready in database.');
   } catch (err: any) {
     console.warn('[MySQL] Table creation notice:', err.message);
+  }
+}
+
+async function ensureUsersTableExists(pool: mysql.Pool) {
+  try {
+    const usersTableSql = `
+      CREATE TABLE IF NOT EXISTS \`Users\` (
+        \`ID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`Full_Name\` VARCHAR(255) NOT NULL,
+        \`Email\` VARCHAR(255) NOT NULL UNIQUE,
+        \`Password\` VARCHAR(255) NOT NULL,
+        \`Verification_Status\` VARCHAR(50) DEFAULT 'Pending',
+        \`Created_At\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX \`idx_users_email\` (\`Email\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `;
+    await pool.query(usersTableSql);
+
+    // If table was previously created with Is_Verified, migrate it to Verification_Status with DEFAULT 'Pending'
+    try {
+      await pool.query("ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `Verification_Status` VARCHAR(50) DEFAULT 'Pending'");
+    } catch {}
+
+    try {
+      await pool.query("ALTER TABLE `Users` ALTER COLUMN `Verification_Status` SET DEFAULT 'Pending'");
+    } catch {}
+
+    // Drop Role column if it exists in the Users table as requested
+    try {
+      await pool.query("ALTER TABLE `Users` DROP COLUMN `Role`");
+    } catch {}
+
+    console.log('[MySQL] "Users" table verified with "Verification_Status" DEFAULT "Pending".');
+  } catch (err: any) {
+    console.log('[MySQL] "Users" table notice:', err.message);
   }
 }
 
@@ -202,6 +241,7 @@ async function getOrInitDbPool(): Promise<mysql.Pool | null> {
     console.log(`[MySQL] Successfully connected to cPanel MySQL database: ${database} at ${host}:${port}`);
 
     await ensureQuoteTableExists(pool);
+    await ensureUsersTableExists(pool);
 
     // Preload existing quotes from Request_Quote table into in-memory store
     try {
@@ -267,6 +307,7 @@ async function getOrInitDbPool(): Promise<mysql.Pool | null> {
           dbConfigDetails.usingSocket = true;
           console.log(`[MySQL] Connected via socket ${sock} successfully!`);
           await ensureQuoteTableExists(sockPool);
+          await ensureUsersTableExists(sockPool);
           return dbPool;
         } catch (sockErr: any) {
           lastDbError = sockErr.message;
@@ -292,6 +333,253 @@ let usersStore: UserProfile[] = [
     createdAt: new Date().toISOString()
   }
 ];
+
+// Database user representation
+interface DbUser {
+  id: number | string;
+  fullName: string;
+  email: string;
+  password: string; // bcrypt hashed
+  verificationStatus: string;
+  createdAt: string;
+}
+
+// In-memory resilient users store for preview environment or when MySQL is offline
+let inMemoryUsers: DbUser[] = [];
+
+// Preload users from Users table on server start if database is available
+async function loadUsersFromDb() {
+  const pool = await getOrInitDbPool();
+  if (pool) {
+    try {
+      const [rows]: any = await pool.query('SELECT * FROM `Users` LIMIT 1000');
+      if (Array.isArray(rows) && rows.length > 0) {
+        inMemoryUsers = rows.map((r: any) => ({
+          id: r.ID || r.id,
+          fullName: r.Full_Name || r.full_name || r.Name || r.name || (r.Email || r.email || '').split('@')[0],
+          email: (r.Email || r.email || '').toLowerCase().trim(),
+          password: r.Password || r.password || '',
+          verificationStatus: r.Verification_Status || r.verification_status || 'Verified',
+          createdAt: r.Created_At || r.created_at || new Date().toISOString()
+        }));
+        console.log(`[MySQL] Loaded ${inMemoryUsers.length} registered users from "Users" table.`);
+      }
+    } catch (err: any) {
+      console.log('[MySQL] Users preload notice:', err.message);
+    }
+  }
+}
+setTimeout(() => { loadUsersFromDb().catch(() => {}); }, 1500);
+
+interface PendingSignup {
+  email: string;
+  fullName: string;
+  passwordHash: string;
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  lastSentAt: number;
+}
+
+const pendingSignups = new Map<string, PendingSignup>();
+
+// Nodemailer transporter helper
+function getMailTransporter() {
+  const host = process.env.SMTP_HOST || process.env.MAIL_HOST || '127.0.0.1';
+  const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587', 10);
+  const user = process.env.SMTP_USER || process.env.MAIL_USERNAME || '';
+  const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '';
+  const secure = port === 465;
+
+  if (user && pass) {
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false }
+    });
+  }
+
+  // Fallback to local sendmail / port 25 for cPanel
+  return nodemailer.createTransport({
+    host: 'localhost',
+    port: 25,
+    secure: false,
+    tls: { rejectUnauthorized: false },
+    ignoreTLS: true
+  });
+}
+
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<boolean> {
+  const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
+  const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
+
+  console.log(`[Email OTP Service] ==========================================`);
+  console.log(`[Email OTP Service] TO: ${toEmail}`);
+  console.log(`[Email OTP Service] VERIFICATION CODE (OTP): ${otp}`);
+  console.log(`[Email OTP Service] ==========================================`);
+
+  try {
+    const transporter = getMailTransporter();
+    await transporter.sendMail({
+      from: fromAddress,
+      to: toEmail,
+      subject,
+      text: `Your Spinel Distribution verification code is: ${otp}. This code is valid for 10 minutes.`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+          <div style="background: #0f172a; padding: 24px; text-align: center;">
+            <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
+            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Renewable Energy</p>
+          </div>
+          <div style="padding: 32px 28px;">
+            <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
+            <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
+              Thank you for registering with Spinel Distribution. Please use the 6-digit verification code below to verify your email address and activate your account:
+            </div>
+            <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 18px; text-align: center; margin: 20px 0;">
+              <div style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #b45309;">${otp}</div>
+              <div style="font-size: 12px; color: #92400e; margin-top: 8px; font-weight: 500;">Valid for 10 minutes. Do not share this code.</div>
+            </div>
+            <div style="font-size: 12px; color: #64748b;">
+              If you did not initiate this request, you can safely ignore this email.
+            </div>
+          </div>
+          <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
+            &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+          </div>
+        </div>
+      `
+    });
+    console.log(`[Email OTP Service] Verification email dispatched to ${toEmail}`);
+    return true;
+  } catch (err: any) {
+    console.log(`[Email OTP Service] Mail delivery notice for ${toEmail}: ${err.message}. OTP code: ${otp}`);
+    return false;
+  }
+}
+
+async function findUserByEmail(email: string): Promise<DbUser | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  const pool = await getOrInitDbPool();
+  if (pool) {
+    try {
+      const [rows]: any = await pool.query(
+        'SELECT * FROM `Users` WHERE LOWER(`Email`) = LOWER(?) LIMIT 1',
+        [cleanEmail]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        const r = rows[0];
+        return {
+          id: r.ID || r.id,
+          fullName: r.Full_Name || r.full_name || r.Name || r.name || cleanEmail.split('@')[0],
+          email: (r.Email || r.email || cleanEmail).toLowerCase(),
+          password: r.Password || r.password || '',
+          verificationStatus: r.Verification_Status || r.verification_status || (r.Is_Verified ? 'Verified' : 'Verified'),
+          createdAt: r.Created_At || r.created_at || new Date().toISOString()
+        };
+      }
+      return null;
+    } catch (err: any) {
+      console.log('[Users DB] Query notice:', err.message);
+    }
+  }
+
+  const memUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+  return memUser || null;
+}
+
+async function insertUserToDb(fullName: string, email: string, hashedPassword: string, status: string = 'Pending'): Promise<DbUser> {
+  const cleanEmail = email.trim().toLowerCase();
+  const pool = await getOrInitDbPool();
+
+  if (pool) {
+    try {
+      const insertSql = `
+        INSERT INTO \`Users\` (\`Full_Name\`, \`Email\`, \`Password\`, \`Verification_Status\`, \`Created_At\`)
+        VALUES (?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE \`Full_Name\` = VALUES(\`Full_Name\`), \`Password\` = VALUES(\`Password\`), \`Verification_Status\` = VALUES(\`Verification_Status\`)
+      `;
+      const [res]: any = await pool.execute(insertSql, [fullName.trim(), cleanEmail, hashedPassword, status]);
+      const newId = res.insertId || Date.now();
+
+      const createdUser: DbUser = {
+        id: newId,
+        fullName: fullName.trim(),
+        email: cleanEmail,
+        password: hashedPassword,
+        verificationStatus: status,
+        createdAt: new Date().toISOString()
+      };
+
+      inMemoryUsers = inMemoryUsers.filter(u => u.email !== cleanEmail);
+      inMemoryUsers.push(createdUser);
+      console.log(`[MySQL] User recorded in "Users" table with status "${status}": #${newId} - ${cleanEmail}`);
+      return createdUser;
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+        throw new Error('An account with this email address already exists. Please sign in or use a different email.');
+      }
+      // Fallback in case columns are Name / Email / Password / Verification_Status
+      try {
+        const fallbackSql = `
+          INSERT INTO \`Users\` (\`Name\`, \`Email\`, \`Password\`, \`Verification_Status\`)
+          VALUES (?, ?, ?, ?)
+        `;
+        const [res2]: any = await pool.execute(fallbackSql, [fullName.trim(), cleanEmail, hashedPassword, status]);
+        const newId = res2.insertId || Date.now();
+        const createdUser: DbUser = {
+          id: newId,
+          fullName: fullName.trim(),
+          email: cleanEmail,
+          password: hashedPassword,
+          verificationStatus: status,
+          createdAt: new Date().toISOString()
+        };
+        inMemoryUsers.push(createdUser);
+        return createdUser;
+      } catch (err2: any) {
+        throw new Error(err.message || 'Database error creating user account in Users table.');
+      }
+    }
+  }
+
+  // Fallback in-memory
+  inMemoryUsers = inMemoryUsers.filter(u => u.email !== cleanEmail);
+  const createdUser: DbUser = {
+    id: `usr_${Date.now()}`,
+    fullName: fullName.trim(),
+    email: cleanEmail,
+    password: hashedPassword,
+    verificationStatus: status,
+    createdAt: new Date().toISOString()
+  };
+  inMemoryUsers.push(createdUser);
+  return createdUser;
+}
+
+async function markUserAsVerified(email: string): Promise<boolean> {
+  const cleanEmail = email.trim().toLowerCase();
+  const pool = await getOrInitDbPool();
+  if (pool) {
+    try {
+      await pool.query(
+        "UPDATE `Users` SET `Verification_Status` = 'Verified' WHERE LOWER(`Email`) = LOWER(?)",
+        [cleanEmail]
+      );
+      console.log(`[MySQL] User ${cleanEmail} updated to Verification_Status = 'Verified'.`);
+    } catch (err: any) {
+      console.log('[Users DB] Update verification error:', err.message);
+    }
+  }
+
+  const memUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+  if (memUser) {
+    memUser.verificationStatus = 'Verified';
+  }
+  return true;
+}
 
 // Active admin session tokens in memory
 const activeAdminTokens = new Set<string>();
@@ -425,6 +713,262 @@ app.get('/api/products/:id', (req, res) => {
     return res.status(404).json({ error: 'Product not found' });
   }
   res.json(product);
+});
+
+// -------------------------------------------------------------
+// CUSTOMER AUTHENTICATION & EMAIL OTP VERIFICATION
+// -------------------------------------------------------------
+
+// Step 1: Initiate signup, record user as Pending in Users table, send 6-digit OTP
+app.post('/api/auth/register-initiate', async (req, res) => {
+  const { fullName, email, password } = req.body;
+  const cleanFullName = (fullName || '').trim();
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const rawPassword = (password || '').trim();
+
+  if (!cleanFullName) {
+    return res.status(400).json({ error: 'Please provide your full legal or corporate contact name.' });
+  }
+
+  if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return res.status(400).json({ error: 'Please provide a valid official business email address.' });
+  }
+
+  if (!rawPassword || rawPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+
+  try {
+    // 1. Check if user already exists and is already verified
+    const existing = await findUserByEmail(cleanEmail);
+    if (existing && existing.verificationStatus === 'Verified') {
+      return res.status(409).json({
+        error: 'An account with this email address already exists. Please sign in or use a different email.'
+      });
+    }
+
+    // 2. Hash password with bcryptjs for proper security
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(rawPassword, salt);
+
+    // 3. Record user in Users table with Verification_Status = 'Pending'
+    await insertUserToDb(cleanFullName, cleanEmail, passwordHash, 'Pending');
+
+    // 4. Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+
+    // 5. Record pending registration session
+    pendingSignups.set(cleanEmail, {
+      email: cleanEmail,
+      fullName: cleanFullName,
+      passwordHash,
+      otp,
+      expiresAt,
+      attempts: 0,
+      lastSentAt: Date.now()
+    });
+
+    // 6. Send OTP verification email
+    const emailSent = await sendOtpEmail(cleanEmail, cleanFullName, otp);
+
+    return res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${cleanEmail}.`,
+      email: cleanEmail,
+      devOtp: (!emailSent || process.env.NODE_ENV !== 'production') ? otp : undefined
+    });
+  } catch (err: any) {
+    console.error('[Auth Error] Failed to initiate registration:', err);
+    return res.status(500).json({ error: 'Server error processing registration. Please try again.' });
+  }
+});
+
+// Step 2: Verify 6-digit OTP and update user to 'Verified' in Users table
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanOtp = (otp || '').trim().replace(/\s+/g, '');
+
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  if (!cleanOtp) {
+    return res.status(400).json({ error: 'Please enter the 6-digit verification code sent to your email.' });
+  }
+
+  const pending = pendingSignups.get(cleanEmail);
+  if (!pending) {
+    return res.status(400).json({
+      error: 'No pending registration session found for this email. Please return to the signup page and request a new code.'
+    });
+  }
+
+  // Check code expiration
+  if (Date.now() > pending.expiresAt) {
+    pendingSignups.delete(cleanEmail);
+    return res.status(400).json({
+      error: 'Verification code has expired. Please request a new code.'
+    });
+  }
+
+  // Check brute-force attempts limit
+  if (pending.attempts >= 5) {
+    pendingSignups.delete(cleanEmail);
+    return res.status(429).json({
+      error: 'Too many incorrect attempts. For security, please sign up again to receive a fresh verification code.'
+    });
+  }
+
+  // Validate OTP code
+  if (pending.otp !== cleanOtp) {
+    pending.attempts += 1;
+    const remaining = 5 - pending.attempts;
+    return res.status(400).json({
+      error: `Invalid 6-digit verification code. Please check your email and try again. (${remaining} attempts remaining)`
+    });
+  }
+
+  // OTP verified! Update status to 'Verified' in Users table
+  try {
+    await markUserAsVerified(cleanEmail);
+    pendingSignups.delete(cleanEmail);
+
+    const verifiedUser = await findUserByEmail(cleanEmail);
+    const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account verified and activated successfully!',
+      token,
+      user: {
+        id: verifiedUser?.id || `usr_${Date.now()}`,
+        email: cleanEmail,
+        fullName: verifiedUser?.fullName || pending.fullName,
+        verificationStatus: 'Verified'
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      error: err.message || 'An error occurred while updating your account status.'
+    });
+  }
+});
+
+// Step 3: Resend 6-digit OTP with 30s throttling
+app.post('/api/auth/resend-otp', async (req, res) => {
+  const { email } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+
+  const pending = pendingSignups.get(cleanEmail);
+  if (!pending) {
+    return res.status(400).json({
+      error: 'No pending registration found for this email. Please start from the signup page.'
+    });
+  }
+
+  const now = Date.now();
+  if (pending.lastSentAt && (now - pending.lastSentAt) < 25000) {
+    const waitSeconds = Math.ceil((25000 - (now - pending.lastSentAt)) / 1000);
+    return res.status(429).json({
+      error: `Please wait ${waitSeconds} seconds before requesting another code.`
+    });
+  }
+
+  const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  pending.otp = newOtp;
+  pending.expiresAt = now + 10 * 60 * 1000;
+  pending.attempts = 0;
+  pending.lastSentAt = now;
+
+  const emailSent = await sendOtpEmail(cleanEmail, pending.fullName, newOtp);
+
+  return res.json({
+    success: true,
+    message: `A fresh 6-digit verification code has been sent to ${cleanEmail}.`,
+    devOtp: (!emailSent || process.env.NODE_ENV !== 'production') ? newOtp : undefined
+  });
+});
+
+// Step 4: Login for registered users with email and hashed password verification
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const rawPassword = (password || '').trim();
+
+  if (!cleanEmail || !rawPassword) {
+    return res.status(400).json({ error: 'Please enter both your registered email and password.' });
+  }
+
+  try {
+    const user = await findUserByEmail(cleanEmail);
+    if (!user) {
+      return res.status(401).json({
+        error: 'No registered account found with this email address. Please sign up first.'
+      });
+    }
+
+    let passwordMatches = false;
+    try {
+      passwordMatches = await bcrypt.compare(rawPassword, user.password);
+    } catch {}
+
+    // Fallback if stored with salt or legacy
+    if (!passwordMatches && user.password && user.password.includes(':')) {
+      try {
+        const [salt, key] = user.password.split(':');
+        const keyBuffer = Buffer.from(key, 'hex');
+        const crypto = await import('crypto');
+        const derivedKey = crypto.scryptSync(rawPassword, salt, 64);
+        passwordMatches = crypto.timingSafeEqual(keyBuffer, derivedKey);
+      } catch {}
+    }
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        error: 'Incorrect password. Please verify your password and try again.'
+      });
+    }
+
+    // If user's email was never verified, prompt for OTP verification
+    if (user.verificationStatus !== 'Verified') {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      pendingSignups.set(cleanEmail, {
+        email: cleanEmail,
+        fullName: user.fullName,
+        passwordHash: user.password,
+        otp,
+        expiresAt,
+        attempts: 0,
+        lastSentAt: Date.now()
+      });
+      await sendOtpEmail(cleanEmail, user.fullName, otp);
+
+      return res.status(403).json({
+        error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
+        pendingVerification: true,
+        email: cleanEmail
+      });
+    }
+
+    const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    return res.json({
+      success: true,
+      message: 'Signed in successfully.',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        verificationStatus: user.verificationStatus
+      }
+    });
+  } catch (err: any) {
+    console.error('[Login Error]', err);
+    return res.status(500).json({ error: 'Server error during authentication. Please try again.' });
+  }
 });
 
 // -------------------------------------------------------------
@@ -781,12 +1325,7 @@ app.get('/api/db-status', async (req, res) => {
     try {
       const [cnt]: any = await pool.query('SELECT COUNT(*) as total FROM `Request_Quote`');
       quoteCount = cnt?.[0]?.total || 0;
-    } catch {
-      try {
-        const [cnt2]: any = await pool.query('SELECT COUNT(*) as total FROM `request_quote`');
-        quoteCount = cnt2?.[0]?.total || 0;
-      } catch {}
-    }
+    } catch {}
 
     return res.json({
       connected: true,
@@ -817,15 +1356,8 @@ app.get('/api/quotes', async (req, res) => {
   const pool = await getOrInitDbPool();
   if (pool) {
     try {
-      // Query Request_Quote, fallback to request_quote
-      let rows: any = null;
-      try {
-        const [r1]: any = await pool.query('SELECT * FROM `Request_Quote` ORDER BY `ID` DESC LIMIT 500');
-        rows = r1;
-      } catch {
-        const [r2]: any = await pool.query('SELECT * FROM `request_quote` ORDER BY `ID` DESC LIMIT 500');
-        rows = r2;
-      }
+      // Query solely the Request_Quote table
+      const [rows]: any = await pool.query('SELECT * FROM `Request_Quote` ORDER BY `ID` DESC LIMIT 500');
 
       if (Array.isArray(rows) && rows.length > 0) {
         const dbQuotes = rows.map((r: any) => ({
@@ -995,7 +1527,7 @@ app.post('/api/quotes', async (req, res) => {
   try {
     const pool = await getOrInitDbPool();
     if (pool) {
-      const tableCandidates = ['Request_Quote', 'request_quote', 'quotes'];
+      const tableCandidates = ['Request_Quote'];
       let inserted = false;
 
       for (const tbl of tableCandidates) {
@@ -1016,7 +1548,7 @@ app.post('/api/quotes', async (req, res) => {
             productSku,
             productName,
             unit,
-            image, // Saves relative file path e.g. "/uploads/quotes/quote_1727771234567_4829.jpg"
+            image, // Saves relative file path e.g. "/Images/Request_Quotes/quote_1727771234567_4829.jpg"
             description
           ]);
 
@@ -1205,19 +1737,33 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // STOREFRONT & SPA HANDLING
 // -------------------------------------------------------------
 async function startServer() {
+  const isProd = process.env.NODE_ENV === 'production';
   const rootDir = process.env.APP_ROOT || process.cwd();
+
+  // In development mode: always mount Vite middlewares for live HMR and reactive compilation
+  if (!isProd) {
+    try {
+      console.log('[Storefront] Development mode: Mounting live Vite middlewares...');
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      console.log('[Storefront] Live Vite dev server successfully mounted.');
+    } catch (viteErr: any) {
+      console.warn('[Storefront] Notice starting Vite middleware:', viteErr?.message || viteErr);
+    }
+  }
+
+  // Detect static production frontend paths
   const candidates = [
     path.join(rootDir, 'dist'),
     path.join(rootDir, 'client-build'),
-    path.join(__dirname, 'dist'),
-    path.join(__dirname, 'client-build'),
     path.join(process.cwd(), 'dist'),
     path.join(process.cwd(), 'client-build'),
-    path.join(__dirname, '../dist'),
-    path.join(process.cwd(), '../dist'),
-    rootDir,
-    __dirname,
-    process.cwd()
+    path.join(__dirname, 'dist'),
+    path.join(__dirname, 'client-build')
   ];
 
   let distPath: string | null = null;
@@ -1226,26 +1772,21 @@ async function startServer() {
     if (fs.existsSync(file)) {
       try {
         const content = fs.readFileSync(file, 'utf8');
-        // Ensure it is the compiled production index.html (not raw dev index referencing src/main.tsx)
         if ((content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx')) {
           distPath = candidate;
           break;
         }
-      } catch {
-        // continue
-      }
+      } catch {}
     }
   }
 
   if (distPath) {
-    console.log(`[Storefront] Serving compiled production frontend from: ${distPath}`);
-    // 1. Immutable caching for content-hashed assets in /assets
+    console.log(`[Storefront] Serving production static assets from: ${distPath}`);
     app.use('/assets', express.static(path.join(distPath, 'assets'), {
       maxAge: '1y',
       immutable: true
     }));
 
-    // 2. Static files with zero-cache on HTML to ensure updates load immediately
     app.use(express.static(distPath, {
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
@@ -1255,36 +1796,39 @@ async function startServer() {
         }
       }
     }));
-
-    app.get('*', (req, res) => {
-      const indexPath = path.join(distPath!, 'index.html');
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.sendFile(indexPath);
-    });
-  } else {
-    // If compiled dist is not present, dynamically serve via Vite so the full storefront ALWAYS loads live
-    console.log('[Storefront] Serving live storefront via on-demand Vite engine...');
-    try {
-      const { createServer: createViteServer, build: runViteBuild } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      app.use(vite.middlewares);
-      console.log('[Storefront] Live storefront successfully active via Vite engine.');
-
-      // Automatically compile dist/ in background for subsequent high-speed static serving
-      runViteBuild().then(() => {
-        console.log('[Storefront] Background production build complete; dist/ generated.');
-      }).catch((bErr: any) => {
-        console.warn('[Storefront] Background build note:', bErr?.message || bErr);
-      });
-    } catch (viteErr) {
-      console.error('[Storefront] Failed to initialize Vite engine:', viteErr);
-    }
   }
+
+  // SPA fallback handler with robust try/catch and multi-candidate verification
+  app.get('*', (req, res, next) => {
+    // Skip API, uploads, and image routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
+      return next();
+    }
+
+    const possibleIndexFiles = [
+      distPath ? path.join(distPath, 'index.html') : null,
+      path.join(process.cwd(), 'client-build', 'index.html'),
+      path.join(process.cwd(), 'dist', 'index.html'),
+      path.join(__dirname, 'client-build', 'index.html'),
+      path.join(__dirname, 'dist', 'index.html'),
+      path.join(process.cwd(), 'index.html')
+    ].filter(Boolean) as string[];
+
+    for (const indexPath of possibleIndexFiles) {
+      if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        return res.sendFile(indexPath, (err) => {
+          if (err && !res.headersSent) {
+            next();
+          }
+        });
+      }
+    }
+
+    next();
+  });
 
   // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));

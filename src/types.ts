@@ -86,7 +86,8 @@ export interface UserProfile {
   email: string;
   fullName: string;
   company?: string;
-  role: 'customer' | 'admin';
+  role?: string;
+  verificationStatus?: string;
   createdAt: string;
 }
 

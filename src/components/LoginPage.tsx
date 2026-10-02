@@ -5,9 +5,10 @@ import { Lock, Eye, EyeOff, ArrowLeft, ShieldCheck, Mail, KeyRound, Building2, U
 interface LoginPageProps {
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
+  onNavigateToOtp?: (email: string) => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onNavigateToOtp }) => {
   const { customerLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +35,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate }) =
 
     try {
       setLoading(true);
-      await customerLogin(cleanEmail);
+      const res = await customerLogin(cleanEmail, password);
+      if (!res.success) {
+        if (res.pendingVerification && res.email) {
+          if (onNavigateToOtp) {
+            onNavigateToOtp(res.email);
+          } else {
+            onNavigate('otp-verify');
+          }
+          return;
+        }
+        setError(res.error || 'Authentication error. Please verify your credentials.');
+        return;
+      }
       onSuccess();
     } catch (err: any) {
       setError(err?.message || 'Authentication error. Please verify your credentials.');

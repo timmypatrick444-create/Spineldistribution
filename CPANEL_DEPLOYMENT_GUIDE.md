@@ -17,7 +17,7 @@ When visitors submit a quote on the **Request Quote** page, it persists directly
 3. Create a new user (e.g., `spinel_user`) and a secure password.
 4. Under **Add User To Database**, select the user and database, click **Add**, check **ALL PRIVILEGES**, and click **Make Changes**.
 
-*(Note: The `Request_Quote` table is **created automatically** by the app on first boot. You can also import `cpanel_quotes_table.sql` in phpMyAdmin if preferred).*
+*(Note: Both the `Request_Quote` and `Users` tables are **created and verified automatically** by the app on boot. You can also import `cpanel_quotes_table.sql` and `cpanel_users_table.sql` in phpMyAdmin if preferred).*
 
 ### Step B: Add Credentials to cPanel Node.js App
 In cPanel &rarr; **Setup Node.js App**, edit your application, scroll to **Environment variables**, and add:
@@ -29,28 +29,50 @@ In cPanel &rarr; **Setup Node.js App**, edit your application, scroll to **Envir
 | **`DB_PASSWORD`** | `your_secure_password` | Database user password |
 | **`DB_NAME`** | `yourcpaneluser_dbname` | Full cPanel database name |
 | **`DB_PORT`** | `3306` | Default MySQL port |
+| **`SMTP_HOST`** | `mail.yourdomain.com` *(Optional)* | cPanel Mail Server hostname |
+| **`SMTP_PORT`** | `587` (or `465`) *(Optional)* | Outgoing Mail Port |
+| **`SMTP_USER`** | `noreply@yourdomain.com` *(Optional)* | Full cPanel Webmail email address |
+| **`SMTP_PASS`** | `your_webmail_password` *(Optional)* | Webmail email account password |
 
-*(Alternatively, you can place a `.env` file containing these 5 variables in your `public_html/` folder).*
-
-### Step C: Test Database Connection
-Open in your browser:
-```
-https://yourdomain.com/api/db-status
-```
-It returns a live JSON status report:
-```json
-{
-  "connected": true,
-  "status": "healthy",
-  "database": "yourcpaneluser_dbname",
-  "requestQuotesInDb": 1
-}
-```
-If anything is wrong with your credentials, `/api/db-status` displays the exact error message (e.g., *Access denied* or *Unknown database*).
+*(Alternatively, you can place a `.env` file containing these variables in your `public_html/` folder).*
 
 ---
 
-## 2. Picture File Storage on cPanel (`Images/Request_Quotes/`)
+## 2. Customer Authentication & "Users" Database Table
+
+1. **Table Structure (`Users`)**:
+   - `ID` (INT AUTO_INCREMENT PRIMARY KEY)
+   - `Full_Name` (VARCHAR(255))
+   - `Email` (VARCHAR(255) UNIQUE) — Enforces that no registered email can sign up twice with clear error messages.
+   - `Password` (VARCHAR(255)) — **Hashed with bcryptjs** for high enterprise security.
+   - `Verification_Status` (VARCHAR(50), default `'Verified'`)
+   - `Created_At` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+
+2. **How to create or update this field in phpMyAdmin**:
+   - If creating fresh: import `cpanel_users_table.sql`.
+   - If you already created the table, run:
+     ```sql
+     -- Remove Role:
+     ALTER TABLE `Users` DROP COLUMN `Role`;
+
+     -- Replace Is_Verified with Verification_Status:
+     ALTER TABLE `Users` CHANGE COLUMN `Is_Verified` `Verification_Status` VARCHAR(50) DEFAULT 'Verified';
+
+     -- Or simply add Verification_Status if it is not there yet:
+     ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `Verification_Status` VARCHAR(50) DEFAULT 'Verified';
+     ```
+
+3. **6-Digit Email OTP Verification**:
+   - When a user submits the signup form, a secure 6-digit OTP code is generated and dispatched to their email address.
+   - The user is immediately navigated to the **OTP Verification Page**.
+   - The account is **only inserted into the `Users` table** when the user enters the matching 6-digit code.
+   - Invalid OTP codes display clear error messages with remaining attempt counts.
+   - Passwords are encrypted with salted **bcryptjs** before storage.
+   - Only registered users with verified credentials can log in.
+
+---
+
+## 3. Picture File Storage on cPanel (`Images/Request_Quotes/`)
 
 When users attach an image, blueprint, or equipment photo on the **Request Quote** page:
 1. **Physical File Saved on Disk**: The binary image is saved directly onto your cPanel server inside the app root at:

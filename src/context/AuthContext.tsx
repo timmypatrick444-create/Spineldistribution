@@ -5,7 +5,10 @@ interface AuthContextType {
   user: UserProfile | null;
   isAdmin: boolean;
   adminToken: string | null;
-  customerLogin: (email: string, name?: string) => Promise<void>;
+  customerLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }>;
+  customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  customerVerifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  customerResendOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerLogout: () => void;
   adminLogin: (technicalEmail: string, accessKey: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
@@ -39,33 +42,162 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
         .then(res => {
           if (!res.ok) {
-            // Token expired or invalid
             adminLogout();
           } else {
             setIsAdmin(true);
           }
         })
-        .catch(() => {
-          // Keep offline if server briefly rebooting
-        });
+        .catch(() => {});
     }
   }, [adminToken]);
 
-  const customerLogin = async (email: string, name?: string) => {
-    const profile: UserProfile = {
-      id: `usr_${Date.now()}`,
-      email: email.trim().toLowerCase(),
-      fullName: name || email.split('@')[0],
-      role: 'customer',
-      createdAt: new Date().toISOString()
-    };
-    setUser(profile);
-    localStorage.setItem('spinel_user', JSON.stringify(profile));
+  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Authentication failed. Please check your credentials.',
+          pendingVerification: data.pendingVerification,
+          email: data.email
+        };
+      }
+
+      const profile: UserProfile = {
+        id: String(data.user.id || `usr_${Date.now()}`),
+        email: data.user.email,
+        fullName: data.user.fullName || data.user.email.split('@')[0],
+        verificationStatus: data.user.verificationStatus || 'Verified',
+        createdAt: new Date().toISOString()
+      };
+
+      setUser(profile);
+      localStorage.setItem('spinel_user', JSON.stringify(profile));
+      if (data.token) {
+        localStorage.setItem('spinel_user_token', data.token);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during login.'
+      };
+    }
+  };
+
+  const customerRegisterInitiate = async (
+    fullName: string,
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/register-initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to initiate account registration.'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message,
+        devOtp: data.devOtp
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during registration.'
+      };
+    }
+  };
+
+  const customerVerifyOtp = async (
+    email: string,
+    otp: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Invalid verification code.'
+        };
+      }
+
+      const profile: UserProfile = {
+        id: String(data.user.id || `usr_${Date.now()}`),
+        email: data.user.email,
+        fullName: data.user.fullName || data.user.email.split('@')[0],
+        verificationStatus: data.user.verificationStatus || 'Verified',
+        createdAt: new Date().toISOString()
+      };
+
+      setUser(profile);
+      localStorage.setItem('spinel_user', JSON.stringify(profile));
+      if (data.token) {
+        localStorage.setItem('spinel_user_token', data.token);
+      }
+
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Connection error during OTP verification.'
+      };
+    }
+  };
+
+  const customerResendOtp = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to resend verification code.'
+        };
+      }
+
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Network error while requesting code resend.'
+      };
+    }
   };
 
   const customerLogout = () => {
     setUser(null);
     localStorage.removeItem('spinel_user');
+    localStorage.removeItem('spinel_user_token');
   };
 
   const adminLogin = async (technicalEmail: string, accessKey: string): Promise<{ success: boolean; error?: string }> => {
@@ -104,6 +236,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         adminToken,
         customerLogin,
+        customerRegisterInitiate,
+        customerVerifyOtp,
+        customerResendOtp,
         customerLogout,
         adminLogin,
         adminLogout

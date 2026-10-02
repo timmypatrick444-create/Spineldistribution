@@ -13,6 +13,7 @@ import { CheckoutPage } from './components/CheckoutPage';
 import { OrdersPage } from './components/OrdersPage';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
+import { OtpVerificationPage } from './components/OtpVerificationPage';
 import { RequestQuotePage } from './components/RequestQuotePage';
 import { InvoicePage } from './components/InvoicePage';
 import { AdminLogin } from './pages/AdminLogin';
@@ -46,6 +47,8 @@ function MainApp() {
     return 'home';
   });
 
+  const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
+  const [pendingAuthName, setPendingAuthName] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/product/')) {
       const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
@@ -241,7 +244,7 @@ function MainApp() {
   };
 
   const isAdminView = currentView === 'admin-dashboard';
-  const isAuthView = currentView === 'login' || currentView === 'signup';
+  const isAuthView = currentView === 'login' || currentView === 'signup' || currentView === 'otp-verify';
 
   return (
     <div className={`min-h-screen flex flex-col ${isAdminView ? 'bg-[#0f172a]' : isAuthView ? 'bg-[#f3f4f6]' : 'bg-[#eaeded]'} text-[#0F1111] font-sans antialiased w-full max-w-full overflow-x-hidden`}>
@@ -387,6 +390,11 @@ function MainApp() {
               <LoginPage
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
+                onNavigateToOtp={(email) => {
+                  setPendingAuthEmail(email);
+                  setCurrentView('otp-verify');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
 
@@ -394,6 +402,25 @@ function MainApp() {
               <SignupPage
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
+                onNavigateToOtp={(email, fullName) => {
+                  setPendingAuthEmail(email);
+                  setPendingAuthName(fullName);
+                  setCurrentView('otp-verify');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
+
+            {currentView === 'otp-verify' && (
+              <OtpVerificationPage
+                email={pendingAuthEmail}
+                fullName={pendingAuthName}
+                onSuccess={() => navigateTo('home')}
+                onNavigate={navigateTo}
+                onBackToSignup={() => {
+                  setCurrentView('signup');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
 
