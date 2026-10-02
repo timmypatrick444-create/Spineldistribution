@@ -2006,11 +2006,136 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // -------------------------------------------------------------
-// STOREFRONT & SPA HANDLING
+// STOREFRONT & SPA HANDLING (WITH ZERO-CACHE REALTIME DELIVERY)
 // -------------------------------------------------------------
+const SERVER_BOOT_TIME = Date.now();
+let lastRestartCheck = 0;
+
+// Automatically detect when new application files are uploaded to cPanel
+function checkAutoReloadOnNewUpload() {
+  const now = Date.now();
+  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
+  lastRestartCheck = now;
+
+  const appFiles = [
+    path.join(process.cwd(), 'app.js'),
+    path.join(__dirname, 'app.js'),
+    path.join(process.cwd(), 'server.cjs'),
+    path.join(process.cwd(), 'tmp', 'restart.txt')
+  ];
+
+  for (const f of appFiles) {
+    if (fs.existsSync(f)) {
+      try {
+        const stats = fs.statSync(f);
+        // If file modified after the current process booted (+5s buffer for startup)
+        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
+          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
+          try {
+            const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
+            fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
+            fs.writeFileSync(restartPath, String(Date.now()));
+          } catch {}
+          setTimeout(() => process.exit(0), 100);
+          break;
+        }
+      } catch {}
+    }
+  }
+}
+
+// Scans all candidate directories to find the single newest compiled index.html
+function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtime: number } | null {
+  const rootDir = process.env.APP_ROOT || process.cwd();
+  const candidates = [
+    path.join(rootDir, 'dist', 'index.html'),
+    path.join(rootDir, 'client-build', 'index.html'),
+    path.join(process.cwd(), 'dist', 'index.html'),
+    path.join(process.cwd(), 'client-build', 'index.html'),
+    path.join(__dirname, 'dist', 'index.html'),
+    path.join(__dirname, 'client-build', 'index.html'),
+    path.join(rootDir, 'index.html'),
+    path.join(process.cwd(), 'index.html')
+  ];
+
+  let bestFile: string | null = null;
+  let bestMtime = 0;
+  let bestContent = '';
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const stats = fs.statSync(candidate);
+        const content = fs.readFileSync(candidate, 'utf8');
+        // Must be a compiled bundle with assets (not raw dev index referencing src/main.tsx)
+        const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
+        if (isCompiled && stats.mtimeMs > bestMtime) {
+          bestMtime = stats.mtimeMs;
+          bestFile = candidate;
+          bestContent = content;
+        }
+      } catch {}
+    }
+  }
+
+  if (bestFile && bestContent) {
+    return { filePath: bestFile, content: bestContent, mtime: bestMtime };
+  }
+  return null;
+}
+
+// Delivers the newest index.html with strict zero-cache headers to eliminate stale browser views
+function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const latest = getLatestCompiledIndexHtml();
+  if (latest) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.removeHeader('ETag');
+    return res.status(200).send(latest.content);
+  }
+  next();
+}
+
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
-  const rootDir = process.env.APP_ROOT || process.cwd();
+
+  // Ensure cPanel tmp/restart.txt exists
+  try {
+    const tmpDir = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const restartFile = path.join(tmpDir, 'restart.txt');
+    if (!fs.existsSync(restartFile)) {
+      fs.writeFileSync(restartFile, String(Date.now()));
+    }
+  } catch {}
+
+  // Auto-reload watcher middleware
+  app.use((req, res, next) => {
+    checkAutoReloadOnNewUpload();
+    next();
+  });
+
+  // Dedicated instant restart endpoint
+  app.get('/api/system/restart', (req, res) => {
+    try {
+      const restartFile = path.join(process.cwd(), 'tmp', 'restart.txt');
+      fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
+      fs.writeFileSync(restartFile, String(Date.now()));
+    } catch {}
+
+    res.json({
+      success: true,
+      message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
+    });
+
+    setTimeout(() => {
+      console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
+      process.exit(0);
+    }, 200);
+  });
 
   // In development mode: always mount Vite middlewares for live HMR and reactive compilation
   if (!isProd) {
@@ -2028,78 +2153,33 @@ async function startServer() {
     }
   }
 
-  // Detect static production frontend paths
-  const candidates = [
-    path.join(rootDir, 'dist'),
-    path.join(rootDir, 'client-build'),
-    path.join(process.cwd(), 'dist'),
-    path.join(process.cwd(), 'client-build'),
-    path.join(__dirname, 'dist'),
-    path.join(__dirname, 'client-build')
+  // Static immutable assets for hashed JS and CSS bundles
+  const assetPaths = [
+    path.join(process.cwd(), 'dist', 'assets'),
+    path.join(process.cwd(), 'client-build', 'assets'),
+    path.join(__dirname, 'dist', 'assets'),
+    path.join(__dirname, 'client-build', 'assets')
   ];
-
-  let distPath: string | null = null;
-  for (const candidate of candidates) {
-    const file = path.join(candidate, 'index.html');
-    if (fs.existsSync(file)) {
-      try {
-        const content = fs.readFileSync(file, 'utf8');
-        if ((content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx')) {
-          distPath = candidate;
-          break;
-        }
-      } catch {}
+  for (const aPath of assetPaths) {
+    if (fs.existsSync(aPath)) {
+      app.use('/assets', express.static(aPath, {
+        maxAge: '1y',
+        immutable: true
+      }));
     }
   }
 
-  if (distPath) {
-    console.log(`[Storefront] Serving production static assets from: ${distPath}`);
-    app.use('/assets', express.static(path.join(distPath, 'assets'), {
-      maxAge: '1y',
-      immutable: true
-    }));
+  // Handle root entry point explicitly with zero-cache live HTML
+  app.get('/', (req, res, next) => {
+    sendFreshSpaHtml(req, res, next);
+  });
 
-    app.use(express.static(distPath, {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-          res.setHeader('Pragma', 'no-cache');
-          res.setHeader('Expires', '0');
-        }
-      }
-    }));
-  }
-
-  // SPA fallback handler with robust try/catch and multi-candidate verification
+  // SPA fallback handler with real-time freshest HTML delivery
   app.get('*', (req, res, next) => {
-    // Skip API, uploads, and image routes
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
       return next();
     }
-
-    const possibleIndexFiles = [
-      distPath ? path.join(distPath, 'index.html') : null,
-      path.join(process.cwd(), 'client-build', 'index.html'),
-      path.join(process.cwd(), 'dist', 'index.html'),
-      path.join(__dirname, 'client-build', 'index.html'),
-      path.join(__dirname, 'dist', 'index.html'),
-      path.join(process.cwd(), 'index.html')
-    ].filter(Boolean) as string[];
-
-    for (const indexPath of possibleIndexFiles) {
-      if (fs.existsSync(indexPath)) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        return res.sendFile(indexPath, (err) => {
-          if (err && !res.headersSent) {
-            next();
-          }
-        });
-      }
-    }
-
-    next();
+    sendFreshSpaHtml(req, res, next);
   });
 
   // Handle cPanel Phusion Passenger socket pipe or numeric port

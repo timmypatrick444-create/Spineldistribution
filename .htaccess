@@ -10,12 +10,14 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Browser & Proxy Caching Controls
+# 2. Prevent Caching of HTML (Ensures live domain always shows newest version)
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|htm)$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
     Header set Pragma "no-cache"
-    Header set Expires "0"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    Header unset ETag
+    Header unset Last-Modified
   </FilesMatch>
   <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|webp)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
@@ -26,4 +28,6 @@
 <IfModule mod_passenger.c>
   PassengerAppType node
   PassengerStartupFile app.js
+  PassengerEnabled on
+  PassengerRestartDir tmp
 </IfModule>
