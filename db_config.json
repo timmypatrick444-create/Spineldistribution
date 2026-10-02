@@ -1,0 +1,13 @@
+{
+  "_comment": "SPINEL DISTRIBUTION - CPANEL DATABASE & EMAIL CONFIGURATION",
+  "DB_HOST": "127.0.0.1",
+  "DB_USER": "",
+  "DB_PASSWORD": "",
+  "DB_NAME": "",
+  "DB_PORT": 3306,
+  "SMTP_HOST": "",
+  "SMTP_PORT": 465,
+  "SMTP_USER": "",
+  "SMTP_PASSWORD": "",
+  "SMTP_FROM": "\"Spinel Distribution\" <noreply@spineldistribution.com>"
+}

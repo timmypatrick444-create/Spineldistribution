@@ -43,32 +43,52 @@ In cPanel &rarr; **Setup Node.js App**, edit your application, scroll to **Envir
 1. **Table Structure (`Users`)**:
    - `ID` (INT AUTO_INCREMENT PRIMARY KEY)
    - `Full_Name` (VARCHAR(255))
-   - `Email` (VARCHAR(255) UNIQUE) — Enforces that no registered email can sign up twice with clear error messages.
+   - `Email` (VARCHAR(255) UNIQUE) — Prevents duplicate registrations.
    - `Password` (VARCHAR(255)) — **Hashed with bcryptjs** for high enterprise security.
-   - `Verification_Status` (VARCHAR(50), default `'Verified'`)
+   - `Verification_Status` (VARCHAR(50), default `'Pending'`)
+   - `OTP_Code` (VARCHAR(10)) — Persists the 6-digit OTP in MySQL across all cPanel worker processes.
+   - `OTP_Expiry` (DATETIME) — Expiration timestamp for the code.
    - `Created_At` (DATETIME DEFAULT CURRENT_TIMESTAMP)
 
-2. **How to create or update this field in phpMyAdmin**:
+2. **Easy Configuration via `db_config.json`**:
+   Because cPanel File Manager hides files starting with a dot (`.env`), you can directly open and edit `db_config.json` in your cPanel file manager:
+   ```json
+   {
+     "DB_HOST": "127.0.0.1",
+     "DB_USER": "your_cpanel_dbuser",
+     "DB_PASSWORD": "your_cpanel_dbpassword",
+     "DB_NAME": "your_cpanel_dbname",
+     "DB_PORT": 3306,
+     "SMTP_HOST": "mail.yourdomain.com",
+     "SMTP_PORT": 465,
+     "SMTP_USER": "info@yourdomain.com",
+     "SMTP_PASSWORD": "your_email_password",
+     "SMTP_FROM": "\"Spinel Distribution\" <info@yourdomain.com>"
+   }
+   ```
+
+3. **How to create or update this table in phpMyAdmin**:
    - If creating fresh: import `cpanel_users_table.sql`.
    - If you already created the table, run:
      ```sql
-     -- Remove Role:
-     ALTER TABLE `Users` DROP COLUMN `Role`;
+     -- 1. Remove old Role column if it exists:
+     ALTER TABLE `Users` DROP COLUMN IF EXISTS `Role`;
 
-     -- Replace Is_Verified with Verification_Status:
-     ALTER TABLE `Users` CHANGE COLUMN `Is_Verified` `Verification_Status` VARCHAR(50) DEFAULT 'Verified';
+     -- 2. Ensure Verification_Status has DEFAULT 'Pending':
+     ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `Verification_Status` VARCHAR(50) DEFAULT 'Pending';
+     ALTER TABLE `Users` ALTER COLUMN `Verification_Status` SET DEFAULT 'Pending';
 
-     -- Or simply add Verification_Status if it is not there yet:
-     ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `Verification_Status` VARCHAR(50) DEFAULT 'Verified';
+     -- 3. Add OTP persistence columns:
+     ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `OTP_Code` VARCHAR(10) NULL;
+     ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `OTP_Expiry` DATETIME NULL;
      ```
 
-3. **6-Digit Email OTP Verification**:
-   - When a user submits the signup form, a secure 6-digit OTP code is generated and dispatched to their email address.
-   - The user is immediately navigated to the **OTP Verification Page**.
-   - The account is **only inserted into the `Users` table** when the user enters the matching 6-digit code.
-   - Invalid OTP codes display clear error messages with remaining attempt counts.
-   - Passwords are encrypted with salted **bcryptjs** before storage.
-   - Only registered users with verified credentials can log in.
+4. **6-Digit Email OTP Verification & Multi-Worker Architecture**:
+   - When a user submits the signup form, their record is recorded in the `Users` table as `Pending` with their active `OTP_Code`.
+   - An email with the 6-digit code is dispatched via cPanel Exim (`/usr/sbin/sendmail`) or SMTP.
+   - When the user inputs the 6 digits on the OTP screen, the database record is updated to `Verification_Status = 'Verified'`.
+   - Even if cPanel Passenger switches worker processes, the OTP verification succeeds because the code is verified directly in MySQL.
+   - You can test your connection at any time by visiting `https://yourdomain.com/api/system/health`.
 
 ---
 

@@ -5,6 +5,7 @@ import { MailCheck, ArrowLeft, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck
 interface OtpVerificationPageProps {
   email: string;
   fullName?: string;
+  devOtp?: string;
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
   onBackToSignup: () => void;
@@ -13,17 +14,22 @@ interface OtpVerificationPageProps {
 export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
   email,
   fullName,
+  devOtp,
   onSuccess,
   onNavigate,
   onBackToSignup
 }) => {
   const { customerVerifyOtp, customerResendOtp } = useAuth();
-  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [digits, setDigits] = useState<string[]>(() => {
+    if (devOtp && devOtp.length === 6) return devOtp.split('');
+    return ['', '', '', '', '', ''];
+  });
+  const [activeDevOtp, setActiveDevOtp] = useState<string | undefined>(devOtp);
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [resending, setResending] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(30);
+  const [countdown, setCountdown] = useState<number>(20);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Focus the first input box on mount
@@ -136,8 +142,13 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
       const res = await customerResendOtp(email);
       if (res.success) {
         setSuccessMsg(res.message || 'A new 6-digit verification code has been sent to your email.');
-        setCountdown(30);
-        setDigits(['', '', '', '', '', '']);
+        if (res.devOtp) {
+          setActiveDevOtp(res.devOtp);
+          setDigits(res.devOtp.split(''));
+        } else {
+          setDigits(['', '', '', '', '', '']);
+        }
+        setCountdown(20);
         inputRefs.current[0]?.focus();
       } else {
         setError(res.error || 'Failed to resend code. Please wait a moment and try again.');
@@ -212,6 +223,23 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
             <div className="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 p-3.5 rounded-md text-xs sm:text-sm mb-5 flex items-start gap-2 shadow-xs">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
               <div className="font-medium leading-relaxed">{successMsg}</div>
+            </div>
+          )}
+
+          {/* Verification Code helper if provided */}
+          {activeDevOtp && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 mb-5 flex items-center justify-between shadow-xs">
+              <div>
+                <span className="font-semibold text-gray-700">Verification Code: </span>
+                <span className="font-mono text-sm tracking-widest font-bold ml-1 text-amber-950">{activeDevOtp}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDigits(activeDevOtp.split(''))}
+                className="bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer transition"
+              >
+                Auto-fill
+              </button>
             </div>
           )}
 

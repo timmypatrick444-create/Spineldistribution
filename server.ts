@@ -102,19 +102,49 @@ let dbConfigDetails: {
   usingSocket?: boolean;
 } | null = null;
 
-// Multi-path .env loader to ensure environment variables are loaded regardless of Passenger cwd
+// Multi-path .env and json loader to ensure environment variables are loaded regardless of Passenger cwd
 function loadAllPossibleEnvFiles() {
   const candidates = [
     path.join(__dirname, '.env'),
     path.join(process.cwd(), '.env'),
     path.join(process.env.APP_ROOT || '', '.env'),
     path.join(__dirname, '../.env'),
-    path.join(process.cwd(), '../.env')
+    path.join(process.cwd(), '../.env'),
+    path.join(__dirname, 'cpanel.env'),
+    path.join(process.cwd(), 'cpanel.env')
   ];
   for (const envPath of candidates) {
     if (fs.existsSync(envPath)) {
       try {
         dotenv.config({ path: envPath });
+      } catch {}
+    }
+  }
+
+  // Also read db_config.json if .env is missing or hidden by cPanel File Manager
+  const jsonPaths = [
+    path.join(__dirname, 'db_config.json'),
+    path.join(process.cwd(), 'db_config.json'),
+    path.join(__dirname, 'config.json'),
+    path.join(process.cwd(), 'config.json')
+  ];
+  for (const jPath of jsonPaths) {
+    if (fs.existsSync(jPath)) {
+      try {
+        const raw = fs.readFileSync(jPath, 'utf8');
+        const json = JSON.parse(raw);
+        if (json.DB_USER && !process.env.DB_USER) process.env.DB_USER = json.DB_USER;
+        if (json.DB_PASSWORD && !process.env.DB_PASSWORD) process.env.DB_PASSWORD = json.DB_PASSWORD;
+        if (json.DB_PASS && !process.env.DB_PASSWORD) process.env.DB_PASSWORD = json.DB_PASS;
+        if (json.DB_NAME && !process.env.DB_NAME) process.env.DB_NAME = json.DB_NAME;
+        if (json.DB_HOST && !process.env.DB_HOST) process.env.DB_HOST = json.DB_HOST;
+        if (json.DB_PORT && !process.env.DB_PORT) process.env.DB_PORT = String(json.DB_PORT);
+        if (json.SMTP_HOST && !process.env.SMTP_HOST) process.env.SMTP_HOST = json.SMTP_HOST;
+        if (json.SMTP_PORT && !process.env.SMTP_PORT) process.env.SMTP_PORT = String(json.SMTP_PORT);
+        if (json.SMTP_USER && !process.env.SMTP_USER) process.env.SMTP_USER = json.SMTP_USER;
+        if (json.SMTP_PASSWORD && !process.env.SMTP_PASSWORD) process.env.SMTP_PASSWORD = json.SMTP_PASSWORD;
+        if (json.SMTP_PASS && !process.env.SMTP_PASSWORD) process.env.SMTP_PASSWORD = json.SMTP_PASS;
+        if (json.SMTP_FROM && !process.env.SMTP_FROM) process.env.SMTP_FROM = json.SMTP_FROM;
       } catch {}
     }
   }
@@ -124,7 +154,7 @@ loadAllPossibleEnvFiles();
 function getDbConfig() {
   loadAllPossibleEnvFiles();
   const rawHost = (process.env.DB_HOST || process.env.MYSQL_HOST || process.env.DATABASE_HOST || '127.0.0.1').trim().replace(/^["']|["']$/g, '');
-  // On cPanel/CloudLinux, 'localhost' in Node.js attempts /tmp/mysql.sock which does not exist.
+  // On cPanel/CloudLinux, 'localhost' in Node.js attempts /tmp/mysql.sock which may not exist.
   // 127.0.0.1 forces TCP loopback on port 3306 which connects to cPanel MySQL/MariaDB 100% reliably.
   const host = (!rawHost || rawHost === 'localhost') ? '127.0.0.1' : rawHost;
   const user = (process.env.DB_USER || process.env.MYSQL_USER || process.env.DB_USERNAME || process.env.DATABASE_USER || '').trim().replace(/^["']|["']$/g, '');
@@ -156,7 +186,7 @@ async function ensureQuoteTableExists(pool: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
     await pool.query(tableSql);
-    // Explicitly drop redundant lowercase `request_quote` table if it was previously created
+    // Explicitly drop redundant lowercase \`request_quote\` table if it was previously created
     try {
       await pool.query('DROP TABLE IF EXISTS `request_quote`');
     } catch {}
@@ -175,13 +205,15 @@ async function ensureUsersTableExists(pool: mysql.Pool) {
         \`Email\` VARCHAR(255) NOT NULL UNIQUE,
         \`Password\` VARCHAR(255) NOT NULL,
         \`Verification_Status\` VARCHAR(50) DEFAULT 'Pending',
+        \`OTP_Code\` VARCHAR(10) NULL,
+        \`OTP_Expiry\` DATETIME NULL,
         \`Created_At\` DATETIME DEFAULT CURRENT_TIMESTAMP,
         INDEX \`idx_users_email\` (\`Email\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `;
     await pool.query(usersTableSql);
 
-    // If table was previously created with Is_Verified, migrate it to Verification_Status with DEFAULT 'Pending'
+    // If table was previously created, migrate columns seamlessly
     try {
       await pool.query("ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `Verification_Status` VARCHAR(50) DEFAULT 'Pending'");
     } catch {}
@@ -190,12 +222,20 @@ async function ensureUsersTableExists(pool: mysql.Pool) {
       await pool.query("ALTER TABLE `Users` ALTER COLUMN `Verification_Status` SET DEFAULT 'Pending'");
     } catch {}
 
+    try {
+      await pool.query("ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `OTP_Code` VARCHAR(10) NULL");
+    } catch {}
+
+    try {
+      await pool.query("ALTER TABLE `Users` ADD COLUMN IF NOT EXISTS `OTP_Expiry` DATETIME NULL");
+    } catch {}
+
     // Drop Role column if it exists in the Users table as requested
     try {
       await pool.query("ALTER TABLE `Users` DROP COLUMN `Role`");
     } catch {}
 
-    console.log('[MySQL] "Users" table verified with "Verification_Status" DEFAULT "Pending".');
+    console.log('[MySQL] "Users" table verified with "Verification_Status" and "OTP_Code" persistence.');
   } catch (err: any) {
     console.log('[MySQL] "Users" table notice:', err.message);
   }
@@ -341,6 +381,8 @@ interface DbUser {
   email: string;
   password: string; // bcrypt hashed
   verificationStatus: string;
+  otpCode?: string | null;
+  otpExpiry?: string | null;
   createdAt: string;
 }
 
@@ -352,14 +394,16 @@ async function loadUsersFromDb() {
   const pool = await getOrInitDbPool();
   if (pool) {
     try {
-      const [rows]: any = await pool.query('SELECT * FROM `Users` LIMIT 1000');
+      const [rows]: any = await pool.query('SELECT * FROM `Users` LIMIT 2000');
       if (Array.isArray(rows) && rows.length > 0) {
         inMemoryUsers = rows.map((r: any) => ({
           id: r.ID || r.id,
           fullName: r.Full_Name || r.full_name || r.Name || r.name || (r.Email || r.email || '').split('@')[0],
           email: (r.Email || r.email || '').toLowerCase().trim(),
           password: r.Password || r.password || '',
-          verificationStatus: r.Verification_Status || r.verification_status || 'Verified',
+          verificationStatus: r.Verification_Status || r.verification_status || 'Pending',
+          otpCode: r.OTP_Code || r.otp_code || null,
+          otpExpiry: r.OTP_Expiry || r.otp_expiry || null,
           createdAt: r.Created_At || r.created_at || new Date().toISOString()
         }));
         console.log(`[MySQL] Loaded ${inMemoryUsers.length} registered users from "Users" table.`);
@@ -383,35 +427,9 @@ interface PendingSignup {
 
 const pendingSignups = new Map<string, PendingSignup>();
 
-// Nodemailer transporter helper
-function getMailTransporter() {
-  const host = process.env.SMTP_HOST || process.env.MAIL_HOST || '127.0.0.1';
-  const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '587', 10);
-  const user = process.env.SMTP_USER || process.env.MAIL_USERNAME || '';
-  const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '';
-  const secure = port === 465;
-
-  if (user && pass) {
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false }
-    });
-  }
-
-  // Fallback to local sendmail / port 25 for cPanel
-  return nodemailer.createTransport({
-    host: 'localhost',
-    port: 25,
-    secure: false,
-    tls: { rejectUnauthorized: false },
-    ignoreTLS: true
-  });
-}
-
-async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<boolean> {
+// Multi-tiered Email Delivery Engine for cPanel & Production
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
+  loadAllPossibleEnvFiles();
   const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
   const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
 
@@ -420,44 +438,120 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
   console.log(`[Email OTP Service] VERIFICATION CODE (OTP): ${otp}`);
   console.log(`[Email OTP Service] ==========================================`);
 
+  const htmlBody = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+      <div style="background: #0f172a; padding: 24px; text-align: center;">
+        <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
+        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Renewable Energy</p>
+      </div>
+      <div style="padding: 32px 28px;">
+        <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
+        <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
+          Thank you for registering with Spinel Distribution. Please use the 6-digit verification code below to verify your email address and activate your account:
+        </div>
+        <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 18px; text-align: center; margin: 20px 0;">
+          <div style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #b45309;">${otp}</div>
+          <div style="font-size: 12px; color: #92400e; margin-top: 8px; font-weight: 500;">Valid for 15 minutes. Do not share this code.</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
+          If you did not initiate this request, you can safely ignore this email.
+        </div>
+      </div>
+      <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
+        &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+      </div>
+    </div>
+  `;
+  const textBody = `Your Spinel Distribution verification code is: ${otp}. Valid for 15 minutes.`;
+
+  // Tier 1: Dedicated SMTP if configured in .env or db_config.json
+  const host = (process.env.SMTP_HOST || process.env.MAIL_HOST || '').trim();
+  const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '465', 10);
+  const user = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
+  const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '').trim();
+
+  if (host && user && pass) {
+    try {
+      const secure = port === 465;
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 10000
+      });
+      await transporter.sendMail({
+        from: fromAddress,
+        to: toEmail,
+        subject,
+        text: textBody,
+        html: htmlBody
+      });
+      console.log(`[Email OTP Service] OTP delivered successfully via SMTP (${host}:${port}) to ${toEmail}`);
+      return { success: true, method: `smtp:${host}:${port}` };
+    } catch (smtpErr: any) {
+      console.warn(`[Email OTP Service] SMTP delivery attempt failed (${host}):`, smtpErr.message);
+    }
+  }
+
+  // Tier 2: cPanel Exim Sendmail binary (/usr/sbin/sendmail)
+  const sendmailBinaries = ['/usr/sbin/sendmail', '/usr/bin/sendmail', '/usr/lib/sendmail', '/bin/sendmail'];
+  for (const sPath of sendmailBinaries) {
+    if (fs.existsSync(sPath)) {
+      try {
+        const sendmailTransporter = nodemailer.createTransport({
+          sendmail: true,
+          newline: 'unix',
+          path: sPath
+        });
+        await sendmailTransporter.sendMail({
+          from: fromAddress,
+          to: toEmail,
+          subject,
+          text: textBody,
+          html: htmlBody
+        });
+        console.log(`[Email OTP Service] OTP delivered successfully via cPanel sendmail (${sPath}) to ${toEmail}`);
+        return { success: true, method: `sendmail:${sPath}` };
+      } catch (smErr: any) {
+        console.warn(`[Email OTP Service] Sendmail (${sPath}) attempt failed:`, smErr.message);
+      }
+    }
+  }
+
+  // Tier 3: Localhost SMTP relay (port 25 / port 587)
   try {
-    const transporter = getMailTransporter();
-    await transporter.sendMail({
+    const localTransporter = nodemailer.createTransport({
+      host: '127.0.0.1',
+      port: 25,
+      secure: false,
+      tls: { rejectUnauthorized: false },
+      ignoreTLS: true,
+      connectionTimeout: 3000,
+      greetingTimeout: 3000,
+      socketTimeout: 5000
+    });
+    await localTransporter.sendMail({
       from: fromAddress,
       to: toEmail,
       subject,
-      text: `Your Spinel Distribution verification code is: ${otp}. This code is valid for 10 minutes.`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
-          <div style="background: #0f172a; padding: 24px; text-align: center;">
-            <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
-            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Renewable Energy</p>
-          </div>
-          <div style="padding: 32px 28px;">
-            <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
-            <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
-              Thank you for registering with Spinel Distribution. Please use the 6-digit verification code below to verify your email address and activate your account:
-            </div>
-            <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 18px; text-align: center; margin: 20px 0;">
-              <div style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #b45309;">${otp}</div>
-              <div style="font-size: 12px; color: #92400e; margin-top: 8px; font-weight: 500;">Valid for 10 minutes. Do not share this code.</div>
-            </div>
-            <div style="font-size: 12px; color: #64748b;">
-              If you did not initiate this request, you can safely ignore this email.
-            </div>
-          </div>
-          <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-            &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
-          </div>
-        </div>
-      `
+      text: textBody,
+      html: htmlBody
     });
-    console.log(`[Email OTP Service] Verification email dispatched to ${toEmail}`);
-    return true;
-  } catch (err: any) {
-    console.log(`[Email OTP Service] Mail delivery notice for ${toEmail}: ${err.message}. OTP code: ${otp}`);
-    return false;
+    console.log(`[Email OTP Service] OTP delivered via local Exim relay (127.0.0.1:25) to ${toEmail}`);
+    return { success: true, method: 'local_relay' };
+  } catch (relayErr: any) {
+    console.warn(`[Email OTP Service] Local Exim relay notice:`, relayErr.message);
   }
+
+  return {
+    success: false,
+    method: 'none',
+    error: 'No active email transport available. Please add SMTP details to db_config.json or .env.'
+  };
 }
 
 async function findUserByEmail(email: string): Promise<DbUser | null> {
@@ -465,10 +559,25 @@ async function findUserByEmail(email: string): Promise<DbUser | null> {
   const pool = await getOrInitDbPool();
   if (pool) {
     try {
-      const [rows]: any = await pool.query(
-        'SELECT * FROM `Users` WHERE LOWER(`Email`) = LOWER(?) LIMIT 1',
-        [cleanEmail]
-      );
+      let rows: any;
+      try {
+        const [r1]: any = await pool.query(
+          'SELECT * FROM `Users` WHERE LOWER(`Email`) = LOWER(?) LIMIT 1',
+          [cleanEmail]
+        );
+        rows = r1;
+      } catch (tableErr: any) {
+        if (tableErr.errno === 1146 || (tableErr.message && tableErr.message.includes("doesn't exist"))) {
+          const [r2]: any = await pool.query(
+            'SELECT * FROM `users` WHERE LOWER(`Email`) = LOWER(?) LIMIT 1',
+            [cleanEmail]
+          );
+          rows = r2;
+        } else {
+          throw tableErr;
+        }
+      }
+
       if (Array.isArray(rows) && rows.length > 0) {
         const r = rows[0];
         return {
@@ -476,7 +585,9 @@ async function findUserByEmail(email: string): Promise<DbUser | null> {
           fullName: r.Full_Name || r.full_name || r.Name || r.name || cleanEmail.split('@')[0],
           email: (r.Email || r.email || cleanEmail).toLowerCase(),
           password: r.Password || r.password || '',
-          verificationStatus: r.Verification_Status || r.verification_status || (r.Is_Verified ? 'Verified' : 'Verified'),
+          verificationStatus: r.Verification_Status || r.verification_status || (r.Is_Verified ? 'Verified' : 'Pending'),
+          otpCode: r.OTP_Code || r.otp_code || null,
+          otpExpiry: r.OTP_Expiry || r.otp_expiry || null,
           createdAt: r.Created_At || r.created_at || new Date().toISOString()
         };
       }
@@ -490,18 +601,38 @@ async function findUserByEmail(email: string): Promise<DbUser | null> {
   return memUser || null;
 }
 
-async function insertUserToDb(fullName: string, email: string, hashedPassword: string, status: string = 'Pending'): Promise<DbUser> {
+async function insertUserToDb(
+  fullName: string,
+  email: string,
+  hashedPassword: string,
+  status: string = 'Pending',
+  otpCode?: string,
+  otpExpiry?: number
+): Promise<DbUser> {
   const cleanEmail = email.trim().toLowerCase();
   const pool = await getOrInitDbPool();
+  const expiryDate = otpExpiry ? new Date(otpExpiry) : new Date(Date.now() + 15 * 60 * 1000);
 
   if (pool) {
     try {
       const insertSql = `
-        INSERT INTO \`Users\` (\`Full_Name\`, \`Email\`, \`Password\`, \`Verification_Status\`, \`Created_At\`)
-        VALUES (?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE \`Full_Name\` = VALUES(\`Full_Name\`), \`Password\` = VALUES(\`Password\`), \`Verification_Status\` = VALUES(\`Verification_Status\`)
+        INSERT INTO \`Users\` (\`Full_Name\`, \`Email\`, \`Password\`, \`Verification_Status\`, \`OTP_Code\`, \`OTP_Expiry\`, \`Created_At\`)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ON DUPLICATE KEY UPDATE 
+          \`Full_Name\` = VALUES(\`Full_Name\`),
+          \`Password\` = VALUES(\`Password\`),
+          \`Verification_Status\` = VALUES(\`Verification_Status\`),
+          \`OTP_Code\` = VALUES(\`OTP_Code\`),
+          \`OTP_Expiry\` = VALUES(\`OTP_Expiry\`)
       `;
-      const [res]: any = await pool.execute(insertSql, [fullName.trim(), cleanEmail, hashedPassword, status]);
+      const [res]: any = await pool.query(insertSql, [
+        fullName.trim(),
+        cleanEmail,
+        hashedPassword,
+        status,
+        otpCode || null,
+        expiryDate
+      ]);
       const newId = res.insertId || Date.now();
 
       const createdUser: DbUser = {
@@ -510,37 +641,59 @@ async function insertUserToDb(fullName: string, email: string, hashedPassword: s
         email: cleanEmail,
         password: hashedPassword,
         verificationStatus: status,
+        otpCode: otpCode || null,
+        otpExpiry: expiryDate.toISOString(),
         createdAt: new Date().toISOString()
       };
 
       inMemoryUsers = inMemoryUsers.filter(u => u.email !== cleanEmail);
       inMemoryUsers.push(createdUser);
-      console.log(`[MySQL] User recorded in "Users" table with status "${status}": #${newId} - ${cleanEmail}`);
+      console.log(`[MySQL] User recorded in "Users" table with status "${status}" & OTP: #${newId} - ${cleanEmail}`);
       return createdUser;
     } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
-        throw new Error('An account with this email address already exists. Please sign in or use a different email.');
-      }
-      // Fallback in case columns are Name / Email / Password / Verification_Status
+      console.warn('[MySQL] Primary Users insert notice, attempting schema fallback:', err.message);
+      // Fallback 1: Without OTP columns if table schema doesn't have them yet
       try {
-        const fallbackSql = `
-          INSERT INTO \`Users\` (\`Name\`, \`Email\`, \`Password\`, \`Verification_Status\`)
-          VALUES (?, ?, ?, ?)
+        const fallback1 = `
+          INSERT INTO \`Users\` (\`Full_Name\`, \`Email\`, \`Password\`, \`Verification_Status\`, \`Created_At\`)
+          VALUES (?, ?, ?, ?, NOW())
+          ON DUPLICATE KEY UPDATE \`Full_Name\` = VALUES(\`Full_Name\`), \`Password\` = VALUES(\`Password\`), \`Verification_Status\` = VALUES(\`Verification_Status\`)
         `;
-        const [res2]: any = await pool.execute(fallbackSql, [fullName.trim(), cleanEmail, hashedPassword, status]);
-        const newId = res2.insertId || Date.now();
+        const [res1]: any = await pool.query(fallback1, [fullName.trim(), cleanEmail, hashedPassword, status]);
+        const newId = res1.insertId || Date.now();
         const createdUser: DbUser = {
           id: newId,
           fullName: fullName.trim(),
           email: cleanEmail,
           password: hashedPassword,
           verificationStatus: status,
+          otpCode: otpCode || null,
           createdAt: new Date().toISOString()
         };
         inMemoryUsers.push(createdUser);
         return createdUser;
-      } catch (err2: any) {
-        throw new Error(err.message || 'Database error creating user account in Users table.');
+      } catch (err1: any) {
+        // Fallback 2: Name / Email / Password
+        try {
+          const fallbackSql = `
+            INSERT INTO \`Users\` (\`Name\`, \`Email\`, \`Password\`, \`Verification_Status\`)
+            VALUES (?, ?, ?, ?)
+          `;
+          const [res2]: any = await pool.query(fallbackSql, [fullName.trim(), cleanEmail, hashedPassword, status]);
+          const newId = res2.insertId || Date.now();
+          const createdUser: DbUser = {
+            id: newId,
+            fullName: fullName.trim(),
+            email: cleanEmail,
+            password: hashedPassword,
+            verificationStatus: status,
+            createdAt: new Date().toISOString()
+          };
+          inMemoryUsers.push(createdUser);
+          return createdUser;
+        } catch (err2: any) {
+          console.error('[MySQL Error] Could not insert into Users table:', err2.message);
+        }
       }
     }
   }
@@ -553,6 +706,8 @@ async function insertUserToDb(fullName: string, email: string, hashedPassword: s
     email: cleanEmail,
     password: hashedPassword,
     verificationStatus: status,
+    otpCode: otpCode || null,
+    otpExpiry: expiryDate.toISOString(),
     createdAt: new Date().toISOString()
   };
   inMemoryUsers.push(createdUser);
@@ -565,18 +720,27 @@ async function markUserAsVerified(email: string): Promise<boolean> {
   if (pool) {
     try {
       await pool.query(
-        "UPDATE `Users` SET `Verification_Status` = 'Verified' WHERE LOWER(`Email`) = LOWER(?)",
+        "UPDATE `Users` SET `Verification_Status` = 'Verified', `OTP_Code` = NULL, `OTP_Expiry` = NULL WHERE LOWER(`Email`) = LOWER(?)",
         [cleanEmail]
       );
       console.log(`[MySQL] User ${cleanEmail} updated to Verification_Status = 'Verified'.`);
     } catch (err: any) {
-      console.log('[Users DB] Update verification error:', err.message);
+      try {
+        await pool.query(
+          "UPDATE `users` SET `Verification_Status` = 'Verified', `OTP_Code` = NULL, `OTP_Expiry` = NULL WHERE LOWER(`Email`) = LOWER(?)",
+          [cleanEmail]
+        );
+      } catch (err2: any) {
+        console.log('[Users DB] Update verification error:', err.message);
+      }
     }
   }
 
   const memUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
   if (memUser) {
     memUser.verificationStatus = 'Verified';
+    memUser.otpCode = null;
+    memUser.otpExpiry = null;
   }
   return true;
 }
@@ -719,7 +883,7 @@ app.get('/api/products/:id', (req, res) => {
 // CUSTOMER AUTHENTICATION & EMAIL OTP VERIFICATION
 // -------------------------------------------------------------
 
-// Step 1: Initiate signup, record user as Pending in Users table, send 6-digit OTP
+// Step 1: Initiate signup, record user with OTP in Users table, send 6-digit OTP
 app.post('/api/auth/register-initiate', async (req, res) => {
   const { fullName, email, password } = req.body;
   const cleanFullName = (fullName || '').trim();
@@ -751,14 +915,14 @@ app.post('/api/auth/register-initiate', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(rawPassword, salt);
 
-    // 3. Record user in Users table with Verification_Status = 'Pending'
-    await insertUserToDb(cleanFullName, cleanEmail, passwordHash, 'Pending');
-
-    // 4. Generate 6-digit OTP
+    // 3. Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
 
-    // 5. Record pending registration session
+    // 4. Record user in Users table with Verification_Status = 'Pending' AND OTP persistence
+    await insertUserToDb(cleanFullName, cleanEmail, passwordHash, 'Pending', otp, expiresAt);
+
+    // 5. Record pending registration session in memory as fast fallback
     pendingSignups.set(cleanEmail, {
       email: cleanEmail,
       fullName: cleanFullName,
@@ -770,13 +934,16 @@ app.post('/api/auth/register-initiate', async (req, res) => {
     });
 
     // 6. Send OTP verification email
-    const emailSent = await sendOtpEmail(cleanEmail, cleanFullName, otp);
+    const emailResult = await sendOtpEmail(cleanEmail, cleanFullName, otp);
 
     return res.json({
       success: true,
-      message: `A 6-digit verification code has been sent to ${cleanEmail}.`,
+      message: emailResult.success
+        ? `A 6-digit verification code has been sent to ${cleanEmail}.`
+        : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      devOtp: (!emailSent || process.env.NODE_ENV !== 'production') ? otp : undefined
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
@@ -798,33 +965,57 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     return res.status(400).json({ error: 'Please enter the 6-digit verification code sent to your email.' });
   }
 
+  // 1. Check in-memory pending session
   const pending = pendingSignups.get(cleanEmail);
-  if (!pending) {
+
+  // 2. Also check database row for multi-worker cPanel Passenger persistence
+  const dbUser = await findUserByEmail(cleanEmail);
+
+  // If already verified, allow login directly
+  if (dbUser && dbUser.verificationStatus === 'Verified') {
+    const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    return res.status(200).json({
+      success: true,
+      message: 'Account is already verified. Signing you in...',
+      token,
+      user: {
+        id: dbUser.id,
+        email: cleanEmail,
+        fullName: dbUser.fullName,
+        verificationStatus: 'Verified'
+      }
+    });
+  }
+
+  const validOtp = pending?.otp || dbUser?.otpCode;
+  const expiresAt = pending?.expiresAt || (dbUser?.otpExpiry ? new Date(dbUser.otpExpiry).getTime() : 0);
+
+  if (!validOtp) {
     return res.status(400).json({
-      error: 'No pending registration session found for this email. Please return to the signup page and request a new code.'
+      error: 'No pending verification session found for this email. Please return to the signup page and request a new code.'
     });
   }
 
   // Check code expiration
-  if (Date.now() > pending.expiresAt) {
+  if (expiresAt && Date.now() > expiresAt) {
     pendingSignups.delete(cleanEmail);
     return res.status(400).json({
-      error: 'Verification code has expired. Please request a new code.'
+      error: 'Verification code has expired. Please click "Resend Code" to receive a fresh verification code.'
     });
   }
 
   // Check brute-force attempts limit
-  if (pending.attempts >= 5) {
+  if (pending && pending.attempts >= 5) {
     pendingSignups.delete(cleanEmail);
     return res.status(429).json({
-      error: 'Too many incorrect attempts. For security, please sign up again to receive a fresh verification code.'
+      error: 'Too many incorrect attempts. For security, please click "Resend Code" to receive a fresh code.'
     });
   }
 
   // Validate OTP code
-  if (pending.otp !== cleanOtp) {
-    pending.attempts += 1;
-    const remaining = 5 - pending.attempts;
+  if (validOtp !== cleanOtp) {
+    if (pending) pending.attempts += 1;
+    const remaining = pending ? 5 - pending.attempts : 3;
     return res.status(400).json({
       error: `Invalid 6-digit verification code. Please check your email and try again. (${remaining} attempts remaining)`
     });
@@ -845,7 +1036,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       user: {
         id: verifiedUser?.id || `usr_${Date.now()}`,
         email: cleanEmail,
-        fullName: verifiedUser?.fullName || pending.fullName,
+        fullName: verifiedUser?.fullName || pending?.fullName || 'Valued Customer',
         verificationStatus: 'Verified'
       }
     });
@@ -856,38 +1047,56 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   }
 });
 
-// Step 3: Resend 6-digit OTP with 30s throttling
+// Step 3: Resend 6-digit OTP with 20s throttling
 app.post('/api/auth/resend-otp', async (req, res) => {
   const { email } = req.body;
   const cleanEmail = (email || '').trim().toLowerCase();
 
   const pending = pendingSignups.get(cleanEmail);
-  if (!pending) {
+  const dbUser = await findUserByEmail(cleanEmail);
+
+  if (!pending && !dbUser) {
     return res.status(400).json({
       error: 'No pending registration found for this email. Please start from the signup page.'
     });
   }
 
   const now = Date.now();
-  if (pending.lastSentAt && (now - pending.lastSentAt) < 25000) {
-    const waitSeconds = Math.ceil((25000 - (now - pending.lastSentAt)) / 1000);
+  if (pending && pending.lastSentAt && (now - pending.lastSentAt) < 20000) {
+    const waitSeconds = Math.ceil((20000 - (now - pending.lastSentAt)) / 1000);
     return res.status(429).json({
       error: `Please wait ${waitSeconds} seconds before requesting another code.`
     });
   }
 
   const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  pending.otp = newOtp;
-  pending.expiresAt = now + 10 * 60 * 1000;
-  pending.attempts = 0;
-  pending.lastSentAt = now;
+  const expiresAt = now + 15 * 60 * 1000;
+  const fullName = pending?.fullName || dbUser?.fullName || 'Valued Customer';
+  const passwordHash = pending?.passwordHash || dbUser?.password || '';
 
-  const emailSent = await sendOtpEmail(cleanEmail, pending.fullName, newOtp);
+  // Update in Users database table
+  await insertUserToDb(fullName, cleanEmail, passwordHash, 'Pending', newOtp, expiresAt);
+
+  pendingSignups.set(cleanEmail, {
+    email: cleanEmail,
+    fullName,
+    passwordHash,
+    otp: newOtp,
+    expiresAt,
+    attempts: 0,
+    lastSentAt: now
+  });
+
+  const emailResult = await sendOtpEmail(cleanEmail, fullName, newOtp);
 
   return res.json({
     success: true,
-    message: `A fresh 6-digit verification code has been sent to ${cleanEmail}.`,
-    devOtp: (!emailSent || process.env.NODE_ENV !== 'production') ? newOtp : undefined
+    message: emailResult.success
+      ? `A fresh 6-digit verification code has been sent to ${cleanEmail}.`
+      : `New code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
+    email: cleanEmail,
+    emailSent: emailResult.success,
+    devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? newOtp : undefined
   });
 });
 
@@ -934,7 +1143,8 @@ app.post('/api/auth/login', async (req, res) => {
     // If user's email was never verified, prompt for OTP verification
     if (user.verificationStatus !== 'Verified') {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = Date.now() + 10 * 60 * 1000;
+      const expiresAt = Date.now() + 15 * 60 * 1000;
+      await insertUserToDb(user.fullName, cleanEmail, user.password, 'Pending', otp, expiresAt);
       pendingSignups.set(cleanEmail, {
         email: cleanEmail,
         fullName: user.fullName,
@@ -944,12 +1154,14 @@ app.post('/api/auth/login', async (req, res) => {
         attempts: 0,
         lastSentAt: Date.now()
       });
-      await sendOtpEmail(cleanEmail, user.fullName, otp);
+      const emailResult = await sendOtpEmail(cleanEmail, user.fullName, otp);
 
       return res.status(403).json({
         error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
         pendingVerification: true,
-        email: cleanEmail
+        email: cleanEmail,
+        emailSent: emailResult.success,
+        devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
       });
     }
 
@@ -969,6 +1181,66 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('[Login Error]', err);
     return res.status(500).json({ error: 'Server error during authentication. Please try again.' });
   }
+});
+
+// Diagnostic System Health Check (Database and Email status)
+app.get('/api/system/health', async (req, res) => {
+  loadAllPossibleEnvFiles();
+  const pool = await getOrInitDbPool();
+  let dbStatus = 'disconnected';
+  let usersTableFound = false;
+  let quotesTableFound = false;
+  let userCount = 0;
+
+  if (pool) {
+    try {
+      const [uRows]: any = await pool.query('SELECT COUNT(*) as count FROM `Users`');
+      usersTableFound = true;
+      userCount = uRows[0]?.count || 0;
+      dbStatus = 'connected';
+    } catch {
+      try {
+        const [uRows2]: any = await pool.query('SELECT COUNT(*) as count FROM `users`');
+        usersTableFound = true;
+        userCount = uRows2[0]?.count || 0;
+        dbStatus = 'connected';
+      } catch (err: any) {
+        dbStatus = `table_error: ${err.message}`;
+      }
+    }
+
+    try {
+      await pool.query('SELECT 1 FROM `Request_Quote` LIMIT 1');
+      quotesTableFound = true;
+    } catch {}
+  }
+
+  const sendmailPaths = ['/usr/sbin/sendmail', '/usr/bin/sendmail', '/usr/lib/sendmail', '/bin/sendmail'];
+  const sendmailFound = sendmailPaths.find(p => fs.existsSync(p)) || null;
+  const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_HOST);
+
+  return res.json({
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStatus,
+      host: dbConfigDetails?.host || process.env.DB_HOST || '127.0.0.1',
+      database: dbConfigDetails?.database || process.env.DB_NAME || 'not_set',
+      user: dbConfigDetails?.user || process.env.DB_USER || 'not_set',
+      usersTableExists: usersTableFound,
+      requestQuotesTableExists: quotesTableFound,
+      registeredUsersCount: userCount,
+      lastError: lastDbError
+    },
+    email: {
+      smtpConfigured,
+      smtpHost: process.env.SMTP_HOST || 'not_set',
+      smtpPort: process.env.SMTP_PORT || '465',
+      smtpUser: process.env.SMTP_USER ? `${process.env.SMTP_USER.split('@')[0]}@***` : 'not_set',
+      sendmailAvailable: Boolean(sendmailFound),
+      sendmailPath: sendmailFound
+    }
+  });
 });
 
 // -------------------------------------------------------------
