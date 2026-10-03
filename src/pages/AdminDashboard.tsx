@@ -29,7 +29,9 @@ import {
   Printer,
   Menu,
   Pencil,
-  Save
+  Save,
+  MailCheck,
+  Send
 } from 'lucide-react';
 import { Product, Order, SubmittedQuote } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -43,7 +45,7 @@ interface AdminDashboardProps {
   onNavigateHome?: () => void;
 }
 
-type AdminTab = 'inventory' | 'rfq' | 'orders' | 'upload' | 'categories';
+type AdminTab = 'inventory' | 'rfq' | 'orders' | 'upload' | 'categories' | 'email-settings';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshCatalog
@@ -115,6 +117,108 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     message: string;
   } | null>(null);
   const [pastedCSV, setPastedCSV] = useState('');
+
+  // Email & SMTP Configuration States
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('465');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFrom, setSmtpFrom] = useState('');
+  const [testRecipient, setTestRecipient] = useState('timmypatrick444@gmail.com');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [isTestingEmail, setIsTestingEmail] = useState(false);
+  const [emailStatusMsg, setEmailStatusMsg] = useState('');
+  const [emailErrorMsg, setEmailErrorMsg] = useState('');
+  const [emailLogs, setEmailLogs] = useState<string[]>([]);
+
+  const fetchEmailConfig = async () => {
+    try {
+      const res = await fetch('/api/system/email-config');
+      if (res.ok) {
+        const data = await res.json();
+        setSmtpHost(data.smtpHost || '');
+        setSmtpPort(data.smtpPort || '465');
+        setSmtpUser(data.smtpUser || '');
+        setSmtpFrom(data.smtpFrom || '');
+      }
+    } catch {}
+  };
+
+  const handleSaveEmailConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingEmail(true);
+    setEmailStatusMsg('');
+    setEmailErrorMsg('');
+    setEmailLogs([]);
+
+    try {
+      const res = await fetch('/api/system/email-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtpHost,
+          smtpPort: parseInt(smtpPort, 10) || 465,
+          smtpUser,
+          smtpPassword: smtpPassword || undefined,
+          smtpFrom,
+          testRecipient: testRecipient || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setEmailErrorMsg(data.error || 'Failed to save email configuration.');
+      } else {
+        setEmailStatusMsg(data.message || 'Email settings saved successfully!');
+        if (data.testResult) {
+          if (data.testResult.success) {
+            setEmailStatusMsg(prev => `${prev} Test email delivered successfully to ${testRecipient}!`);
+          } else {
+            setEmailErrorMsg(`Settings saved, but test delivery failed: ${data.testResult.error || 'Check credentials'}`);
+          }
+          if (data.testResult.details) {
+            setEmailLogs(data.testResult.details);
+          }
+        }
+      }
+    } catch (err: any) {
+      setEmailErrorMsg(err.message || 'Network error saving email settings.');
+    } finally {
+      setIsSavingEmail(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!testRecipient || !testRecipient.includes('@')) {
+      alert('Please enter a valid recipient email address.');
+      return;
+    }
+    setIsTestingEmail(true);
+    setEmailStatusMsg('');
+    setEmailErrorMsg('');
+    setEmailLogs([]);
+
+    try {
+      const res = await fetch('/api/system/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testRecipient })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailStatusMsg(`Verification OTP delivered successfully to ${testRecipient} via ${data.method}! Code sent: ${data.otpSent}`);
+      } else {
+        setEmailErrorMsg(`Delivery failed: ${data.error || 'Check SMTP credentials.'}`);
+      }
+      if (data.details) {
+        setEmailLogs(data.details);
+      }
+    } catch (err: any) {
+      setEmailErrorMsg(err.message || 'Error testing email delivery.');
+    } finally {
+      setIsTestingEmail(false);
+    }
+  };
 
   // Fetch all admin data (Products, Orders, Quotes)
   const fetchData = async () => {
@@ -189,6 +293,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     fetchData();
+    fetchEmailConfig();
   }, []);
 
   // Reset inventory page to 1 whenever filters change
@@ -810,6 +915,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               }`}
             >
               16
+            </span>
+          </button>
+
+          {/* Section 6: Email & SMTP Service */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('email-settings');
+              setMobileSidebarOpen(false);
+            }}
+            className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'email-settings'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <MailCheck size={18} className={activeTab === 'email-settings' ? 'text-slate-950' : 'text-sky-400'} />
+              <div className="text-left">
+                <div className="leading-tight">Email &amp; SMTP</div>
+                <div className={`text-[10px] ${activeTab === 'email-settings' ? 'text-slate-900/80 font-normal' : 'text-slate-400 font-normal'}`}>
+                  Live OTP Delivery &amp; Setup
+                </div>
+              </div>
+            </div>
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'email-settings'
+                  ? 'bg-slate-950 text-amber-400'
+                  : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+              }`}
+            >
+              SMTP
             </span>
           </button>
 
@@ -1620,6 +1758,233 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 6: EMAIL & SMTP LIVE CONFIGURATION & TEST DISPATCHER */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'email-settings' && (
+          <div className="mt-6 space-y-6">
+            
+            {/* Top Status Header Card */}
+            <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${smtpUser ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
+                  <MailCheck size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    cPanel Webmail &amp; SMTP Dispatcher
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${smtpUser ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
+                      {smtpUser ? 'Configured' : 'Setup Required'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Controls 6-digit signup OTP verification delivery, invoice dispatches, and quotation confirmations.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchEmailConfig}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={13} /> Reload Settings
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Messages */}
+            {emailStatusMsg && (
+              <div className="bg-emerald-950/40 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                <div className="font-medium leading-relaxed">{emailStatusMsg}</div>
+              </div>
+            )}
+
+            {emailErrorMsg && (
+              <div className="bg-red-950/40 border border-red-500/50 text-red-300 p-4 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+                <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                <div className="font-medium leading-relaxed">{emailErrorMsg}</div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Form Column (2/3 width) */}
+              <div className="lg:col-span-2 bg-[#1e293b] border border-slate-700/80 rounded-xl p-6 space-y-5">
+                <h4 className="font-bold text-white text-sm flex items-center gap-2 border-b border-slate-700/80 pb-3">
+                  <Mail size={16} className="text-amber-400" />
+                  cPanel Webmail SMTP Credentials
+                </h4>
+
+                <form onSubmit={handleSaveEmailConfig} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-slate-300 font-semibold mb-1.5 text-xs">
+                        SMTP Host / Mail Server *
+                      </label>
+                      <input
+                        type="text"
+                        value={smtpHost}
+                        onChange={(e) => setSmtpHost(e.target.value)}
+                        placeholder="mail.yourdomain.com (or localhost)"
+                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Usually <code className="text-amber-400">mail.yourdomain.com</code> or <code className="text-amber-400">localhost</code>
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1.5 text-xs">
+                        SMTP Port *
+                      </label>
+                      <select
+                        value={smtpPort}
+                        onChange={(e) => setSmtpPort(e.target.value)}
+                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        <option value="465">Port 465 (SSL Direct - Recommended)</option>
+                        <option value="587">Port 587 (TLS / STARTTLS)</option>
+                        <option value="25">Port 25 (Standard Local)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1.5 text-xs">
+                        cPanel Email Address (Username) *
+                      </label>
+                      <input
+                        type="email"
+                        value={smtpUser}
+                        onChange={(e) => setSmtpUser(e.target.value)}
+                        placeholder="info@yourdomain.com"
+                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white text-xs focus:outline-none focus:border-amber-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        The full email address created in cPanel &rarr; Email Accounts
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1.5 text-xs">
+                        cPanel Email Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={smtpPassword}
+                        onChange={(e) => setSmtpPassword(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Leave blank to keep existing password unchanged
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1.5 text-xs">
+                      Sender Name &amp; From Header (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpFrom}
+                      onChange={(e) => setSmtpFrom(e.target.value)}
+                      placeholder='"Spinel Distribution" <info@yourdomain.com>'
+                      className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white text-xs focus:outline-none focus:border-amber-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Must match your domain to pass SPF &amp; DMARC checks without rejection
+                    </span>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-700/80 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">
+                      Saves automatically to <code className="text-amber-400 font-mono">db_config.json</code>
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={isSavingEmail}
+                      className="px-5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingEmail ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                      <span>{isSavingEmail ? 'Saving...' : 'Save Email Settings'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Live Test & Diagnostic Dispatcher (1/3 width) */}
+              <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-6 flex flex-col justify-between space-y-4">
+                <div>
+                  <h4 className="font-bold text-white text-sm flex items-center gap-2 border-b border-slate-700/80 pb-3">
+                    <Send size={16} className="text-sky-400" />
+                    Live Test OTP Dispatcher
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-2 mb-4">
+                    Send a real verification code to your personal email to verify inbox delivery right now:
+                  </p>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1 text-xs">
+                        Recipient Test Email:
+                      </label>
+                      <input
+                        type="email"
+                        value={testRecipient}
+                        onChange={(e) => setTestRecipient(e.target.value)}
+                        placeholder="timmypatrick444@gmail.com"
+                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg p-2.5 text-white text-xs focus:outline-none focus:border-sky-500 font-mono"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestEmail}
+                      disabled={isTestingEmail}
+                      className="w-full py-2.5 px-4 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isTestingEmail ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                      <span>{isTestingEmail ? 'Connecting & Sending...' : 'Send Live Test OTP'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Handshake Diagnostic Log */}
+                <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-3 text-[11px] font-mono space-y-1">
+                  <div className="text-slate-400 font-bold border-b border-slate-800 pb-1 text-[10px] uppercase tracking-wider flex items-center justify-between">
+                    <span>Server Delivery Log:</span>
+                    <span className="text-amber-400">Live Trace</span>
+                  </div>
+                  {emailLogs.length === 0 ? (
+                    <div className="text-slate-500 py-2 text-center text-[10px]">
+                      Click &ldquo;Send Live Test OTP&rdquo; to test handshake.
+                    </div>
+                  ) : (
+                    <div className="max-h-36 overflow-y-auto space-y-1 pt-1">
+                      {emailLogs.map((log, idx) => (
+                        <div
+                          key={idx}
+                          className={`break-all ${log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : log.includes('Failed') ? 'text-red-400' : 'text-slate-400'}`}
+                        >
+                          &gt; {log}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
           </div>
         )}
 

@@ -23,8 +23,17 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = express();
-// cPanel Phusion Passenger assigns dynamic PORT or Unix socket pipe via process.env.PORT
-const PORT = process.env.PORT || 3000;
+// Dev server and AI Studio container proxy must always run on port 3000.
+// On cPanel production, Phusion Passenger assigns a dynamic socket path or internal port via process.env.PORT.
+let cliPort: string | undefined;
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === '--port' || process.argv[i] === '-p') {
+    cliPort = process.argv[i + 1];
+    break;
+  }
+}
+const rawPort = cliPort || process.env.PORT;
+const PORT = (rawPort && rawPort !== '8080') ? rawPort : 3000;
 
 // High body limits to easily receive thousands of product uploads via JSON or CSV
 app.use(express.json({ limit: '50mb' }));
@@ -133,18 +142,24 @@ function loadAllPossibleEnvFiles() {
       try {
         const raw = fs.readFileSync(jPath, 'utf8');
         const json = JSON.parse(raw);
-        if (json.DB_USER && !process.env.DB_USER) process.env.DB_USER = json.DB_USER;
-        if (json.DB_PASSWORD && !process.env.DB_PASSWORD) process.env.DB_PASSWORD = json.DB_PASSWORD;
-        if (json.DB_PASS && !process.env.DB_PASSWORD) process.env.DB_PASSWORD = json.DB_PASS;
-        if (json.DB_NAME && !process.env.DB_NAME) process.env.DB_NAME = json.DB_NAME;
-        if (json.DB_HOST && !process.env.DB_HOST) process.env.DB_HOST = json.DB_HOST;
-        if (json.DB_PORT && !process.env.DB_PORT) process.env.DB_PORT = String(json.DB_PORT);
-        if (json.SMTP_HOST && !process.env.SMTP_HOST) process.env.SMTP_HOST = json.SMTP_HOST;
-        if (json.SMTP_PORT && !process.env.SMTP_PORT) process.env.SMTP_PORT = String(json.SMTP_PORT);
-        if (json.SMTP_USER && !process.env.SMTP_USER) process.env.SMTP_USER = json.SMTP_USER;
-        if (json.SMTP_PASSWORD && !process.env.SMTP_PASSWORD) process.env.SMTP_PASSWORD = json.SMTP_PASSWORD;
-        if (json.SMTP_PASS && !process.env.SMTP_PASSWORD) process.env.SMTP_PASSWORD = json.SMTP_PASS;
-        if (json.SMTP_FROM && !process.env.SMTP_FROM) process.env.SMTP_FROM = json.SMTP_FROM;
+        if (json.DB_USER) process.env.DB_USER = json.DB_USER;
+        if (json.DB_PASSWORD) process.env.DB_PASSWORD = json.DB_PASSWORD;
+        if (json.DB_PASS) process.env.DB_PASSWORD = json.DB_PASS;
+        if (json.DB_NAME) process.env.DB_NAME = json.DB_NAME;
+        if (json.DB_HOST) process.env.DB_HOST = json.DB_HOST;
+        if (json.DB_PORT) process.env.DB_PORT = String(json.DB_PORT);
+        if (json.SMTP_HOST) process.env.SMTP_HOST = json.SMTP_HOST;
+        if (json.SMTP_PORT) process.env.SMTP_PORT = String(json.SMTP_PORT);
+        if (json.SMTP_USER) process.env.SMTP_USER = json.SMTP_USER;
+        if (json.SMTP_PASSWORD) {
+          process.env.SMTP_PASSWORD = json.SMTP_PASSWORD;
+          process.env.SMTP_PASS = json.SMTP_PASSWORD;
+        }
+        if (json.SMTP_PASS) {
+          process.env.SMTP_PASSWORD = json.SMTP_PASS;
+          process.env.SMTP_PASS = json.SMTP_PASS;
+        }
+        if (json.SMTP_FROM) process.env.SMTP_FROM = json.SMTP_FROM;
       } catch {}
     }
   }
@@ -463,37 +478,85 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     </div>
   `;
   const textBody = `Your Spinel Distribution verification code is: ${otp}. Valid for 15 minutes.`;
+  const logs: string[] = [];
 
-  // Tier 1: Dedicated SMTP if configured in .env or db_config.json
-  const host = (process.env.SMTP_HOST || process.env.MAIL_HOST || '').trim();
-  const port = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '465', 10);
-  const user = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
-  const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '').trim();
+  const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
+  const rawPass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '').trim();
+  let rawHost = (process.env.SMTP_HOST || process.env.MAIL_HOST || '').trim();
+  let rawPort = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '0', 10);
 
-  if (host && user && pass) {
-    try {
-      const secure = port === 465;
-      const transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 8000,
-        greetingTimeout: 8000,
-        socketTimeout: 10000
-      });
-      await transporter.sendMail({
-        from: fromAddress,
-        to: toEmail,
-        subject,
-        text: textBody,
-        html: htmlBody
-      });
-      console.log(`[Email OTP Service] OTP delivered successfully via SMTP (${host}:${port}) to ${toEmail}`);
-      return { success: true, method: `smtp:${host}:${port}` };
-    } catch (smtpErr: any) {
-      console.warn(`[Email OTP Service] SMTP delivery attempt failed (${host}):`, smtpErr.message);
+  // Auto-detect host from email domain if host was omitted
+  if (!rawHost && rawUser && rawUser.includes('@')) {
+    const domain = rawUser.split('@')[1];
+    rawHost = `mail.${domain}`;
+  }
+
+  // Derive sender address
+  // CRITICAL CPANEL RULE: The 'from' address MUST match the authenticated SMTP user
+  // to avoid Exim "Sender verify failed" error!
+  let senderEmail = rawUser;
+  if (!senderEmail || !senderEmail.includes('@')) {
+    senderEmail = 'noreply@spineldistribution.com';
+  }
+
+  let fromHeader = process.env.SMTP_FROM || process.env.MAIL_FROM;
+  if (!fromHeader) {
+    fromHeader = `"Spinel Distribution" <${senderEmail}>`;
+  } else if (!fromHeader.includes('<')) {
+    fromHeader = `"Spinel Distribution" <${fromHeader}>`;
+  }
+
+  console.log(`[Email OTP Service] ==========================================`);
+  console.log(`[Email OTP Service] TO: ${toEmail}`);
+  console.log(`[Email OTP Service] SENDER: ${senderEmail}`);
+  console.log(`[Email OTP Service] CODE (OTP): ${otp}`);
+  console.log(`[Email OTP Service] ==========================================`);
+
+  // Tier 1: Dedicated SMTP (with multi-port retry: 465 SSL -> 587 TLS -> 25)
+  if (rawUser && rawPass) {
+    const hostsToTry = Array.from(new Set([rawHost || 'localhost', 'localhost', '127.0.0.1'])).filter(Boolean);
+    const portsToTry = rawPort ? [rawPort, 465, 587] : [465, 587, 25];
+    const uniquePorts = Array.from(new Set(portsToTry));
+
+    for (const h of hostsToTry) {
+      for (const p of uniquePorts) {
+        const isSsl = p === 465;
+        try {
+          logs.push(`Attempting SMTP on ${h}:${p} (SSL=${isSsl})...`);
+          const transporter = nodemailer.createTransport({
+            host: h,
+            port: p,
+            secure: isSsl,
+            auth: { user: rawUser, pass: rawPass },
+            tls: {
+              rejectUnauthorized: false,
+              minVersion: 'TLSv1'
+            },
+            connectionTimeout: 7000,
+            greetingTimeout: 7000,
+            socketTimeout: 9000
+          });
+
+          await transporter.sendMail({
+            from: fromHeader,
+            to: toEmail,
+            envelope: {
+              from: senderEmail,
+              to: toEmail
+            },
+            subject,
+            text: textBody,
+            html: htmlBody
+          });
+
+          console.log(`[Email OTP Service] Delivered successfully via SMTP ${h}:${p} to ${toEmail}`);
+          logs.push(`SUCCESS via SMTP ${h}:${p}`);
+          return { success: true, method: `smtp:${h}:${p}`, details: logs };
+        } catch (smtpErr: any) {
+          console.warn(`[Email OTP Service] SMTP failed (${h}:${p}):`, smtpErr.message);
+          logs.push(`Failed on ${h}:${p}: ${smtpErr.message}`);
+        }
+      }
     }
   }
 
@@ -502,28 +565,37 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
   for (const sPath of sendmailBinaries) {
     if (fs.existsSync(sPath)) {
       try {
+        logs.push(`Attempting cPanel sendmail binary: ${sPath}...`);
         const sendmailTransporter = nodemailer.createTransport({
           sendmail: true,
           newline: 'unix',
-          path: sPath
+          path: sPath,
+          args: ['-f', senderEmail, '-i']
         });
         await sendmailTransporter.sendMail({
-          from: fromAddress,
+          from: fromHeader,
           to: toEmail,
+          envelope: {
+            from: senderEmail,
+            to: toEmail
+          },
           subject,
           text: textBody,
           html: htmlBody
         });
-        console.log(`[Email OTP Service] OTP delivered successfully via cPanel sendmail (${sPath}) to ${toEmail}`);
-        return { success: true, method: `sendmail:${sPath}` };
+        console.log(`[Email OTP Service] Delivered via cPanel sendmail (${sPath}) to ${toEmail}`);
+        logs.push(`SUCCESS via sendmail (${sPath})`);
+        return { success: true, method: `sendmail:${sPath}`, details: logs };
       } catch (smErr: any) {
-        console.warn(`[Email OTP Service] Sendmail (${sPath}) attempt failed:`, smErr.message);
+        console.warn(`[Email OTP Service] Sendmail (${sPath}) failed:`, smErr.message);
+        logs.push(`Failed on sendmail (${sPath}): ${smErr.message}`);
       }
     }
   }
 
-  // Tier 3: Localhost SMTP relay (port 25 / port 587)
+  // Tier 3: Local Exim SMTP relay (port 25 / port 587)
   try {
+    logs.push(`Attempting local Exim relay on 127.0.0.1:25...`);
     const localTransporter = nodemailer.createTransport({
       host: '127.0.0.1',
       port: 25,
@@ -535,22 +607,28 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
       socketTimeout: 5000
     });
     await localTransporter.sendMail({
-      from: fromAddress,
+      from: fromHeader,
       to: toEmail,
+      envelope: {
+        from: senderEmail,
+        to: toEmail
+      },
       subject,
       text: textBody,
       html: htmlBody
     });
-    console.log(`[Email OTP Service] OTP delivered via local Exim relay (127.0.0.1:25) to ${toEmail}`);
-    return { success: true, method: 'local_relay' };
+    console.log(`[Email OTP Service] Delivered via local Exim relay (127.0.0.1:25) to ${toEmail}`);
+    logs.push(`SUCCESS via local_relay`);
+    return { success: true, method: 'local_relay', details: logs };
   } catch (relayErr: any) {
-    console.warn(`[Email OTP Service] Local Exim relay notice:`, relayErr.message);
+    logs.push(`Failed on local_relay: ${relayErr.message}`);
   }
 
   return {
     success: false,
     method: 'none',
-    error: 'No active email transport available. Please add SMTP details to db_config.json or .env.'
+    error: logs.join(' | ') || 'No active email transport available. Please add SMTP details to db_config.json.',
+    details: logs
   };
 }
 
@@ -1240,6 +1318,92 @@ app.get('/api/system/health', async (req, res) => {
       sendmailAvailable: Boolean(sendmailFound),
       sendmailPath: sendmailFound
     }
+  });
+});
+
+// Get current email config (passwords masked)
+app.get('/api/system/email-config', (req, res) => {
+  loadAllPossibleEnvFiles();
+  const rawUser = process.env.SMTP_USER || '';
+  const rawHost = process.env.SMTP_HOST || '';
+  const rawPort = process.env.SMTP_PORT || '465';
+  const rawFrom = process.env.SMTP_FROM || '';
+  const hasPass = Boolean(process.env.SMTP_PASS || process.env.SMTP_PASSWORD);
+
+  return res.json({
+    smtpHost: rawHost,
+    smtpPort: rawPort,
+    smtpUser: rawUser,
+    hasPassword: hasPass,
+    smtpFrom: rawFrom
+  });
+});
+
+// Save email config to db_config.json and process.env
+app.post('/api/system/email-config', async (req, res) => {
+  const { smtpHost, smtpPort, smtpUser, smtpPassword, smtpFrom, testRecipient } = req.body;
+
+  try {
+    const configPath = path.join(process.cwd(), 'db_config.json');
+    let existing: any = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        existing = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      } catch {}
+    }
+
+    if (smtpHost !== undefined) existing.SMTP_HOST = String(smtpHost).trim();
+    if (smtpPort !== undefined) existing.SMTP_PORT = parseInt(String(smtpPort), 10) || 465;
+    if (smtpUser !== undefined) existing.SMTP_USER = String(smtpUser).trim();
+    if (smtpPassword) {
+      existing.SMTP_PASSWORD = String(smtpPassword).trim();
+    }
+    if (smtpFrom !== undefined) existing.SMTP_FROM = String(smtpFrom).trim();
+
+    fs.writeFileSync(configPath, JSON.stringify(existing, null, 2), 'utf8');
+
+    // Update in-memory process.env immediately
+    if (existing.SMTP_HOST) process.env.SMTP_HOST = existing.SMTP_HOST;
+    if (existing.SMTP_PORT) process.env.SMTP_PORT = String(existing.SMTP_PORT);
+    if (existing.SMTP_USER) process.env.SMTP_USER = existing.SMTP_USER;
+    if (existing.SMTP_PASSWORD) {
+      process.env.SMTP_PASSWORD = existing.SMTP_PASSWORD;
+      process.env.SMTP_PASS = existing.SMTP_PASSWORD;
+    }
+    if (existing.SMTP_FROM) process.env.SMTP_FROM = existing.SMTP_FROM;
+
+    let testResult = null;
+    if (testRecipient && String(testRecipient).includes('@')) {
+      testResult = await sendOtpEmail(String(testRecipient).trim(), 'Test User', '123456');
+    }
+
+    return res.json({
+      success: true,
+      message: 'Email configuration saved successfully to db_config.json!',
+      testResult
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: `Failed to save email configuration: ${err.message}` });
+  }
+});
+
+// Realtime test email endpoint for instant browser testing
+app.all('/api/system/test-email', async (req, res) => {
+  const to = (req.query.to || req.body?.to || 'timmypatrick444@gmail.com').toString().trim();
+  if (!to || !to.includes('@')) {
+    return res.status(400).json({ error: 'Please provide a valid email address via ?to=your@email.com' });
+  }
+
+  const testOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const result = await sendOtpEmail(to, 'Valued Customer', testOtp);
+
+  return res.json({
+    recipient: to,
+    otpSent: testOtp,
+    success: result.success,
+    method: result.method,
+    error: result.error,
+    details: (result as any).details || []
   });
 });
 
@@ -2013,6 +2177,12 @@ let lastRestartCheck = 0;
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
+  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
+  // Never exit the process in development or preview environments!
+  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
+    return;
+  }
+
   const now = Date.now();
   if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
   lastRestartCheck = now;
@@ -2102,15 +2272,17 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
-  // Ensure cPanel tmp/restart.txt exists
-  try {
-    const tmpDir = path.join(process.cwd(), 'tmp');
-    fs.mkdirSync(tmpDir, { recursive: true });
-    const restartFile = path.join(tmpDir, 'restart.txt');
-    if (!fs.existsSync(restartFile)) {
-      fs.writeFileSync(restartFile, String(Date.now()));
-    }
-  } catch {}
+  // Ensure cPanel tmp/restart.txt exists on Passenger
+  if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+    try {
+      const tmpDir = path.join(process.cwd(), 'tmp');
+      fs.mkdirSync(tmpDir, { recursive: true });
+      const restartFile = path.join(tmpDir, 'restart.txt');
+      if (!fs.existsSync(restartFile)) {
+        fs.writeFileSync(restartFile, String(Date.now()));
+      }
+    } catch {}
+  }
 
   // Auto-reload watcher middleware
   app.use((req, res, next) => {
@@ -2131,26 +2303,27 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    setTimeout(() => {
-      console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
-      process.exit(0);
-    }, 200);
+    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+      setTimeout(() => {
+        console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
+        process.exit(0);
+      }, 200);
+    }
   });
 
-  // In development mode: always mount Vite middlewares for live HMR and reactive compilation
-  if (!isProd) {
-    try {
-      console.log('[Storefront] Development mode: Mounting live Vite middlewares...');
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      app.use(vite.middlewares);
-      console.log('[Storefront] Live Vite dev server successfully mounted.');
-    } catch (viteErr: any) {
-      console.warn('[Storefront] Notice starting Vite middleware:', viteErr?.message || viteErr);
-    }
+  // Mount live Vite middlewares when running in dev environment
+  let viteMounted = false;
+  try {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+    viteMounted = true;
+    console.log('[Storefront] Live Vite dev server successfully mounted.');
+  } catch (viteErr: any) {
+    console.log('[Storefront] Running standalone production bundle.');
   }
 
   // Static immutable assets for hashed JS and CSS bundles
@@ -2169,14 +2342,12 @@ async function startServer() {
     }
   }
 
-  // Handle root entry point explicitly with zero-cache live HTML
-  app.get('/', (req, res, next) => {
-    sendFreshSpaHtml(req, res, next);
-  });
-
-  // SPA fallback handler with real-time freshest HTML delivery
+  // Handle root and SPA fallback
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
+      return next();
+    }
+    if (viteMounted) {
       return next();
     }
     sendFreshSpaHtml(req, res, next);
