@@ -214,6 +214,36 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
+  // 6. Filter Public Address (PAGA) System products and randomize for display
+  const pagaProducts = useMemo(() => {
+    const paga = safeProducts.filter(p => {
+      const cat = (p.category || '').toLowerCase().trim();
+      const sub = (p.subcategory || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      return (
+        cat === 'public address (paga) system' ||
+        cat.includes('public address') ||
+        cat.includes('paga') ||
+        sub.includes('public address') ||
+        sub.includes('paga') ||
+        sub.includes('speaker') ||
+        sub.includes('sounder') ||
+        sub.includes('telephone') ||
+        sub.includes('microphone') ||
+        sub.includes('amplifier') ||
+        name.includes('exresisttel') ||
+        name.includes('ferntel') ||
+        name.includes('medc') ||
+        name.includes('sounder') ||
+        name.includes('loudspeaker') ||
+        name.includes('paga')
+      );
+    });
+
+    const pool = paga.length >= 4 ? paga : safeProducts.filter(p => (p.category || '').toLowerCase().includes('public address'));
+    return [...pool].sort(() => 0.5 - Math.random());
+  }, [safeProducts]);
+
   // Eagerly preload all hero slide images into browser cache immediately
   useEffect(() => {
     HERO_SLIDES.forEach(s => {
@@ -638,6 +668,21 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
       </div>
+
+      {/* 2.5 COMMUNICATE SAFELY. RESPOND INSTANTLY - Public Address (PAGA) System */}
+      <ProductSliderSection
+        id="communicate-safely-respond-instantly"
+        title="Communicate Safely. Respond Instantly"
+        subtitle="Explore explosion-proof communication systems, emergency paging, and reliable PAGA equipment for hazardous environments."
+        products={pagaProducts}
+        onSelectProduct={onSelectProduct}
+        onSeeAll={() => onSelectCategory('Public Address (PAGA) System')}
+        onAddToCart={handleAddToCart}
+        onRequestQuote={onRequestQuote}
+        onNavigateQuote={() => onNavigate('quote')}
+        addedMap={addedMap}
+        emptyMessage="Public Address & PAGA products currently loading or unavailable."
+      />
 
       {/* 3. SMARTER ACCESS STARTS HERE - Access Credentials */}
       <ProductSliderSection

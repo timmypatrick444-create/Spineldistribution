@@ -771,5 +771,535 @@ export const UPLOADED_PAGA_PRODUCTS: Product[] = [
     isBestSeller: true,
     featured: true,
     createdAt: "2026-09-26T20:41:00.000Z"
+  }  ,
+  {
+    id: "prod-sp-pa-ea-fhf-001",
+    sku: "SP-PA-EA-FHF-001",
+    name: "ExResistTel Explosion Proof Telephone IP4",
+    description: "Spinel's ExResistTel IP4 is suitable for all indoor and outdoor installations. This device is ideal for every weather condition and numerous operation sites, including exposure to seawater, high humidity or extensive mechanical strain. The ExResistTel range comprises our most high-performance and rugged models for the most demanding environments.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton FHF",
+    rating: 4.9,
+    reviewCount: 34,
+    stock: 347,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152818/SP-PA-EA-FHF-001.png"
+    ],
+    specs: {
+      "Protection Class": "IP66 according to IEC60529",
+      "Ambient Temperature": "-40 °C to +60 °C with armoured cord, -30 °C to +60 °C with spiral cord",
+      "Ethernet Interface": "10/100-BASE-T Ethernet LAN connection",
+      "Operation Mode": "Full Hands-free operation & heavy-duty handset",
+      "Relay Contacts": "Two built-in independent relay contacts",
+      "Remote Monitoring": "Web-based monitoring (operating, handset, hands-free and ringing function)",
+      "Menu Interface": "User-friendly illuminated menu structure"
+    },
+    features: [
+      "Engineered for extreme hazardous locations exposed to seawater, high humidity, and physical shock",
+      "Certified ingress protection IP66 with all-weather armored cord or heavy-duty spiral cord",
+      "Direct 10/100-BASE-T Ethernet connection with integrated web management and status diagnostics",
+      "Dual independent relay contacts for external visual beacons or secondary acoustic alarms"
+    ],
+    isChoice: true,
+    isBestSeller: true,
+    featured: true,
+    createdAt: "2026-10-16T12:00:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-002",
+    sku: "SP-PA-EA-FHF-002",
+    name: "FernTel IP Z2 Explosionproof Telephone IP",
+    description: "FernTel IP Z2 is an IP desk/wall telephone for applications in potentially explosive areas in Zone 2 and 22. The FernTel IP Z2 is manufactured from Polycarbonate an impact-resistant thermoplastic which is certified according to ATEX. The housing prevents corrosion and provides longevity minimising the overall maintenance costs.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton FHF",
+    rating: 4.8,
+    reviewCount: 22,
+    stock: 184,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152817/SP-PA-EA-FHF-002.png"
+    ],
+    specs: {
+      "Hazardous Certification": "ATEX certified for Zone 2 (gas) and Zone 22 (dust)",
+      "Housing Material": "High-impact thermoplastic polycarbonate",
+      "Display": "Pixel-based, illuminated LCD graphic display",
+      "Keypad": "Illuminated industrial keypad with ergonomic keys",
+      "Call Tone Volume": "≥ 95 dB(A) at 1 meter distance",
+      "Power Supply": "Power over Ethernet (PoE IEEE 802.3af)",
+      "Network Connection": "Single RJ45 Port 10/100 BASE-T Ethernet LAN"
+    },
+    features: [
+      "ATEX certified IP desk and wall telephone for Zone 2 and Zone 22 hazardous industrial areas",
+      "Corrosion-proof impact-resistant polycarbonate housing minimizing total lifecycle cost",
+      "Illuminated high-contrast pixel LCD display and illuminated keypad for low-light environments",
+      "Powerful ≥ 95 dB(A) call tone output ensures clear audibility across noisy plant floors"
+    ],
+    isChoice: false,
+    isBestSeller: false,
+    featured: true,
+    createdAt: "2026-10-16T12:01:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-003",
+    sku: "SP-PA-EA-FHF-003",
+    name: "FernTel Explosionproof Telephone Analogue",
+    description: "Spinel's FernTel 3 Z2 is an analogue desk/wall telephone for applications in potentially explosive areas in Zone 2 and 22. The FernTel 3 Z2 is manufactured from polycarbonate an impact-resistant thermoplastic which is certified according to ATEX. The housing prevents corrosion and provides longevity minimising the overall maintenance costs.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton FHF",
+    rating: 4.8,
+    reviewCount: 41,
+    stock: 621,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152817/SP-PA-EA-FHF-003.png"
+    ],
+    specs: {
+      "Explosion Protection": "II 3G Ex nA ic IIC T5 Gc, II 3D Ex tc ic IIIC T80°C Dc",
+      "Ringing Volume": "≥ 95 dB(A) at 1 meter distance",
+      "Protection Class": "IP65 ingress protection according to EN 60529",
+      "Mounting Flexibility": "Desk and wall mountable (stabilization bracket optional)",
+      "Ambient Temperature": "-20 °C to +55 °C operating range",
+      "Housing": "Impact-resistant thermoplastic polycarbonate enclosure"
+    },
+    features: [
+      "Analogue hazardous-area telephone certified according to ATEX Zone 2 and 22 standards",
+      "Rugged thermoplastic polycarbonate housing impervious to corrosive offshore atmospheres",
+      "Loud ≥ 95 dB(A) ringing sounder penetrative through plant machinery acoustic noise",
+      "Dual desk and wall convertible form factor for adaptable field installation"
+    ],
+    isChoice: true,
+    isBestSeller: true,
+    featured: false,
+    createdAt: "2026-10-16T12:02:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-004",
+    sku: "SP-PA-EA-FHF-004",
+    name: "ExResistTel Explosion Proof Telephone Analog",
+    description: "Spinel's FHF ExResistTel analog explosion proof telephone is engineered for reliable communication in firedamp-endangered industrial areas, including petrochemical facilities, offshore installations, and other hazardous environments. Designed to perform in extreme conditions, it is resistant to high temperature fluctuations, humidity, sea water, dust, and mechanical strain.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton FHF",
+    rating: 4.9,
+    reviewCount: 56,
+    stock: 392,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152817/SP-PA-EA-FHF-004.png"
+    ],
+    specs: {
+      "Hazardous Area Approval": "Certified for dust and gas explosive atmospheres (Zone 1, 2, 21, 22)",
+      "Degree of Protection": "IP66 according to EN 60529",
+      "Operating Temperature": "-25 °C to +60 °C range",
+      "Keypad Construction": "21-key V4A surgical stainless steel keypad",
+      "Security Access": "PIN-code locking and access security function",
+      "Operation Modes": "Full hands-free loudspeaker and handset communication",
+      "Housing Material": "Glass fiber reinforced polyester (GRP)"
+    },
+    features: [
+      "Heavy-duty analog explosion proof telephone engineered for firedamp, gas, and chemical plants",
+      "V4A stainless steel keypad resistant to aggressive acids, saltwater corrosion, and harsh impacts",
+      "Integrated PIN lock function prevents unauthorized dialing or tampering on open industrial decks",
+      "High-volume hands-free communication for immediate emergency coordination"
+    ],
+    isChoice: false,
+    isBestSeller: true,
+    featured: true,
+    createdAt: "2026-10-16T12:03:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-005",
+    sku: "SP-PA-EA-FHF-005",
+    name: "ExResistTel Accessories Set",
+    description: "Spinel's FHF intrinsically safe Ex secondary receiver set can be connected to the ExResistTel and ExResistTel MB telephones (analog versions only). The receiver enables a third person to take part in the telephone conversation. Eaton's FHF Ex headset can be connected to all explosionproof telephones from the ExResistTel line (analog and IP). This Ex-headset is designed to improve the user's communication experience during a telephone call by reducing the surrounding environmental noises and enables telephone calls while carrying out tasks that require the use of both hands, providing an efficient working experience.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton FHF",
+    rating: 4.7,
+    reviewCount: 18,
+    stock: 106,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152815/SP-PA-EA-FHF-005.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP54 environmental rating",
+      "Secondary Receiver Ex Type": "II 2G Ex ia IIC T6 intrinsically safe",
+      "Ex Headset Protection Type": "II 1G Ex ia IIC T4 Ga intrinsically safe",
+      "Connection Cable": "Approx. 15 m heavy-duty connection cable",
+      "Acoustic Isolation": "High-attenuation industrial ambient noise reduction",
+      "Compatibility": "ExResistTel Analog & IP Industrial Telephone Series"
+    },
+    features: [
+      "Intrinsically safe secondary earpiece permits supervisor auditing and team call participation",
+      "Noise-canceling industrial headset leaves both hands free for critical mechanical maintenance",
+      "Generous 15-meter reinforced umbilical cable allows comfortable movement around equipment",
+      "Highest ATEX intrinsic safety certification (II 1G Ex ia IIC T4 Ga / II 2G Ex ia IIC T6)"
+    ],
+    isChoice: false,
+    isBestSeller: false,
+    featured: false,
+    createdAt: "2026-10-16T12:04:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-006",
+    sku: "SP-PA-EA-FHF-006",
+    name: "MEDC DB1 Metallic Sounder Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB1 range of lightweight, flame-proof sounders is designed for use in potentially explosive atmospheres and has been designed with a high weatherproof rating to cope with the harsh environmental conditions found offshore and onshore in the oil, gas and petrochemical industries. The DB1P and DB1HP can be switched between two selectable tones by either reversing the supply polarity, or connecting a second voltage supply. The higher output DB1H and DB1HP are particularly suitable for noisy environments.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.9,
+    reviewCount: 29,
+    stock: 217,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152815/SP-PA-EA-FHF-006.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP66 weatherproof certified",
+      "Certified Temperature": "-13 °F to +158 °F (-20 °C to +70 °C)",
+      "Sound Output Level": "Up to 113 dB(A) at 1 meter",
+      "Housing Construction": "Marine grade LM25 alloy or 316 stainless steel",
+      "Tone Standards": "Tones comply with UKOOA and PFEER emergency safety guidelines",
+      "Tone Switching": "Two selectable tones switchable via voltage polarity reversal or second supply",
+      "Target Applications": "Offshore drilling rigs, floating production (FPSO), oil refineries and gas plants"
+    },
+    features: [
+      "Flameproof sounder certified for harsh offshore marine and onshore petrochemical sites",
+      "High acoustic output reaching up to 113 dB(A) ensures emergency broadcast penetration",
+      "Pre-programmed tones adhering strictly to UKOOA and PFEER offshore emergency standards",
+      "Precision cast in LM25 marine grade aluminum alloy or cast 316 stainless steel"
+    ],
+    isChoice: true,
+    isBestSeller: false,
+    featured: true,
+    createdAt: "2026-10-16T12:05:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-007",
+    sku: "SP-PA-EA-FHF-007",
+    name: "MEDC DB3B Explosion Proof Sounder Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB3B is a high-power explosion proof sounder which is provided with versatile control options allowing compatibility with a wide range of control methods and PLCs. Certified for use from -55 °C to +85 °C, the DB3B can withstand the harshest conditions. With an Ex enclosure manufactured from GRP and a rugged thermoplastic flare, it is lightweight and corrosion-resistant without compromising on durability.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 5.0,
+    reviewCount: 63,
+    stock: 428,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152816/SP-PA-EA-FHF-007.png"
+    ],
+    specs: {
+      "Certified Temperature": "-67 °F to 185 °F (-55 °C to +85 °C)",
+      "Ingress Protection": "IP66 & IP67 / NEMA 4X & 6 dual certified",
+      "Sound Output Level": "Up to 122 dB(A) output @ 1 meter",
+      "Tone Library": "28 user-selectable tones; customizable customer specifications",
+      "Enclosure Body": "Glass-reinforced polyester (GRP) corrosion-free flamepath",
+      "Flare Horn": "Rugged high-impact thermoplastic flare",
+      "Circuit Monitoring": "Optional factory integrated end-of-line (EOL) monitoring resistor"
+    },
+    features: [
+      "Industry benchmark high-power sounder providing up to 122 dB(A) piercing emergency alarm",
+      "Extreme temperature tolerance from -55 °C to +85 °C for Arctic and Saharan deployments",
+      "Non-corrosive GRP enclosure and thermoplastic flare eliminate rust and marine degradation",
+      "Versatile PLC and DCS control options for seamless integration with plant safety systems"
+    ],
+    isChoice: true,
+    isBestSeller: true,
+    featured: true,
+    createdAt: "2026-10-16T12:06:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-008",
+    sku: "SP-PA-EA-FHF-008",
+    name: "MEDC CU1 Combination Sounder Beacon Range",
+    description: "Spinel's Crouse-Hinds series MEDC CU1 combination sounder/beacon range is engineered for hazardous and potentially explosive atmospheres. Designed for oil, gas, and petrochemical industries, it is suitable for marine, onshore, and offshore environments. The CU1 delivers a powerful sound output of up to 116 dB(A) and beacon tube energy of up to 10 joules, ensuring clear audible and visual warnings in critical conditions.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.9,
+    reviewCount: 38,
+    stock: 264,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152816/SP-PA-EA-FHF-008.png"
+    ],
+    specs: {
+      "Signaling Technology": "Integrated high-decibel audible sounder and xenon visual beacon",
+      "Sound Output": "Up to 116 dB(A) with internal volume trim potentiometer",
+      "Beacon Energy Output": "High-intensity xenon tube up to 10 Joules",
+      "Flamepath Enclosure": "Corrosion-free glass reinforced polyester (GRP)",
+      "Certified Temperature": "-58 °F to 158 °F (-50 °C to +70 °C)",
+      "Ingress Protection": "IP66 and IP67 certified",
+      "Operating Configuration": "Independent or combined sounder / beacon operation"
+    },
+    features: [
+      "Dual audible and visual emergency signaling in a single compact flameproof assembly",
+      "Up to 116 dB(A) acoustic output paired with 10-Joule high-visibility strobe illumination",
+      "Independent circuit loops allow staging sounder and beacon on separate alarm criteria",
+      "Corrosion-proof GRP housing designed for marine drilling platforms and chemical refineries"
+    ],
+    isChoice: true,
+    isBestSeller: false,
+    featured: true,
+    createdAt: "2026-10-16T12:07:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-009",
+    sku: "SP-PA-EA-FHF-009",
+    name: "MEDC DB3BM Metallic Sounder Range",
+    description: "Spinel's MEDC DB3BM is a high-power explosion proof sounder which is provided with versatile control options allowing compatibility with a wide range of control methods and PLCs. Certified for use from -60 °C to +85 °C, the DB3BM can withstand the harshest conditions. The Ex-enclosure is manufactured in either marine grade alloy or stainless steel with a rugged thermoplastic flare providing a corrosion free and aesthetically pleasing product.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.8,
+    reviewCount: 27,
+    stock: 315,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152815/SP-PA-EA-FHF-009.png"
+    ],
+    specs: {
+      "Global Certifications": "UKEX, ATEX, and IECEx hazardous area approved",
+      "Flare Material": "Flame-retardant, high-impact thermoplastic polyester",
+      "Mounting Hardware": "316 stainless steel bracket, fixings and captive cover screws",
+      "Temperature Limits": "-60 °C to +85 °C extreme operational limits",
+      "Enclosure Body": "Marine grade LM25 alloy or cast 316 stainless steel",
+      "Acoustic Volume": "High-power output up to 120 dB(A) @ 1 meter",
+      "Control Method": "Universal PLC and plant automated control interface"
+    },
+    features: [
+      "Metallic explosion proof acoustic sounder engineered from marine grade alloy or 316 stainless steel",
+      "Withstands extreme sub-zero arctic temperature drops down to -60 °C and highs up to +85 °C",
+      "Robust flame-retardant thermoplastic flare provides optimal acoustic directivity",
+      "UKEX, ATEX, and IECEx certified for worldwide oil, gas, and petrochemical deployment"
+    ],
+    isChoice: false,
+    isBestSeller: false,
+    featured: false,
+    createdAt: "2026-10-16T12:08:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-010",
+    sku: "SP-PA-EA-FHF-010",
+    name: "MEDC DB7 Intrinsically Safe Sounder Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB7 range of ruggedized, intrinsically safe and weatherproof sounders features high ingress protection and is designed for use in potentially explosive atmospheres. Suitable for marine and both onshore and offshore environments in the oil, gas and petrochemical industries. The unit is available in 12V and 24V versions and for gas groups IIB or IIC. A weatherproof, uncertified version is available for use in non-explosive atmospheres.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.8,
+    reviewCount: 31,
+    stock: 207,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792152815/SP-PA-EA-FHF-010.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP66 & IP67 dual certified ingress protection",
+      "Certified Temperature": "-67 °F to 158 °F (-55 °C to +70 °C)",
+      "Housing Construction": "Corrosion-resistant red painted GRP (Glass Reinforced Polyester)",
+      "Sound Output IIB": "107 ± 3 dB(A) at 1 metre for 12V and 24V IIB versions",
+      "Sound Output IIC": "103 ± 3 dB(A) at 1 metre for 12V and 24V IIC versions",
+      "Operating Voltage": "12V or 24V via suitable galvanic or zener barrier",
+      "Current Consumption": "24V models: 34mA - 68mA; 12V models: 25mA - 55mA",
+      "Cable Entries": "Up to 3 x M20 via integrated knockouts"
+    },
+    features: [
+      "Intrinsically safe (Ex ia) sounder for gas groups IIB and IIC explosive environments",
+      "Low current consumption ideal for solar/battery-backed and long cable-run installations",
+      "High-visibility red painted GRP enclosure immune to saltwater and aggressive chemical atmospheres",
+      "Versatile 12V and 24V barrier-powered operation with acoustic output up to 107 dB(A)"
+    ],
+    isChoice: false,
+    isBestSeller: true,
+    featured: false,
+    createdAt: "2026-10-16T12:09:00.000Z"
+  }  ,
+  {
+    id: "prod-sp-pa-ea-fhf-011",
+    sku: "SP-PA-EA-FHF-011",
+    name: "MEDC DB5 Intrinsically Safe Sounder Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB5 range of intrinsically safe sounders are designed with a high weatherproof rating to cope with the harsh environmental conditions found offshore and onshore in the oil, gas and petrochemical industries. The unit is available in 2 models: 12V and 24V.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.8,
+    reviewCount: 24,
+    stock: 155,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792366423/SP-PA-EA-FHF-011.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP65 weatherproof rated",
+      "Certified Temperature": "-4 °F to 131 °F (-20 °C to +55 °C)",
+      "Sound Output Level": "Up to 92 dB(A) at 1 meter",
+      "Volume Control": "Built-in volume control trim as standard",
+      "Electronics Encapsulation": "Encapsulated electronics for moisture & vibration protection",
+      "Tone Selection": "26 different sound outputs, user selectable by internal switches",
+      "Tone Switching": "Second tone selectable using third wire",
+      "Operating Voltage Models": "12V DC and 24V DC versions available"
+    },
+    features: [
+      "Intrinsically safe alarm sounder engineered for offshore and petrochemical harsh environments",
+      "26 user-selectable emergency tones configured via internal multi-switch selection",
+      "Two-stage tone signaling via third-wire control for staged evacuation alerts",
+      "Encapsulated electronic module prevents moisture ingress and vibration failure"
+    ],
+    isChoice: true,
+    isBestSeller: false,
+    featured: true,
+    createdAt: "2026-10-18T16:00:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-012",
+    sku: "SP-PA-EA-FHF-012",
+    name: "MEDC DB4B Up to 25W Explosion Proof Loudspeaker Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB4B explosion proof loudspeaker range is designed for use in potentially explosive gas and dust atmospheres. Suitable for marine and both onshore and offshore environments in the oil, gas and petrochemical industries. A high-power, explosion proof loudspeaker, the DB4B was introduced as a replacement for the DB4 with improved intelligibility and acoustic performance.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.9,
+    reviewCount: 48,
+    stock: 209,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792366421/SP-PA-EA-FHF-012.png"
+    ],
+    specs: {
+      "Certified Temperature": "-67 °F to +185 °F (-55 °C to +85 °C)",
+      "Ingress Protection": "IP66 & IP67 / NEMA 4X & 6 dual certified",
+      "Sound Output": "124 dB at 25W, 1m",
+      "Power Rating Versions": "8W, 15W & 25W versions available",
+      "Frequency Response": "350 Hz - 8 kHz for high speech intelligibility",
+      "Ex Enclosure Material": "UV-stable glass reinforced polyester (GRP)",
+      "Mounting Hardware": "Stainless steel mounting bracket and cover screws",
+      "Terminal Chamber": "Optional Ex e terminal chamber for simplified wiring"
+    },
+    features: [
+      "High-power 25W explosion proof loudspeaker delivering up to 124 dB acoustic output",
+      "Optimized 350 Hz to 8 kHz frequency response engineered for critical voice messaging",
+      "Corrosion-proof GRP housing certified for Zone 1, 2, 21, and 22 gas and dust environments",
+      "Stainless steel mounting hardware and optional Ex e chamber for rapid maintenance"
+    ],
+    isChoice: true,
+    isBestSeller: true,
+    featured: true,
+    createdAt: "2026-10-18T16:01:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-013",
+    sku: "SP-PA-EA-FHF-013",
+    name: "MEDC DB10 15W Loudspeaker Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB10 Loudspeaker range is designed for use in potentially explosive atmospheres. Suitable for marine and both onshore and offshore environments in the oil, gas and petrochemical industries. With a high power rating of up to 15 Watts, it's suitable for use in gas groups IIB plus hydrogen and IIC. The flamepaths, flare and body are manufactured from a UV-stable glass reinforced polyester (GRP). Stainless steel screws and mounting stirrup are incorporated to ensure a corrosion-free product.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.8,
+    reviewCount: 36,
+    stock: 167,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792366422/SP-PA-EA-FHF-013.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP66 and IP67 certified ingress protection",
+      "Certified Temperature": "-40 °F to +149 °F (-40 °C to +65 °C)",
+      "Sound Output Level": "115 dB(A) at 15 Watts at 1 metre",
+      "Power Versions": "8 Watt and 15 Watt power versions",
+      "Transformer Tappings": "Power tappings via integral 100V line transformer",
+      "Construction Material": "UV-stable GRP corrosion-free flamepath, flare, and body",
+      "Hardware Material": "Fitted with 316L stainless steel fixtures & mounting stirrup",
+      "Grounding": "Internal earth stud fitted as standard"
+    },
+    features: [
+      "Explosion proof 15W loudspeaker certified for gas groups IIB + H2 (hydrogen) and IIC",
+      "High 115 dB(A) sound output for reliable coverage in noisy petrochemical facilities",
+      "Corrosion-proof GRP enclosure with 316L stainless steel mounting hardware",
+      "Integrated line transformer with multi-tap power settings for balanced distribution"
+    ],
+    isChoice: false,
+    isBestSeller: false,
+    featured: true,
+    createdAt: "2026-10-18T16:02:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-014",
+    sku: "SP-PA-EA-FHF-014",
+    name: "MEDC DB20C 8W Ceiling Loudspeaker Range",
+    description: "Spinel's Crouse-Hinds series MEDC DB20 Ceiling Loudspeaker range (power rating up to 8 Watts on request) is designed for use in potentially explosive atmospheres. Suitable for marine and both onshore and offshore environments in the oil, gas and petrochemical industries. The lightweight, patented design provides self-supporting and self-locking mounting onto a ceiling tile from 0.5 to 55mm thick. The speaker is held in the mount via a twist-fit support and locking grille, giving access from above or below and allowing first fit of either ceiling or speakers. The DB20C's compact design will fit a ceiling cavity of limited space and its aesthetically pleasing appearance will enhance the surroundings.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.9,
+    reviewCount: 42,
+    stock: 329,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792366422/SP-PA-EA-FHF-014.png"
+    ],
+    specs: {
+      "Ingress Protection": "IP66 & IP67 dual certified ingress protection",
+      "Certified Temperature": "-58 °F to +158 °F (-50 °C to +70 °C)",
+      "Enclosure Materials": "GRP and Flame-Retardant ABS corrosion-free construction",
+      "Acoustic Output": "100 dB(A) at 1 watt at 1 metre",
+      "Line Transformer": "Power tappings via integral transformer (100V or 70V line versions)",
+      "Ceiling Compatibility": "Self-supporting and self-locking mounting onto ceiling tile from 0.5 to 55mm",
+      "Wiring Facility": "8-terminal connector facilitating loop-in and loop-out wiring",
+      "Installation Design": "Twist-fit support and locking grille with top/bottom access"
+    },
+    features: [
+      "Explosion proof flush ceiling speaker engineered for control rooms and offshore quarters",
+      "Patented self-locking twist-fit mechanism installs quickly into 0.5mm to 55mm tiles",
+      "Shallow rear cavity profile designed for constrained ceiling plenums",
+      "8-way connector block for simple loop-in / loop-out daisy-chaining"
+    ],
+    isChoice: true,
+    isBestSeller: true,
+    featured: true,
+    createdAt: "2026-10-18T16:03:00.000Z"
+  },
+  {
+    id: "prod-sp-pa-ea-fhf-015",
+    sku: "SP-PA-EA-FHF-015",
+    name: "MEDC DB4BM Metallic Loudspeaker Range",
+    description: "Spinel's MEDC DB4BM Loudspeaker range is designed for use in potentially explosive gas and dust atmospheres. Suitable for marine and both onshore and offshore environments in the oil, gas, and petrochemical industries. A high-power, explosion proof loudspeaker, the DB4BM is a metallic version of the DB4B with market-leading intelligibility and excellent acoustic performance. The frequency response of the unit ensures that critical voice messages and general alarm tones are highly intelligible. The specific SPL figure for sensitivity is 1W @ 1m is 108dB whilst at 1m the 25W unit produces 119dB, the 15W unit 117dB and the 8W unit 114dB.",
+    priceUSD: 0,
+    category: "Public Address (PAGA) System",
+    subcategory: "Public Address Systems",
+    brand: "Eaton Crouse-Hinds MEDC",
+    rating: 4.9,
+    reviewCount: 35,
+    stock: 228,
+    images: [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792366421/SP-PA-EA-FHF-015.png"
+    ],
+    specs: {
+      "Certifications": "UKEX / ATEX / IECEx certified for hazardous gas and dust",
+      "Ex Enclosure": "Manufactured in either marine grade alloy or cast 316 stainless steel",
+      "Mounting Hardware": "316 stainless steel bracket, fixings and captive cover screws",
+      "Flare Construction": "Flame-retardant, high-impact thermoplastic polyester flare",
+      "Certified Temperature": "-60 °C to +85 °C extreme operational limits",
+      "Power Versions": "8W (114 dB @ 1m), 15W (117 dB @ 1m) & 25W (119 dB @ 1m) versions",
+      "Acoustic Sensitivity": "108 dB SPL at 1W at 1 metre",
+      "Corrosion Resistance": "Robust marine grade metallic construction"
+    },
+    features: [
+      "Marine grade alloy or 316 stainless steel metallic explosion proof loudspeaker",
+      "Exceptional 108 dB @ 1W / 1m sensitivity ensuring high voice clarity and alarm audibility",
+      "Wide operating temperature envelope of -60 °C to +85 °C for extreme climates",
+      "Full UKEX, ATEX, and IECEx hazardous zone certifications"
+    ],
+    isChoice: false,
+    isBestSeller: true,
+    featured: false,
+    createdAt: "2026-10-18T16:04:00.000Z"
   }
+
 ];
