@@ -14377,7 +14377,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
       "Mounting Pattern": "Direct Wall and Ceiling Surface Fastening"
     },
     features: [
-      "Dedicated junction enclosure tailored for dual-head security camera cabling",
+      "Dedicated junction box tailored for dual-head security camera cabling",
       "Weather-sealed neoprene gasket safeguards electrical splices against rain",
       "Generous interior volume accommodates PoE splitters, surge arrestors, and coils",
       "Pre-drilled mounting hole matrix for quick surface attachment"
@@ -14506,7 +14506,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
     },
     features: [
       "Constructed from solid AISI 316L electropolished stainless steel",
-      "Engineered to support heavy explosion-proof housings in harsh refinery environments",
+      "Engineered to support heavy explosion-proof enclosures in harsh refinery environments",
       "Immune to extreme chemical vapors, salt water spray, and outdoor weathering",
       "Internal wiring passage keeps power and fiber lines sealed and protected"
     ],

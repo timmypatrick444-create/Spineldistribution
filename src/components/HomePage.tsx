@@ -244,6 +244,34 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
+  // 7. Filter Enclosures & Housings products and randomize for display
+  const enclosureProducts = useMemo(() => {
+    const enc = safeProducts.filter(p => {
+      const cat = (p.category || '').toLowerCase().trim();
+      const sub = (p.subcategory || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      return (
+        cat === 'enclosures & housings' ||
+        cat.includes('enclosure') ||
+        cat.includes('housing') ||
+        sub.includes('enclosure') ||
+        sub.includes('housing') ||
+        sub.includes('junction box') ||
+        sub.includes('back box') ||
+        name.includes('enclosure') ||
+        name.includes('housing') ||
+        name.includes('junction box') ||
+        name.includes('terminal box') ||
+        name.includes('ejba') ||
+        name.includes('ex-cell') ||
+        name.includes('abox')
+      );
+    });
+
+    const pool = enc.length >= 4 ? enc : safeProducts.filter(p => (p.category || '').toLowerCase().includes('enclosure'));
+    return [...pool].sort(() => 0.5 - Math.random());
+  }, [safeProducts]);
+
   // Eagerly preload all hero slide images into browser cache immediately
   useEffect(() => {
     HERO_SLIDES.forEach(s => {
@@ -682,6 +710,21 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Public Address & PAGA products currently loading or unavailable."
+      />
+
+      {/* 2.8 PROTECT MORE. CONNECT SECURELY - Enclosures & Housings */}
+      <ProductSliderSection
+        id="protect-more-connect-securely"
+        title="Protect More. Connect Securely."
+        subtitle="Explore industrial enclosures, explosion-proof junction boxes, weatherproof housings, and reliable electrical protection equipment for hazardous environments."
+        products={enclosureProducts}
+        onSelectProduct={onSelectProduct}
+        onSeeAll={() => onSelectCategory('Enclosures & Housings')}
+        onAddToCart={handleAddToCart}
+        onRequestQuote={onRequestQuote}
+        onNavigateQuote={() => onNavigate('quote')}
+        addedMap={addedMap}
+        emptyMessage="Enclosures & Housings products currently loading or unavailable."
       />
 
       {/* 3. SMARTER ACCESS STARTS HERE - Access Credentials */}

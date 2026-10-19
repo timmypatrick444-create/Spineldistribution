@@ -22,8 +22,14 @@ import { Product, Order } from './types';
 import { SEED_PRODUCTS } from './data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './data/uploadedPagaProducts';
+import { UPLOADED_ENCLOSURE_PRODUCTS } from './data/uploadedEnclosureProducts';
 
-const INITIAL_SEEDED_PRODUCTS: Product[] = [...UPLOADED_PAGA_PRODUCTS, ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS, ...SEED_PRODUCTS];
+const INITIAL_SEEDED_PRODUCTS: Product[] = [
+  ...UPLOADED_ENCLOSURE_PRODUCTS,
+  ...UPLOADED_PAGA_PRODUCTS,
+  ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
+  ...SEED_PRODUCTS
+];
 
 function MainApp() {
   const { isAdmin } = useAuth();

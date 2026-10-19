@@ -209,10 +209,10 @@ export const CATEGORIES: CategoryDefinition[] = [
       'Camera Housings',
       'Outdoor Housings',
       'Indoor Housings',
-      'Explosion-Proof Housings',
+      'Explosion-Proof Enclosures',
       'Environmental Housings',
       'Protective Enclosures',
-      'Junction Enclosures',
+      'Junction Boxes',
       'Back Boxes',
       'Equipment Enclosures',
       'Mounting Enclosures'
