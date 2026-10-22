@@ -244,31 +244,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 7. Filter Enclosures & Housings products and randomize for display
+  // 7. Filter strictly ONLY Enclosures & Housings products and randomize for display
   const enclosureProducts = useMemo(() => {
-    const enc = safeProducts.filter(p => {
+    const pool = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      const name = (p.name || '').toLowerCase().trim();
-      return (
-        cat === 'enclosures & housings' ||
-        cat.includes('enclosure') ||
-        cat.includes('housing') ||
-        sub.includes('enclosure') ||
-        sub.includes('housing') ||
-        sub.includes('junction box') ||
-        sub.includes('back box') ||
-        name.includes('enclosure') ||
-        name.includes('housing') ||
-        name.includes('junction box') ||
-        name.includes('terminal box') ||
-        name.includes('ejba') ||
-        name.includes('ex-cell') ||
-        name.includes('abox')
-      );
+      return cat === 'enclosures & housings';
     });
 
-    const pool = enc.length >= 4 ? enc : safeProducts.filter(p => (p.category || '').toLowerCase().includes('enclosure'));
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 

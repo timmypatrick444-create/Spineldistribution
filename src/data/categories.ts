@@ -207,13 +207,9 @@ export const CATEGORIES: CategoryDefinition[] = [
     image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80',
     subcategories: [
       'Camera Housings',
-      'Outdoor Housings',
-      'Indoor Housings',
       'Explosion-Proof Enclosures',
-      'Environmental Housings',
-      'Protective Enclosures',
       'Junction Boxes',
-      'Back Boxes',
+      'IT Racks',
       'Equipment Enclosures',
       'Mounting Enclosures'
     ]
