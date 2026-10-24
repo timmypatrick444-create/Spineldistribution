@@ -150,6 +150,20 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 >
                   Your Orders &amp; Invoices
                 </button>
+                <button
+                  onClick={() => { onNavigate('about'); onClose(); }}
+                  className="w-full text-left px-6 py-2.5 text-gray-700 hover:bg-gray-100 flex items-center justify-between"
+                >
+                  <span>About Spinel</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </button>
+                <button
+                  onClick={() => { onNavigate('contact'); onClose(); }}
+                  className="w-full text-left px-6 py-2.5 text-gray-700 hover:bg-gray-100 flex items-center justify-between"
+                >
+                  <span>Contact &amp; Support</span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </button>
                 {!user ? (
                   <>
                     <button

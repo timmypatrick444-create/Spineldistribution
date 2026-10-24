@@ -258,6 +258,29 @@ async function ensureUsersTableExists(pool: mysql.Pool) {
   }
 }
 
+async function ensureContactInquiryTableExists(pool: mysql.Pool) {
+  try {
+    const contactTableSql = `
+      CREATE TABLE IF NOT EXISTS \`Contact_Inquiry\` (
+        \`ID\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`Contact_Person\` VARCHAR(255) NOT NULL,
+        \`Email\` VARCHAR(255) NOT NULL,
+        \`Company_Name\` VARCHAR(255) NULL,
+        \`Phone_Number\` VARCHAR(64) NULL,
+        \`Subject\` VARCHAR(255) NOT NULL,
+        \`Message\` TEXT NOT NULL,
+        \`Created_At\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX \`idx_contact_email\` (\`Email\`),
+        INDEX \`idx_contact_created_at\` (\`Created_At\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `;
+    await pool.query(contactTableSql);
+    console.log('[MySQL] "Contact_Inquiry" table verified and ready in database.');
+  } catch (err: any) {
+    console.log('[MySQL] "Contact_Inquiry" table notice:', err.message);
+  }
+}
+
 async function getOrInitDbPool(): Promise<mysql.Pool | null> {
   if (dbPool && isDbConnected) {
     return dbPool;
@@ -299,6 +322,7 @@ async function getOrInitDbPool(): Promise<mysql.Pool | null> {
 
     await ensureQuoteTableExists(pool);
     await ensureUsersTableExists(pool);
+    await ensureContactInquiryTableExists(pool);
 
     // Preload existing quotes from Request_Quote table into in-memory store
     try {
@@ -365,6 +389,7 @@ async function getOrInitDbPool(): Promise<mysql.Pool | null> {
           console.log(`[MySQL] Connected via socket ${sock} successfully!`);
           await ensureQuoteTableExists(sockPool);
           await ensureUsersTableExists(sockPool);
+          await ensureContactInquiryTableExists(sockPool);
           return dbPool;
         } catch (sockErr: any) {
           lastDbError = sockErr.message;
@@ -2125,6 +2150,148 @@ app.get('/api/db-status', async (req, res) => {
       ? `Database configured for ${user}@${host}/${database} targeting table Request_Quote. In cloud preview, local MySQL is not reachable; quotes are preserved in resilient memory and will automatically sync to Request_Quote when deployed to cPanel.`
       : 'cPanel MySQL credentials are not set in .env. Add DB_HOST, DB_USER, DB_PASSWORD, DB_NAME to connect.'
   });
+});
+
+// ============================================================================
+// WHATSAPP QUICK HELP CHAT ENDPOINT (Hides phone number from client navigation URL)
+// ============================================================================
+app.get(['/api/support/chat', '/api/support/whatsapp'], (req, res) => {
+  const phone = '2348169632070';
+  const message = 'Hello Spinel Distribution Support, I need assistance with...';
+  res.redirect(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`);
+});
+
+// ============================================================================
+// CONTACT INQUIRY API (Persisted to cPanel MySQL "Contact_Inquiry" Table)
+// ============================================================================
+interface ContactInquiryItem {
+  id?: number | string;
+  Contact_Person: string;
+  Email: string;
+  Company_Name?: string;
+  Phone_Number: string;
+  Subject: string;
+  Message: string;
+  Created_At?: string;
+}
+
+const contactInquiriesFile = path.join(process.cwd(), 'tmp', 'contact_inquiries.json');
+let contactInquiriesStore: ContactInquiryItem[] = [];
+
+try {
+  if (fs.existsSync(contactInquiriesFile)) {
+    const raw = fs.readFileSync(contactInquiriesFile, 'utf-8');
+    contactInquiriesStore = JSON.parse(raw);
+  }
+} catch {}
+
+const saveContactInquiriesToFile = () => {
+  try {
+    const dir = path.dirname(contactInquiriesFile);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(contactInquiriesFile, JSON.stringify(contactInquiriesStore, null, 2));
+  } catch {}
+};
+
+app.post(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
+  try {
+    const { 
+      fullName, 
+      contactPerson, 
+      Contact_Person,
+      email, 
+      Email,
+      company, 
+      companyName, 
+      Company_Name,
+      phone, 
+      phoneNumber, 
+      Phone_Number,
+      subject, 
+      Subject,
+      message, 
+      Message 
+    } = req.body;
+
+    const finalContactPerson = (Contact_Person || contactPerson || fullName || '').trim();
+    const finalEmail = (Email || email || '').trim();
+    const finalCompanyName = (Company_Name || companyName || company || '').trim() || null;
+    const finalPhoneNumber = (Phone_Number || phoneNumber || phone || '').trim();
+    const finalSubject = (Subject || subject || 'General Inquiry').trim();
+    const finalMessage = (Message || message || '').trim();
+
+    // Full Name, Corporate Email, Telephone Number, and Message are compulsory
+    if (!finalContactPerson || !finalEmail || !finalPhoneNumber || !finalMessage) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Contact Person, Email, Telephone Number, and Message are compulsory fields.' 
+      });
+    }
+
+    let insertedId: number | string = Date.now();
+    const nowIso = new Date().toISOString();
+
+    const pool = await getOrInitDbPool();
+    if (pool) {
+      try {
+        await ensureContactInquiryTableExists(pool);
+        const [result]: any = await pool.execute(
+          'INSERT INTO `Contact_Inquiry` (`Contact_Person`, `Email`, `Company_Name`, `Phone_Number`, `Subject`, `Message`) VALUES (?, ?, ?, ?, ?, ?)',
+          [finalContactPerson, finalEmail, finalCompanyName, finalPhoneNumber, finalSubject, finalMessage]
+        );
+        if (result && result.insertId) {
+          insertedId = result.insertId;
+        }
+        console.log(`[MySQL] New contact inquiry saved to Contact_Inquiry table. ID: ${insertedId}`);
+      } catch (dbErr: any) {
+        console.warn('[MySQL] Failed to insert into Contact_Inquiry table, falling back to local store:', dbErr.message);
+      }
+    }
+
+    const newRecord: ContactInquiryItem = {
+      id: insertedId,
+      Contact_Person: finalContactPerson,
+      Email: finalEmail,
+      Company_Name: finalCompanyName || undefined,
+      Phone_Number: finalPhoneNumber || undefined,
+      Subject: finalSubject,
+      Message: finalMessage,
+      Created_At: nowIso
+    };
+
+    contactInquiriesStore.unshift(newRecord);
+    saveContactInquiriesToFile();
+
+    res.status(201).json({
+      success: true,
+      message: 'Your inquiry has been successfully submitted to Contact_Inquiry.',
+      id: insertedId,
+      data: newRecord
+    });
+  } catch (error: any) {
+    console.error('[Contact Inquiry] Error submitting inquiry:', error);
+    res.status(500).json({ success: false, error: 'Internal server error processing contact inquiry.' });
+  }
+});
+
+app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
+  try {
+    const pool = await getOrInitDbPool();
+    if (pool) {
+      try {
+        await ensureContactInquiryTableExists(pool);
+        const [rows]: any = await pool.query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
+        if (Array.isArray(rows) && rows.length > 0) {
+          return res.json({ success: true, count: rows.length, inquiries: rows });
+        }
+      } catch (dbErr: any) {
+        console.warn('[MySQL] Query Contact_Inquiry error:', dbErr.message);
+      }
+    }
+    res.json({ success: true, count: contactInquiriesStore.length, inquiries: contactInquiriesStore });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Proxy image endpoint to bypass CORS when embedding product images into PDF invoices

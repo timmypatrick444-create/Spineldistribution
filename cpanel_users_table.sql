@@ -45,3 +45,31 @@ CREATE TABLE IF NOT EXISTS `Users` (
 --
 -- Sample verification query:
 -- SELECT ID, Full_Name, Email, Verification_Status, OTP_Code, Created_At FROM `Users` ORDER BY `ID` DESC;
+
+-- =====================================================================
+-- SPINEL DISTRIBUTION - CPANEL MYSQL DATABASE SCHEMA FOR "Contact_Inquiry"
+-- =====================================================================
+-- TABLE NAME: Contact_Inquiry
+--
+-- 1. ID             : Auto-incrementing primary key
+-- 2. Contact_Person : Name of the person reaching out
+-- 3. Email          : Corporate contact email address
+-- 4. Company_Name   : Organization or EPC contractor
+-- 5. Phone_Number   : Direct contact telephone
+-- 6. Subject        : Topic of inquiry
+-- 7. Message        : Inquiry message and project scope
+-- 8. Created_At     : Timestamp of submission
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS `Contact_Inquiry` (
+  `ID` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Unique Inquiry ID',
+  `Contact_Person` VARCHAR(255) NOT NULL COMMENT 'Full Name of Contact',
+  `Email` VARCHAR(255) NOT NULL COMMENT 'Contact Email',
+  `Company_Name` VARCHAR(255) NULL COMMENT 'Company / Organization',
+  `Phone_Number` VARCHAR(64) NULL COMMENT 'Telephone Number',
+  `Subject` VARCHAR(255) NOT NULL COMMENT 'Inquiry Subject',
+  `Message` TEXT NOT NULL COMMENT 'Message / Scope',
+  `Created_At` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Submission Timestamp',
+  INDEX `idx_contact_email` (`Email`),
+  INDEX `idx_contact_created_at` (`Created_At`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Enterprise Contact Inquiries';

@@ -16,6 +16,10 @@ import { SignupPage } from './components/SignupPage';
 import { OtpVerificationPage } from './components/OtpVerificationPage';
 import { RequestQuotePage } from './components/RequestQuotePage';
 import { InvoicePage } from './components/InvoicePage';
+import { AboutPage } from './components/AboutPage';
+import { ContactPage } from './components/ContactPage';
+import { TermsOfUsePage } from './components/TermsOfUsePage';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Product, Order } from './types';
@@ -46,6 +50,10 @@ function MainApp() {
       if (path === '/invoice') return 'invoice';
       if (path === '/catalog') return 'catalog';
       if (path === '/quote' || path === '/request-quote') return 'quote';
+      if (path === '/about') return 'about';
+      if (path === '/contact') return 'contact';
+      if (path === '/terms-of-use' || path === '/terms') return 'terms-of-use';
+      if (path === '/privacy-policy' || path === '/privacy') return 'privacy-policy';
       if (path === '/login') return 'login';
       if (path === '/signup') return 'signup';
       if (path === '/auth') return 'login';
@@ -142,6 +150,14 @@ function MainApp() {
         setCurrentView('catalog');
       } else if (path === '/quote' || path === '/request-quote') {
         setCurrentView('quote');
+      } else if (path === '/about') {
+        setCurrentView('about');
+      } else if (path === '/contact') {
+        setCurrentView('contact');
+      } else if (path === '/terms-of-use' || path === '/terms') {
+        setCurrentView('terms-of-use');
+      } else if (path === '/privacy-policy' || path === '/privacy') {
+        setCurrentView('privacy-policy');
       } else if (path === '/login') {
         setCurrentView('login');
       } else if (path === '/signup') {
@@ -185,6 +201,10 @@ function MainApp() {
     else if (view === 'login') targetPath = '/login';
     else if (view === 'signup') targetPath = '/signup';
     else if (view === 'quote') targetPath = '/quote';
+    else if (view === 'about') targetPath = '/about';
+    else if (view === 'contact') targetPath = '/contact';
+    else if (view === 'terms-of-use' || view === 'terms') targetPath = '/terms-of-use';
+    else if (view === 'privacy-policy' || view === 'privacy') targetPath = '/privacy-policy';
     else if (view === 'product') {
       const prodId = param || selectedProduct?.id;
       targetPath = prodId ? `/product/${encodeURIComponent(prodId)}` : '/';
@@ -393,6 +413,31 @@ function MainApp() {
               />
             )}
 
+            {currentView === 'about' && (
+              <AboutPage
+                onNavigate={navigateTo}
+                onSelectCategory={handleSelectCategory}
+              />
+            )}
+
+            {currentView === 'contact' && (
+              <ContactPage
+                onNavigate={navigateTo}
+              />
+            )}
+
+            {currentView === 'terms-of-use' && (
+              <TermsOfUsePage
+                onNavigate={navigateTo}
+              />
+            )}
+
+            {currentView === 'privacy-policy' && (
+              <PrivacyPolicyPage
+                onNavigate={navigateTo}
+              />
+            )}
+
             {currentView === 'login' && (
               <LoginPage
                 onSuccess={() => navigateTo('home')}
@@ -461,6 +506,7 @@ function MainApp() {
       {!isAuthView && (
         <Footer 
           onNavigate={navigateTo} 
+          onSelectCategory={handleSelectCategory}
           noMarginTop={isAdminView || currentView === 'home'}
         />
       )}
