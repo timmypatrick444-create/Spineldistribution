@@ -469,6 +469,19 @@ interface PendingSignup {
 
 const pendingSignups = new Map<string, PendingSignup>();
 
+interface PendingPasswordReset {
+  email: string;
+  fullName: string;
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  verified: boolean;
+  resetToken?: string;
+  lastSentAt: number;
+}
+
+const pendingPasswordResets = new Map<string, PendingPasswordReset>();
+
 // Multi-tiered Email Delivery Engine for cPanel & Production
 async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
@@ -655,6 +668,157 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     success: false,
     method: 'none',
     error: logs.join(' | ') || 'No active email transport available. Please add SMTP details to db_config.json.',
+    details: logs
+  };
+}
+
+// Multi-tiered Password Reset OTP Delivery from noreply@spineldistribution.com
+async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
+  loadAllPossibleEnvFiles();
+  const subject = `Password Reset Verification Code: ${otp} - Spinel Distribution`;
+  const senderEmail = 'noreply@spineldistribution.com';
+  const fromHeader = `"Spinel Distribution" <${senderEmail}>`;
+
+  console.log(`[Email Password Reset Service] ==========================================`);
+  console.log(`[Email Password Reset Service] TO: ${toEmail}`);
+  console.log(`[Email Password Reset Service] SENDER: ${senderEmail}`);
+  console.log(`[Email Password Reset Service] RESET CODE (OTP): ${otp}`);
+  console.log(`[Email Password Reset Service] ==========================================`);
+
+  const htmlBody = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+      <div style="background: #0f172a; padding: 24px; text-align: center;">
+        <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
+        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Password Assistance &amp; Account Security</p>
+      </div>
+      <div style="padding: 32px 28px;">
+        <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
+        <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
+          We received a request to reset the password for your Spinel Distribution account. Please enter the 6-digit verification code below to verify your email address and choose a new password:
+        </div>
+        <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 10px; padding: 18px; text-align: center; margin: 20px 0;">
+          <div style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #b45309;">${otp}</div>
+          <div style="font-size: 12px; color: #92400e; margin-top: 8px; font-weight: 500;">Valid for 15 minutes. Do not share this code.</div>
+        </div>
+        <div style="font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 20px;">
+          If you did not request a password reset, you can safely ignore this email. Your current password will remain unchanged.
+        </div>
+      </div>
+      <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
+        Sent automatically from ${senderEmail} &bull; &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+      </div>
+    </div>
+  `;
+  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes. Sent from noreply@spineldistribution.com.`;
+  const logs: string[] = [];
+
+  const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
+  const rawPass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || '').trim();
+  let rawHost = (process.env.SMTP_HOST || process.env.MAIL_HOST || '').trim();
+  let rawPort = parseInt(process.env.SMTP_PORT || process.env.MAIL_PORT || '0', 10);
+
+  if (!rawHost && rawUser && rawUser.includes('@')) {
+    const domain = rawUser.split('@')[1];
+    rawHost = `mail.${domain}`;
+  }
+
+  // Tier 1: Dedicated SMTP
+  if (rawUser && rawPass) {
+    const hostsToTry = Array.from(new Set([rawHost || 'localhost', 'localhost', '127.0.0.1'])).filter(Boolean);
+    const portsToTry = rawPort ? [rawPort, 465, 587] : [465, 587, 25];
+    const uniquePorts = Array.from(new Set(portsToTry));
+
+    for (const h of hostsToTry) {
+      for (const p of uniquePorts) {
+        const isSsl = p === 465;
+        try {
+          logs.push(`Attempting SMTP on ${h}:${p} (SSL=${isSsl})...`);
+          const transporter = nodemailer.createTransport({
+            host: h,
+            port: p,
+            secure: isSsl,
+            auth: { user: rawUser, pass: rawPass },
+            tls: { rejectUnauthorized: false, minVersion: 'TLSv1' },
+            connectionTimeout: 7000,
+            greetingTimeout: 7000,
+            socketTimeout: 9000
+          });
+
+          await transporter.sendMail({
+            from: fromHeader,
+            to: toEmail,
+            envelope: { from: senderEmail, to: toEmail },
+            subject,
+            text: textBody,
+            html: htmlBody
+          });
+
+          console.log(`[Email Password Reset Service] Delivered successfully via SMTP ${h}:${p} to ${toEmail}`);
+          return { success: true, method: `smtp:${h}:${p}`, details: logs };
+        } catch (smtpErr: any) {
+          logs.push(`Failed on ${h}:${p}: ${smtpErr.message}`);
+        }
+      }
+    }
+  }
+
+  // Tier 2: cPanel sendmail binary
+  const sendmailBinaries = ['/usr/sbin/sendmail', '/usr/bin/sendmail', '/usr/lib/sendmail', '/bin/sendmail'];
+  for (const sPath of sendmailBinaries) {
+    if (fs.existsSync(sPath)) {
+      try {
+        const sendmailTransporter = nodemailer.createTransport({
+          sendmail: true,
+          newline: 'unix',
+          path: sPath,
+          args: ['-f', senderEmail, '-i']
+        });
+        await sendmailTransporter.sendMail({
+          from: fromHeader,
+          to: toEmail,
+          envelope: { from: senderEmail, to: toEmail },
+          subject,
+          text: textBody,
+          html: htmlBody
+        });
+        console.log(`[Email Password Reset Service] Delivered via cPanel sendmail (${sPath}) to ${toEmail}`);
+        return { success: true, method: `sendmail:${sPath}`, details: logs };
+      } catch (smErr: any) {
+        logs.push(`Failed on sendmail (${sPath}): ${smErr.message}`);
+      }
+    }
+  }
+
+  // Tier 3: Local Exim SMTP relay
+  try {
+    const localTransporter = nodemailer.createTransport({
+      host: '127.0.0.1',
+      port: 25,
+      secure: false,
+      tls: { rejectUnauthorized: false },
+      ignoreTLS: true,
+      connectionTimeout: 3000,
+      greetingTimeout: 3000,
+      socketTimeout: 5000
+    });
+    await localTransporter.sendMail({
+      from: fromHeader,
+      to: toEmail,
+      envelope: { from: senderEmail, to: toEmail },
+      subject,
+      text: textBody,
+      html: htmlBody
+    });
+    console.log(`[Email Password Reset Service] Delivered via local Exim relay to ${toEmail}`);
+    return { success: true, method: 'local_relay', details: logs };
+  } catch (relayErr: any) {
+    logs.push(`Failed on local_relay: ${relayErr.message}`);
+  }
+
+  return {
+    success: false,
+    method: 'none',
+    error: logs.join(' | ') || 'No active email transport available.',
     details: logs
   };
 }
@@ -1048,7 +1212,7 @@ app.post('/api/auth/register-initiate', async (req, res) => {
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
       emailSent: emailResult.success,
-      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
@@ -1285,6 +1449,226 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err: any) {
     console.error('[Login Error]', err);
     return res.status(500).json({ error: 'Server error during authentication. Please try again.' });
+  }
+});
+
+// Step 5: Forgot Password - Send OTP from noreply@spineldistribution.com
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+
+  if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return res.status(400).json({ error: 'Please enter a valid official business email address.' });
+  }
+
+  try {
+    const user = await findUserByEmail(cleanEmail);
+    if (!user) {
+      return res.status(404).json({
+        error: 'No registered account found with this email address. Please check your spelling or sign up.'
+      });
+    }
+
+    const now = Date.now();
+    const existingReset = pendingPasswordResets.get(cleanEmail);
+    if (existingReset && existingReset.lastSentAt && (now - existingReset.lastSentAt) < 15000) {
+      const waitSeconds = Math.ceil((15000 - (now - existingReset.lastSentAt)) / 1000);
+      return res.status(429).json({
+        error: `Please wait ${waitSeconds} seconds before requesting another verification code.`
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = now + 15 * 60 * 1000;
+
+    // Persist OTP to MySQL Users table
+    const pool = await getOrInitDbPool();
+    if (pool) {
+      try {
+        await pool.query(
+          "UPDATE `Users` SET `OTP_Code` = ?, `OTP_Expiry` = ? WHERE LOWER(`Email`) = LOWER(?)",
+          [otp, new Date(expiresAt), cleanEmail]
+        );
+      } catch (err: any) {
+        try {
+          await pool.query(
+            "UPDATE `users` SET `OTP_Code` = ?, `OTP_Expiry` = ? WHERE LOWER(`Email`) = LOWER(?)",
+            [otp, new Date(expiresAt), cleanEmail]
+          );
+        } catch {}
+      }
+    }
+
+    // Persist session in memory
+    pendingPasswordResets.set(cleanEmail, {
+      email: cleanEmail,
+      fullName: user.fullName || 'Valued Customer',
+      otp,
+      expiresAt,
+      attempts: 0,
+      verified: false,
+      lastSentAt: now
+    });
+
+    // Send email from noreply@spineldistribution.com
+    const emailResult = await sendPasswordResetOtpEmail(cleanEmail, user.fullName, otp);
+
+    return res.json({
+      success: true,
+      message: emailResult.success
+        ? `A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`
+        : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
+      email: cleanEmail,
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
+    });
+  } catch (err: any) {
+    console.error('[Forgot Password Error]', err);
+    return res.status(500).json({ error: 'Server error processing password reset request.' });
+  }
+});
+
+// Step 6: Verify Password Reset OTP
+app.post('/api/auth/verify-reset-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanOtp = (otp || '').trim().replace(/\s+/g, '');
+
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+  if (!cleanOtp) {
+    return res.status(400).json({ error: 'Please enter the 6-digit verification code sent to your email.' });
+  }
+
+  const pending = pendingPasswordResets.get(cleanEmail);
+  const dbUser = await findUserByEmail(cleanEmail);
+
+  const validOtp = pending?.otp || dbUser?.otpCode;
+  const expiresAt = pending?.expiresAt || (dbUser?.otpExpiry ? new Date(dbUser.otpExpiry).getTime() : 0);
+
+  if (!validOtp) {
+    return res.status(400).json({
+      error: 'No active password reset session found for this email. Please request a new verification code.'
+    });
+  }
+
+  if (expiresAt && Date.now() > expiresAt) {
+    pendingPasswordResets.delete(cleanEmail);
+    return res.status(400).json({
+      error: 'The verification code has expired. Please request a fresh code.'
+    });
+  }
+
+  if (pending && pending.attempts >= 5) {
+    pendingPasswordResets.delete(cleanEmail);
+    return res.status(429).json({
+      error: 'Too many incorrect attempts. Please request a fresh verification code.'
+    });
+  }
+
+  if (validOtp !== cleanOtp) {
+    if (pending) pending.attempts += 1;
+    const remaining = pending ? 5 - pending.attempts : 3;
+    return res.status(400).json({
+      error: `Invalid verification code. Please check your email and try again. (${remaining} attempts remaining)`
+    });
+  }
+
+  const resetToken = `rst_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  if (pending) {
+    pending.verified = true;
+    pending.resetToken = resetToken;
+  } else {
+    pendingPasswordResets.set(cleanEmail, {
+      email: cleanEmail,
+      fullName: dbUser?.fullName || 'Valued Customer',
+      otp: validOtp,
+      expiresAt: expiresAt || Date.now() + 15 * 60 * 1000,
+      attempts: 0,
+      verified: true,
+      resetToken,
+      lastSentAt: Date.now()
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: 'Email address verified successfully. You can now choose a new password.',
+    resetToken
+  });
+});
+
+// Step 7: Change Password after OTP verification
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, otp, newPassword, resetToken } = req.body;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const rawPassword = (newPassword || '').trim();
+  const cleanOtp = (otp || '').trim().replace(/\s+/g, '');
+
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  if (!rawPassword || rawPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+  }
+
+  const pending = pendingPasswordResets.get(cleanEmail);
+  const dbUser = await findUserByEmail(cleanEmail);
+
+  const isTokenValid = pending && pending.verified && (!resetToken || pending.resetToken === resetToken);
+  const isOtpValid = Boolean(cleanOtp && (pending?.otp === cleanOtp || dbUser?.otpCode === cleanOtp));
+
+  if (!isTokenValid && !isOtpValid) {
+    return res.status(400).json({
+      error: 'Unable to verify password reset request. Please complete OTP verification first.'
+    });
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(rawPassword, salt);
+
+    const pool = await getOrInitDbPool();
+    if (pool) {
+      try {
+        await pool.query(
+          "UPDATE `Users` SET `Password` = ?, `OTP_Code` = NULL, `OTP_Expiry` = NULL, `Verification_Status` = 'Verified' WHERE LOWER(`Email`) = LOWER(?)",
+          [passwordHash, cleanEmail]
+        );
+        console.log(`[MySQL] Password updated successfully for user ${cleanEmail}.`);
+      } catch (err: any) {
+        try {
+          await pool.query(
+            "UPDATE `users` SET `Password` = ?, `OTP_Code` = NULL, `OTP_Expiry` = NULL, `Verification_Status` = 'Verified' WHERE LOWER(`Email`) = LOWER(?)",
+            [passwordHash, cleanEmail]
+          );
+        } catch (err2: any) {
+          console.warn('[Users DB] Password update notice:', err2.message);
+        }
+      }
+    }
+
+    // Update in-memory user store
+    const memUser = inMemoryUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (memUser) {
+      memUser.password = passwordHash;
+      memUser.otpCode = null;
+      memUser.otpExpiry = null;
+      memUser.verificationStatus = 'Verified';
+    }
+
+    pendingPasswordResets.delete(cleanEmail);
+
+    return res.json({
+      success: true,
+      message: 'Your password has been changed successfully. You can now log in with your new password.'
+    });
+  } catch (err: any) {
+    console.error('[Reset Password Error]', err);
+    return res.status(500).json({ error: 'Server error updating password. Please try again.' });
   }
 });
 

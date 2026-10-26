@@ -20,6 +20,7 @@ import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { TermsOfUsePage } from './components/TermsOfUsePage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Product, Order } from './types';
@@ -54,6 +55,7 @@ function MainApp() {
       if (path === '/contact') return 'contact';
       if (path === '/terms-of-use' || path === '/terms') return 'terms-of-use';
       if (path === '/privacy-policy' || path === '/privacy') return 'privacy-policy';
+      if (path === '/reset-password' || path === '/forgot-password') return 'reset-password';
       if (path === '/login') return 'login';
       if (path === '/signup') return 'signup';
       if (path === '/auth') return 'login';
@@ -64,6 +66,7 @@ function MainApp() {
   const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
   const [pendingAuthName, setPendingAuthName] = useState<string>('');
   const [pendingAuthOtp, setPendingAuthOtp] = useState<string | undefined>();
+  const [resetPasswordEmail, setResetPasswordEmail] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/product/')) {
       const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
@@ -205,6 +208,10 @@ function MainApp() {
     else if (view === 'contact') targetPath = '/contact';
     else if (view === 'terms-of-use' || view === 'terms') targetPath = '/terms-of-use';
     else if (view === 'privacy-policy' || view === 'privacy') targetPath = '/privacy-policy';
+    else if (view === 'reset-password') {
+      if (param) setResetPasswordEmail(param);
+      targetPath = '/reset-password';
+    }
     else if (view === 'product') {
       const prodId = param || selectedProduct?.id;
       targetPath = prodId ? `/product/${encodeURIComponent(prodId)}` : '/';
@@ -271,7 +278,7 @@ function MainApp() {
   };
 
   const isAdminView = currentView === 'admin-dashboard';
-  const isAuthView = currentView === 'login' || currentView === 'signup' || currentView === 'otp-verify';
+  const isAuthView = currentView === 'login' || currentView === 'signup' || currentView === 'otp-verify' || currentView === 'reset-password';
 
   return (
     <div className={`min-h-screen flex flex-col ${isAdminView ? 'bg-[#0f172a]' : isAuthView ? 'bg-[#f3f4f6]' : 'bg-[#eaeded]'} text-[#0F1111] font-sans antialiased w-full max-w-full overflow-x-hidden`}>
@@ -434,6 +441,16 @@ function MainApp() {
 
             {currentView === 'privacy-policy' && (
               <PrivacyPolicyPage
+                onNavigate={navigateTo}
+              />
+            )}
+
+            {currentView === 'reset-password' && (
+              <ResetPasswordPage
+                initialEmail={resetPasswordEmail}
+                onSuccess={() => {
+                  navigateTo('login');
+                }}
                 onNavigate={navigateTo}
               />
             )}

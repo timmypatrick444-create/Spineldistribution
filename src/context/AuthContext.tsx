@@ -9,6 +9,9 @@ interface AuthContextType {
   customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
   customerVerifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerResendOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  requestPasswordResetOtp: (email: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  verifyPasswordResetOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }>;
+  completePasswordReset: (email: string, otp: string, newPassword: string, resetToken?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerLogout: () => void;
   adminLogin: (technicalEmail: string, accessKey: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
@@ -194,6 +197,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const requestPasswordResetOtp = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to request password reset code.'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message,
+        devOtp: data.devOtp
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during password reset request.'
+      };
+    }
+  };
+
+  const verifyPasswordResetOtp = async (
+    email: string,
+    otp: string
+  ): Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/verify-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Invalid verification code.'
+        };
+      }
+
+      return {
+        success: true,
+        resetToken: data.resetToken,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during OTP verification.'
+      };
+    }
+  };
+
+  const completePasswordReset = async (
+    email: string,
+    otp: string,
+    newPassword: string,
+    resetToken?: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword, resetToken })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to update password.'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error updating password.'
+      };
+    }
+  };
+
   const customerLogout = () => {
     setUser(null);
     localStorage.removeItem('spinel_user');
@@ -239,6 +338,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         customerRegisterInitiate,
         customerVerifyOtp,
         customerResendOtp,
+        requestPasswordResetOtp,
+        verifyPasswordResetOtp,
+        completePasswordReset,
         customerLogout,
         adminLogin,
         adminLogout
