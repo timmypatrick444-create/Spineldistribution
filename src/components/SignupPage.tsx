@@ -5,7 +5,7 @@ import { UserPlus, Eye, EyeOff, ArrowLeft, ShieldCheck, Mail, KeyRound, User, Ch
 interface SignupPageProps {
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
-  onNavigateToOtp: (email: string, fullName: string, devOtp?: string) => void;
+  onNavigateToOtp: (email: string, fullName: string) => void;
 }
 
 export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, onNavigateToOtp }) => {
@@ -60,7 +60,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
       }
 
       // Immediately navigate user to the OTP page
-      onNavigateToOtp(cleanEmail, cleanFullName, res.devOtp);
+      onNavigateToOtp(cleanEmail, cleanFullName);
     } catch (err: any) {
       setError(err?.message || 'Failed to initiate account registration. Please try again.');
     } finally {

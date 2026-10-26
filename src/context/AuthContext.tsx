@@ -6,10 +6,10 @@ interface AuthContextType {
   isAdmin: boolean;
   adminToken: string | null;
   customerLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }>;
-  customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerVerifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerResendOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
-  requestPasswordResetOtp: (email: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  requestPasswordResetOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   verifyPasswordResetOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }>;
   completePasswordReset: (email: string, otp: string, newPassword: string, resetToken?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerLogout: () => void;
@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fullName: string,
     email: string,
     password: string
-  ): Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }> => {
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
       const res = await fetch('/api/auth/register-initiate', {
         method: 'POST',
@@ -117,8 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         success: true,
-        message: data.message,
-        devOtp: data.devOtp
+        message: data.message
       };
     } catch (err: any) {
       return {
@@ -199,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const requestPasswordResetOtp = async (
     email: string
-  ): Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }> => {
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
@@ -217,8 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         success: true,
-        message: data.message,
-        devOtp: data.devOtp
+        message: data.message
       };
     } catch (err: any) {
       return {
