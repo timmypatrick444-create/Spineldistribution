@@ -27,9 +27,49 @@ interface HomePageProps {
   onRequestQuote?: (product: Product) => void;
 }
 
-const HERO_SLIDES = [
+interface HeroSlide {
+  id: number;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  category: string;
+  subcategory?: string;
+  image: string;
+  accentColor: string;
+}
+
+const HERO_SLIDES: HeroSlide[] = [
   {
     id: 1,
+    title: 'Ex Junction Boxes',
+    subtitle: 'Hazardous-area protection, robust enclosures & secure electrical connections',
+    ctaText: 'Explore Ex Junction Boxes',
+    category: 'Enclosures & Housings',
+    subcategory: 'Junction Boxes',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032693/Ex_Junction_Box.png',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 2,
+    title: 'IT Racks & Enclosures',
+    subtitle: 'Secure equipment housing, optimized cable management & efficient airflow',
+    ctaText: 'Explore IT Racks',
+    category: 'Enclosures & Housings',
+    subcategory: 'IT Racks',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032693/IT_Racks.png',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 3,
+    title: 'Explosion-Proof Telephone Systems',
+    subtitle: 'Reliable voice communication, hazardous-area protection & rugged industrial performance',
+    ctaText: 'Explore PAGA Systems',
+    category: 'Public Address (PAGA) System',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032692/Ex_Telephone_System.png',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 4,
     title: 'Intelligent Video Surveillance',
     subtitle: 'Ultra low-light Starlight sensors, vehicle classification & facial recognition',
     ctaText: 'Explore Cameras & NVRs',
@@ -38,7 +78,7 @@ const HERO_SLIDES = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 2,
+    id: 5,
     title: 'Smart Hybrid Solar Inverters',
     subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
     ctaText: 'Shop Renewable Energy',
@@ -47,7 +87,7 @@ const HERO_SLIDES = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 3,
+    id: 6,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
@@ -311,7 +351,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div>
               <button
                 type="button"
-                onClick={() => onSelectCategory(slide.category)}
+                onClick={() => onSelectCategory(slide.category, slide.subcategory)}
                 className="bg-[#febd69] hover:bg-[#f3a847] text-[#131921] font-bold px-5 sm:px-6 py-2 sm:py-2.5 rounded shadow-lg text-xs sm:text-sm transition-all transform hover:scale-[1.02] cursor-pointer"
               >
                 {slide.ctaText}

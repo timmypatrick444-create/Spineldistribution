@@ -251,34 +251,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
       <div className="bg-[#131921] px-4 sm:px-6 lg:px-8 py-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap justify-center gap-6 mb-2">
-            <span 
-              onClick={() => { onNavigate('terms-of-use'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Terms of Use
-            </span>
-            <span 
-              onClick={() => { onNavigate('privacy-policy'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Privacy Policy
-            </span>
-            <span 
-              onClick={() => { onNavigate('about'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              About Us
-            </span>
-            <span 
-              onClick={() => { onNavigate('contact'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Contact &amp; Support
-            </span>
+           © 2026 SPINEL DISTRIBUTION Limited. All Rights Reserved.
           </div>
-          <p className="text-xs text-gray-500">
-            © 2026, SPINEL DISTRIBUTION Ltd. All hardware specs, certifications, and brand names belong to their respective manufacturers.
-          </p>
         </div>
       </div>
     </footer>
