@@ -212,7 +212,23 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
                   className="rounded text-[#e77600] focus:ring-[#e77600] w-4 h-4 mt-0.5 cursor-pointer"
                 />
                 <span>
-                  I agree to Spinel Distribution's Conditions of Use, B2B wholesale transaction terms, and Privacy Notice.
+                  I agree to Spinel Distribution's{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('terms-of-use')}
+                    className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+                  >
+                    Terms of Use
+                  </button>
+                  , B2B wholesale transaction terms, and{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('privacy-policy')}
+                    className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+                  >
+                    Privacy Policy
+                  </button>
+                  .
                 </span>
               </label>
             </div>
@@ -271,6 +287,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
       {/* Standalone Minimal Footer */}
       <footer className="w-full py-6 px-4 text-center border-t border-gray-200 bg-white/70 mt-8">
         <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-600 mb-2">
+          <button type="button" onClick={() => onNavigate('terms-of-use')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Terms of Use
+          </button>
+          <button type="button" onClick={() => onNavigate('privacy-policy')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Privacy Policy
+          </button>
           <button type="button" onClick={() => onNavigate('home')} className="hover:text-blue-700 hover:underline cursor-pointer">
             Storefront
           </button>
