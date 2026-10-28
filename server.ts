@@ -2723,40 +2723,75 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
+let viteMounted = false;
+
+const MONITORED_FILES = [
+  path.join(process.cwd(), 'app.js'),
+  path.join(__dirname, 'app.js'),
+  path.join(process.cwd(), 'server.cjs'),
+  path.join(process.cwd(), 'tmp', 'restart.txt'),
+  path.join(process.cwd(), 'client-build', 'index.html'),
+  path.join(process.cwd(), 'dist', 'index.html'),
+  path.join(process.cwd(), 'index.html'),
+  path.join(process.cwd(), 'package.json')
+];
+
+// Record file modification timestamps at boot time
+const initialFileMtimes = new Map<string, number>();
+for (const f of MONITORED_FILES) {
+  if (fs.existsSync(f)) {
+    try {
+      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
+    } catch {}
+  }
+}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
-  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
+  if (viteMounted) {
+    return;
+  }
+
+  const isProductionOrCpanel = Boolean(
+    process.env.PASSENGER_APP_ENV ||
+    process.env.CPANEL_ENV ||
+    process.env.IN_PASSENGER ||
+    process.env.NODE_ENV === 'production' ||
+    isNaN(Number(PORT))
+  );
+
+  if (!isProductionOrCpanel) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
+  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
   lastRestartCheck = now;
 
-  const appFiles = [
-    path.join(process.cwd(), 'app.js'),
-    path.join(__dirname, 'app.js'),
-    path.join(process.cwd(), 'server.cjs'),
-    path.join(process.cwd(), 'tmp', 'restart.txt')
-  ];
-
-  for (const f of appFiles) {
+  for (const f of MONITORED_FILES) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        // If file modified after the current process booted (+5s buffer for startup)
-        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
-          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
+        const recorded = initialFileMtimes.get(f);
+        
+        // If file was replaced or modified after the process booted
+        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
+          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
+          initialFileMtimes.set(f, stats.mtimeMs);
+          
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-          setTimeout(() => process.exit(0), 100);
+
+          setTimeout(() => {
+            process.exit(0);
+          }, 100);
           break;
+        } else if (recorded === undefined) {
+          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -2812,6 +2847,7 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2852,7 +2888,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+    if (!viteMounted) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -2861,7 +2897,7 @@ async function startServer() {
   });
 
   // Mount live Vite middlewares when running in dev environment
-  let viteMounted = false;
+  viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

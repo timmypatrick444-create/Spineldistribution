@@ -136,7 +136,7 @@ Upload these files directly into your domain root (e.g. `public_html/`):
 
 ## 5. Quick Setup Summary
 
-1. Upload `app.js`, `client-build/` (or `dist/`), `.htaccess`, and `package.json` to `public_html`.
+1. Upload `app.js`, `client-build/` (or `dist/`), `.htaccess`, and `package.json` to `public_html` (or extract `cpanel-deploy.zip` directly into `public_html`).
 2. In cPanel **Setup Node.js App**:
    - **Node.js version**: `20.x` (or `18.x` / `22.x`)
    - **Application mode**: `Production`
@@ -144,3 +144,22 @@ Upload these files directly into your domain root (e.g. `public_html/`):
    - **Application startup file**: `app.js`
    - **Environment variables**: Add `DB_HOST=127.0.0.1`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
 3. Click **Save** and **Restart**.
+
+---
+
+## 6. How Live Updates Reflect Immediately on cPanel
+
+If you upload updated files and the live site still shows older content, here is why that happened and how it is solved:
+
+1. **Pre-Compiled Bundles (`app.js` & `client-build/`)**:
+   - Because cPanel runs without build tools, the GitHub repository contains pre-compiled bundles (`app.js` and `client-build/`).
+   - Every time code changes are made, the production bundles are freshly compiled so that downloading or syncing from GitHub delivers the latest version.
+2. **Automatic Process Reload (Phusion Passenger)**:
+   - When you upload or replace files on cPanel, Phusion Passenger keeps the old Node process in server memory until it is reloaded.
+   - The server includes an auto-reload watcher: when it detects that `app.js`, `client-build/index.html`, or `tmp/restart.txt` has been modified, it automatically reloads the worker process with zero downtime.
+   - You can also instantly trigger a reload by:
+     - Clicking **"Restart"** in cPanel &rarr; **Setup Node.js App**.
+     - Or visiting `https://yourdomain.com/api/system/restart` in your browser.
+3. **Cache-Control & LiteSpeed Bypass**:
+   - `.htaccess` and `index.html` include `X-LiteSpeed-Cache-Control: no-cache` and strict `Cache-Control: no-store, no-cache, must-revalidate` headers. This prevents browsers and cPanel LiteSpeed server caches from serving stale cached HTML.
+

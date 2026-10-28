@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "rm -rf dist client-build && vite build && mkdir -p client-build && cp -r dist/* client-build/ && mkdir -p client-build/Images/Request_Quotes dist/Images/Request_Quotes && cp -r Images/* client-build/Images/ 2>/dev/null || true && cp -r Images/* dist/Images/ 2>/dev/null || true && esbuild server.ts --bundle --platform=node --target=node18 --format=cjs --external:vite --minify --outfile=app.js && cp app.js server.cjs && node scripts/pack-cpanel.js",
+    "build": "rm -rf dist client-build && vite build && mkdir -p client-build && cp -r dist/* client-build/ && cp .htaccess dist/.htaccess 2>/dev/null || true && cp .htaccess client-build/.htaccess 2>/dev/null || true && mkdir -p client-build/Images/Request_Quotes dist/Images/Request_Quotes && cp -r Images/* client-build/Images/ 2>/dev/null || true && cp -r Images/* dist/Images/ 2>/dev/null || true && esbuild server.ts --bundle --platform=node --target=node18 --format=cjs --external:vite --minify --outfile=app.js && cp app.js server.cjs && node scripts/pack-cpanel.js",
     "build:cpanel": "npm run build",
     "start": "node app.js",
     "clean": "rm -rf dist server.cjs tmp *.zip cpanel-deploy.zip",
