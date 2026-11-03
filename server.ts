@@ -40,6 +40,17 @@ const PORT = (rawPort && rawPort !== '8080') ? rawPort : 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Strict zero-cache headers on all API routes so LiteSpeed, proxies, and browsers never serve stale API responses
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
+  res.removeHeader('ETag');
+  next();
+});
+
 // Serve Images/Request_Quotes directory statically on cPanel and dev server
 const baseImagesDir = path.join(process.cwd(), 'Images');
 const baseRequestQuotesDir = path.join(process.cwd(), 'Images', 'Request_Quotes');
@@ -97,6 +108,110 @@ let productCatalog: Product[] = [
 ];
 let ordersStore: Order[] = [];
 let quotesStore: any[] = [];
+
+// Live Disk Catalog Synchronizer:
+// Automatically reads updated products from dist/products-catalog.json, client-build/products-catalog.json,
+// or src/data/*.ts whenever files are uploaded to cPanel so changes reflect immediately without waiting for a restart.
+const catalogDiskSignatures = new Map<string, string>();
+let lastDiskCatalogCheck = 0;
+
+function mergeProductsIntoCatalog(incoming: Product[]) {
+  if (!Array.isArray(incoming) || incoming.length === 0) return;
+  const bySku = new Map<string, number>();
+  const byId = new Map<string, number>();
+  productCatalog.forEach((p, idx) => {
+    if (p.sku) bySku.set(String(p.sku).toLowerCase().trim(), idx);
+    if (p.id) byId.set(String(p.id).toLowerCase().trim(), idx);
+  });
+
+  const newItems: Product[] = [];
+  for (const item of incoming) {
+    if (!item || !item.name) continue;
+    const skuKey = item.sku ? String(item.sku).toLowerCase().trim() : '';
+    const idKey = item.id ? String(item.id).toLowerCase().trim() : '';
+    const existingIdx = (skuKey && bySku.has(skuKey))
+      ? bySku.get(skuKey)!
+      : (idKey && byId.has(idKey))
+      ? byId.get(idKey)!
+      : -1;
+
+    if (existingIdx >= 0) {
+      productCatalog[existingIdx] = { ...productCatalog[existingIdx], ...item };
+    } else {
+      newItems.push(item);
+      if (skuKey) bySku.set(skuKey, -1);
+      if (idKey) byId.set(idKey, -1);
+    }
+  }
+  if (newItems.length > 0) {
+    productCatalog = [...newItems, ...productCatalog];
+  }
+}
+
+function syncCatalogFromDiskIfNeeded() {
+  const now = Date.now();
+  if (now - lastDiskCatalogCheck < 1000) return;
+  lastDiskCatalogCheck = now;
+
+  const rootDir = process.env.APP_ROOT || process.cwd();
+  const jsonCandidates = [
+    path.join(rootDir, 'dist', 'products-catalog.json'),
+    path.join(rootDir, 'client-build', 'products-catalog.json'),
+    path.join(process.cwd(), 'dist', 'products-catalog.json'),
+    path.join(process.cwd(), 'client-build', 'products-catalog.json'),
+    path.join(__dirname, 'dist', 'products-catalog.json'),
+    path.join(__dirname, 'client-build', 'products-catalog.json')
+  ];
+
+  for (const jFile of jsonCandidates) {
+    if (fs.existsSync(jFile)) {
+      try {
+        const stats = fs.statSync(jFile);
+        const sig = `${stats.mtimeMs}:${stats.size}`;
+        if (catalogDiskSignatures.get(jFile) !== sig) {
+          catalogDiskSignatures.set(jFile, sig);
+          const parsed = JSON.parse(fs.readFileSync(jFile, 'utf8'));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            mergeProductsIntoCatalog(parsed);
+          }
+        }
+      } catch {}
+    }
+  }
+
+  const tsDataFiles = [
+    path.join(rootDir, 'src', 'data', 'uploadedEnclosureProducts.ts'),
+    path.join(rootDir, 'src', 'data', 'uploadedPagaProducts.ts'),
+    path.join(rootDir, 'src', 'data', 'uploadedProducts.ts'),
+    path.join(process.cwd(), 'src', 'data', 'uploadedEnclosureProducts.ts'),
+    path.join(process.cwd(), 'src', 'data', 'uploadedPagaProducts.ts'),
+    path.join(process.cwd(), 'src', 'data', 'uploadedProducts.ts')
+  ];
+
+  for (const tsFile of tsDataFiles) {
+    if (fs.existsSync(tsFile)) {
+      try {
+        const stats = fs.statSync(tsFile);
+        const sig = `${stats.mtimeMs}:${stats.size}`;
+        if (catalogDiskSignatures.get(tsFile) !== sig) {
+          catalogDiskSignatures.set(tsFile, sig);
+          const raw = fs.readFileSync(tsFile, 'utf8');
+          const eqIdx = raw.indexOf('=');
+          const firstBracket = eqIdx >= 0 ? raw.indexOf('[', eqIdx) : raw.indexOf('[');
+          const lastBracket = raw.lastIndexOf(']');
+          if (firstBracket >= 0 && lastBracket > firstBracket) {
+            const arrayLiteral = raw.slice(firstBracket, lastBracket + 1);
+            const evaluated = new Function(`return ${arrayLiteral};`)();
+            if (Array.isArray(evaluated) && evaluated.length > 0) {
+              mergeProductsIntoCatalog(evaluated);
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+}
+syncCatalogFromDiskIfNeeded();
 
 // -------------------------------------------------------------
 // cPanel MySQL / MariaDB Database Connection & Schema Init
@@ -1050,6 +1165,9 @@ app.get('/api/categories', (req, res) => {
 // 3. Products Search & Catalog API
 // NOTE: Total master product count is purposely kept hidden from public store!
 app.get('/api/products', (req, res) => {
+  syncCatalogFromDiskIfNeeded();
+  checkAutoReloadOnNewUpload();
+
   const {
     category,
     subcategory,
@@ -1141,6 +1259,9 @@ app.get('/api/products', (req, res) => {
 
 // 4. Single Product Detail
 app.get('/api/products/:id', (req, res) => {
+  syncCatalogFromDiskIfNeeded();
+  checkAutoReloadOnNewUpload();
+
   const product = productCatalog.find(p => p.id === req.params.id || p.sku === req.params.id);
   if (!product) {
     return res.status(404).json({ error: 'Product not found' });
@@ -2724,24 +2845,32 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
 let viteMounted = false;
+let isReloadScheduled = false;
 
 const MONITORED_FILES = [
   path.join(process.cwd(), 'app.js'),
   path.join(__dirname, 'app.js'),
   path.join(process.cwd(), 'server.cjs'),
+  path.join(__dirname, 'server.cjs'),
   path.join(process.cwd(), 'tmp', 'restart.txt'),
   path.join(process.cwd(), 'client-build', 'index.html'),
   path.join(process.cwd(), 'dist', 'index.html'),
+  path.join(process.cwd(), 'client-build', 'products-catalog.json'),
+  path.join(process.cwd(), 'dist', 'products-catalog.json'),
+  path.join(process.cwd(), 'src', 'data', 'uploadedEnclosureProducts.ts'),
+  path.join(process.cwd(), 'src', 'data', 'uploadedPagaProducts.ts'),
+  path.join(process.cwd(), 'src', 'data', 'uploadedProducts.ts'),
   path.join(process.cwd(), 'index.html'),
   path.join(process.cwd(), 'package.json')
 ];
 
-// Record file modification timestamps at boot time
-const initialFileMtimes = new Map<string, number>();
+// Record file modification timestamps & sizes at boot time
+const initialFileSignatures = new Map<string, { mtimeMs: number; size: number }>();
 for (const f of MONITORED_FILES) {
   if (fs.existsSync(f)) {
     try {
-      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
+      const st = fs.statSync(f);
+      initialFileSignatures.set(f, { mtimeMs: st.mtimeMs, size: st.size });
     } catch {}
   }
 }
@@ -2749,7 +2878,7 @@ for (const f of MONITORED_FILES) {
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
   // Never exit the process in development or preview environments!
-  if (viteMounted) {
+  if (viteMounted || isReloadScheduled) {
     return;
   }
 
@@ -2766,36 +2895,55 @@ function checkAutoReloadOnNewUpload() {
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
+  if (now - lastRestartCheck < 1500) return;
   lastRestartCheck = now;
 
   for (const f of MONITORED_FILES) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        const recorded = initialFileMtimes.get(f);
-        
-        // If file was replaced or modified after the process booted
-        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
-          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
-          initialFileMtimes.set(f, stats.mtimeMs);
-          
+        const recorded = initialFileSignatures.get(f);
+        const mtimeChanged = recorded !== undefined && Math.abs(stats.mtimeMs - recorded.mtimeMs) > 300;
+        const sizeChanged = recorded !== undefined && stats.size !== recorded.size;
+
+        if (mtimeChanged || sizeChanged) {
+          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Syncing and reloading worker process...`);
+          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
+          isReloadScheduled = true;
+
+          // Immediately sync in-memory catalog from disk before restarting
+          try { syncCatalogFromDiskIfNeeded(); } catch {}
+
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
-            fs.writeFileSync(restartPath, String(Date.now()));
+            const newTs = Date.now();
+            fs.writeFileSync(restartPath, String(newTs));
+            const rStat = fs.statSync(restartPath);
+            initialFileSignatures.set(restartPath, { mtimeMs: rStat.mtimeMs, size: rStat.size });
           } catch {}
 
           setTimeout(() => {
             process.exit(0);
-          }, 100);
+          }, 350);
           break;
         } else if (recorded === undefined) {
-          initialFileMtimes.set(f, stats.mtimeMs);
+          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
         }
       } catch {}
     }
   }
+}
+
+// Background file watcher interval on cPanel so uploaded files trigger reload even before a browser visits
+const cpanelWatchTimer = setInterval(() => {
+  try {
+    syncCatalogFromDiskIfNeeded();
+    checkAutoReloadOnNewUpload();
+  } catch {}
+}, 2000);
+if (typeof cpanelWatchTimer.unref === 'function') {
+  cpanelWatchTimer.unref();
 }
 
 // Scans all candidate directories to find the single newest compiled index.html
@@ -2813,7 +2961,7 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
   ];
 
   let bestFile: string | null = null;
-  let bestMtime = 0;
+  let bestScore = 0;
   let bestContent = '';
 
   for (const candidate of candidates) {
@@ -2823,8 +2971,15 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
         const content = fs.readFileSync(candidate, 'utf8');
         // Must be a compiled bundle with assets (not raw dev index referencing src/main.tsx)
         const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
-        if (isCompiled && stats.mtimeMs > bestMtime) {
-          bestMtime = stats.mtimeMs;
+        if (!isCompiled) continue;
+
+        // Check embedded build timestamp if present (immune to zip extraction mtime flattening)
+        const tsMatch = content.match(/SPINEL_BUILD_TS:(\d+)/);
+        const embeddedTs = tsMatch ? parseInt(tsMatch[1], 10) : 0;
+        const score = Math.max(embeddedTs, stats.mtimeMs);
+
+        if (score > bestScore) {
+          bestScore = score;
           bestFile = candidate;
           bestContent = content;
         }
@@ -2833,13 +2988,15 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
   }
 
   if (bestFile && bestContent) {
-    return { filePath: bestFile, content: bestContent, mtime: bestMtime };
+    return { filePath: bestFile, content: bestContent, mtime: bestScore };
   }
   return null;
 }
 
 // Delivers the newest index.html with strict zero-cache headers to eliminate stale browser views
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
+  syncCatalogFromDiskIfNeeded();
+  checkAutoReloadOnNewUpload();
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -2847,7 +3004,7 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2871,6 +3028,7 @@ async function startServer() {
 
   // Auto-reload watcher middleware
   app.use((req, res, next) => {
+    syncCatalogFromDiskIfNeeded();
     checkAutoReloadOnNewUpload();
     next();
   });
@@ -2878,6 +3036,7 @@ async function startServer() {
   // Dedicated instant restart endpoint
   app.get('/api/system/restart', (req, res) => {
     try {
+      syncCatalogFromDiskIfNeeded();
       const restartFile = path.join(process.cwd(), 'tmp', 'restart.txt');
       fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
       fs.writeFileSync(restartFile, String(Date.now()));
@@ -2885,6 +3044,7 @@ async function startServer() {
 
     res.json({
       success: true,
+      totalCatalogProducts: productCatalog.length,
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
@@ -2911,12 +3071,14 @@ async function startServer() {
     console.log('[Storefront] Running standalone production bundle.');
   }
 
-  // Static immutable assets for hashed JS and CSS bundles
+  // Static immutable assets for hashed JS and CSS bundles across all candidate build directories
   const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
+    path.join(process.cwd(), 'assets'),
     path.join(__dirname, 'dist', 'assets'),
-    path.join(__dirname, 'client-build', 'assets')
+    path.join(__dirname, 'client-build', 'assets'),
+    path.join(__dirname, 'assets')
   ];
   for (const aPath of assetPaths) {
     if (fs.existsSync(aPath)) {

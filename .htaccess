@@ -10,15 +10,17 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Prevent Caching of HTML & Service Workers (Ensures live domain always shows newest version immediately)
+# 2. Prevent Caching of HTML, JSON & API Responses (Ensures live domain always shows newest upload immediately)
 <IfModule mod_headers.c>
-  # Bypass LiteSpeed server-side cache for HTML and dynamic views
-  Header set X-LiteSpeed-Cache-Control "no-cache"
+  # Bypass LiteSpeed and Cloudflare/Proxy server-side cache for HTML and dynamic views
+  Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
 
-  <FilesMatch "\.(html|htm)$">
-    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
+  <FilesMatch "\.(html|htm|json)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    Header set Surrogate-Control "no-store"
+    Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
     Header unset ETag
     Header unset Last-Modified
   </FilesMatch>
@@ -35,11 +37,41 @@
   PassengerRestartDir tmp
 </IfModule>
 
-# 4. Fallback Single Page Application (SPA) Routing for Apache
+# 4. Smart Asset & Single Page Application (SPA) Routing for cPanel Apache / LiteSpeed
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  RewriteRule ^index\.html$ - [L]
+
+  # Never rewrite backend API, health check, or image upload routes
+  RewriteRule ^(api|health|Images|images|uploads)(/|$) - [L]
+
+  # Resolve /assets/* from root /assets/, /client-build/assets/, or /dist/assets/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}/client-build/assets/$1 -f
+  RewriteRule ^assets/(.*)$ /client-build/assets/$1 [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
+  RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
+
+  # Serve compiled production client-build/index.html when root / or /index.html is requested directly on Apache/LiteSpeed
+  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
+  RewriteRule ^(index\.html)?$ /client-build/index.html [L]
+
+  RewriteRule ^client-build/index\.html$ - [L]
+  RewriteRule ^dist/index\.html$ - [L]
+
+  # For SPA client-side routes, serve compiled client-build/index.html (or dist/index.html)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
+  RewriteRule . /client-build/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+  RewriteRule . /dist/index.html [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
@@ -55,3 +87,4 @@
     Deny from all
   </IfModule>
 </FilesMatch>
+

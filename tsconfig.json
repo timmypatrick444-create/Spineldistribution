@@ -32,6 +32,7 @@
     "node_modules",
     "dist",
     "client-build",
+    "assets",
     "app.js",
     "server.cjs"
   ]

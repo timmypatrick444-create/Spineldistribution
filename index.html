@@ -20,6 +20,44 @@
   <body class="bg-[#eaeded] text-[#0F1111] antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Automatic fallback if raw repository index.html is ever served directly by Apache/LiteSpeed without Vite dev server
+      (function () {
+        var isRawDevHtml = !!document.querySelector('script[src*="/src/main.tsx"]');
+        var hasViteClient = !!document.querySelector('script[src*="@vite/client"]');
+        if (!isRawDevHtml || hasViteClient) return;
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            var rootEl = document.getElementById('root');
+            if (rootEl && rootEl.childNodes.length === 0) {
+              fetch('/client-build/index.html?_t=' + Date.now(), { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.text() : fetch('/dist/index.html?_t=' + Date.now(), { cache: 'no-store' }).then(function (r2) { return r2.text(); }); })
+                .then(function (html) {
+                  if (!html || html.indexOf('/assets/') === -1) return;
+                  var doc = new DOMParser().parseFromString(html, 'text/html');
+                  doc.querySelectorAll('link[rel="stylesheet"]').forEach(function (link) {
+                    var newLink = document.createElement('link');
+                    newLink.rel = 'stylesheet';
+                    newLink.href = link.getAttribute('href');
+                    document.head.appendChild(newLink);
+                  });
+                  doc.querySelectorAll('script[type="module"]').forEach(function (scr) {
+                    var src = scr.getAttribute('src');
+                    if (src && src.indexOf('/src/main.tsx') === -1) {
+                      var newScr = document.createElement('script');
+                      newScr.type = 'module';
+                      newScr.src = src;
+                      document.head.appendChild(newScr);
+                    }
+                  });
+                })
+                .catch(function () {});
+            }
+          }, 600);
+        });
+      })();
+    </script>
   </body>
 </html>
+
 

@@ -19,6 +19,7 @@ function makeCpanelZip() {
     'server.cjs',
     'dist',
     'client-build',
+    'assets',
     'Images',
     'tmp',
     '.htaccess',

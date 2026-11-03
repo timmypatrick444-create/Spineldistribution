@@ -92,21 +92,52 @@ function MainApp() {
   const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
 
   // Fetch products from server to sync updates seamlessly in the background
+  // Merges with INITIAL_SEEDED_PRODUCTS so newly bundled products are always displayed immediately
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/products?limit=5000');
+      const res = await fetch(`/api/products?limit=5000&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (res.ok) {
         const data = await res.json();
-        const productList: Product[] = Array.isArray(data)
+        const serverList: Product[] = Array.isArray(data)
           ? data
           : Array.isArray(data?.products)
           ? data.products
           : [];
-        if (productList.length > 0) {
-          setProducts(productList);
+        if (serverList.length > 0) {
+          // Merge INITIAL_SEEDED_PRODUCTS with serverList so bundled products are never lost
+          const seenSkus = new Set<string>();
+          const seenIds = new Set<string>();
+          const mergedList: Product[] = [];
+
+          for (const item of INITIAL_SEEDED_PRODUCTS) {
+            const skuKey = (item.sku || '').toLowerCase().trim();
+            const idKey = (item.id || '').toLowerCase().trim();
+            if (skuKey) seenSkus.add(skuKey);
+            if (idKey) seenIds.add(idKey);
+            mergedList.push(item);
+          }
+
+          for (const srvItem of serverList) {
+            const skuKey = (srvItem.sku || '').toLowerCase().trim();
+            const idKey = (srvItem.id || '').toLowerCase().trim();
+            if ((skuKey && seenSkus.has(skuKey)) || (idKey && seenIds.has(idKey))) {
+              continue;
+            }
+            if (skuKey) seenSkus.add(skuKey);
+            if (idKey) seenIds.add(idKey);
+            mergedList.push(srvItem);
+          }
+
+          setProducts(mergedList);
           if (window.location.pathname.startsWith('/product/')) {
             const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
-            const found = productList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
+            const found = mergedList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
             if (found) {
               setSelectedProduct(found);
             }
