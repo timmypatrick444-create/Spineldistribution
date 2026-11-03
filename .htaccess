@@ -44,3 +44,14 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+# 5. Security: Block Direct HTTP Access to Secrets, Environment & Configuration Files
+<FilesMatch "(^\.env|db_config\.json|config\.json|\.sql$|package\.json|package-lock\.json|server\.(ts|cjs)|app\.js|\.git|tsconfig\.json|vite\.config\.ts|\.log$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
