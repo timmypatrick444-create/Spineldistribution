@@ -23,14 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('spinel_user');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-      if (!parsed || typeof parsed !== 'object' || !parsed.email) return null;
-      return {
-        ...parsed,
-        email: String(parsed.email),
-        fullName: String(parsed.fullName || parsed.name || String(parsed.email).split('@')[0] || 'Customer'),
-      };
+      return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
@@ -61,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [adminToken]);
 
-  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }> => {
+  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',

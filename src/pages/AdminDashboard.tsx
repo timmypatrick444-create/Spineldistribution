@@ -224,11 +224,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const fetchData = async () => {
     try {
       setLoading(true);
-      const authHeader = adminToken ? { Authorization: `Bearer ${adminToken}` } : {};
       const [prodRes, orderRes, quoteRes] = await Promise.all([
         fetch('/api/products?limit=10000'),
-        fetch('/api/orders', { headers: authHeader }),
-        fetch('/api/quotes', { headers: authHeader })
+        fetch('/api/orders'),
+        fetch('/api/quotes')
       ]);
 
       if (prodRes.ok) {

@@ -45,18 +45,16 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const convertToNGN = (priceUSD: number): number => {
-    const safeUsd = Number(priceUSD) || 0;
-    return Math.round(safeUsd * exchangeRate);
+    return Math.round(priceUSD * exchangeRate);
   };
 
   const formatPrice = (priceUSD: number, targetCurrency?: 'USD' | 'NGN'): string => {
-    const safeUsd = Number(priceUSD) || 0;
     const activeCurr = targetCurrency || currency;
     if (activeCurr === 'NGN') {
-      const ngnAmount = convertToNGN(safeUsd);
+      const ngnAmount = convertToNGN(priceUSD);
       return `₦${ngnAmount.toLocaleString('en-NG')}`;
     }
-    return `$${safeUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${priceUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (

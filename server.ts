@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
-import Papa from 'papaparse';
 import { createClient } from '@supabase/supabase-js';
 import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
@@ -15,16 +14,6 @@ import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
 dotenv.config();
-
-// Detect AI Studio container / dev mode even if user configured NODE_ENV=production in secrets for cPanel
-const IS_AI_STUDIO_DEV = Boolean(
-  process.env.APPLET_ID ||
-  process.env.CONTROL_PLANE_PORT ||
-  process.env.npm_lifecycle_event === 'dev'
-);
-if (IS_AI_STUDIO_DEV) {
-  process.env.NODE_ENV = 'development';
-}
 
 // Prevent uncaught errors from crashing the shared hosting process
 process.on('uncaughtException', (err) => {
@@ -51,36 +40,22 @@ const PORT = (rawPort && rawPort !== '8080') ? rawPort : 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Strict zero-cache headers on all API routes so LiteSpeed, proxies, and browsers never serve stale API responses
-app.use('/api', (req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('Surrogate-Control', 'no-store');
-  res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
-  res.removeHeader('ETag');
-  next();
-});
-
-const SERVER_DIR = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
-
 // Serve Images/Request_Quotes directory statically on cPanel and dev server
 const baseImagesDir = path.join(process.cwd(), 'Images');
 const baseRequestQuotesDir = path.join(process.cwd(), 'Images', 'Request_Quotes');
 if (!fs.existsSync(baseRequestQuotesDir)) {
   try { fs.mkdirSync(baseRequestQuotesDir, { recursive: true }); } catch {}
 }
-const imageStaticDirs = Array.from(new Set([
-  baseImagesDir,
-  path.join(SERVER_DIR, 'Images'),
-  path.join(process.cwd(), 'public', 'Images'),
-  path.join(process.cwd(), 'client-build', 'Images'),
-  path.join(process.cwd(), 'dist', 'Images')
-]));
-for (const imgDir of imageStaticDirs) {
-  app.use('/Images', express.static(imgDir, { maxAge: '30d' }));
-  app.use('/images', express.static(imgDir, { maxAge: '30d' }));
-}
+app.use('/Images', express.static(baseImagesDir, { maxAge: '30d' }));
+app.use('/images', express.static(baseImagesDir, { maxAge: '30d' }));
+app.use('/Images', express.static(path.join(__dirname, 'Images'), { maxAge: '30d' }));
+app.use('/images', express.static(path.join(__dirname, 'Images'), { maxAge: '30d' }));
+app.use('/Images', express.static(path.join(process.cwd(), 'public', 'Images'), { maxAge: '30d' }));
+app.use('/images', express.static(path.join(process.cwd(), 'public', 'Images'), { maxAge: '30d' }));
+app.use('/Images', express.static(path.join(process.cwd(), 'client-build', 'Images'), { maxAge: '30d' }));
+app.use('/images', express.static(path.join(process.cwd(), 'client-build', 'Images'), { maxAge: '30d' }));
+app.use('/Images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
+app.use('/images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 
 // Health check endpoints for platform monitoring
 app.get('/api/health', (req, res) => {
@@ -123,255 +98,6 @@ let productCatalog: Product[] = [
 let ordersStore: Order[] = [];
 let quotesStore: any[] = [];
 
-// Live Disk Catalog Synchronizer:
-// Automatically reads updated products from dist/products-catalog.json, client-build/products-catalog.json,
-// src/data/*.ts, or any uploaded *.csv / *.json files whenever files are uploaded to cPanel File Manager.
-const catalogDiskSignatures = new Map<string, string>();
-let lastDiskCatalogCheck = 0;
-let catalogLastModifiedAt = Date.now();
-
-function persistCatalogJsonToDisk() {
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const targetFile = path.join(rootDir, 'uploads', 'products-catalog.json');
-  const payload = JSON.stringify(productCatalog);
-  fs.promises
-    .mkdir(path.dirname(targetFile), { recursive: true })
-    .then(() => fs.promises.writeFile(targetFile, payload, 'utf8'))
-    .then(() => fs.promises.stat(targetFile))
-    .then((st) => {
-      catalogDiskSignatures.set(targetFile, `${st.mtimeMs}:${st.size}`);
-    })
-    .catch(() => {});
-}
-
-function mergeProductsIntoCatalog(incoming: Product[]): boolean {
-  if (!Array.isArray(incoming) || incoming.length === 0) return false;
-  const bySku = new Map<string, number>();
-  const byId = new Map<string, number>();
-  productCatalog.forEach((p, idx) => {
-    if (p.sku) bySku.set(String(p.sku).toLowerCase().trim(), idx);
-    if (p.id) byId.set(String(p.id).toLowerCase().trim(), idx);
-  });
-
-  let changed = false;
-  const newItems: Product[] = [];
-  for (const item of incoming) {
-    if (!item || !item.name) continue;
-    const skuKey = item.sku ? String(item.sku).toLowerCase().trim() : '';
-    const idKey = item.id ? String(item.id).toLowerCase().trim() : '';
-    const existingIdx = (skuKey && bySku.has(skuKey))
-      ? bySku.get(skuKey)!
-      : (idKey && byId.has(idKey))
-      ? byId.get(idKey)!
-      : -1;
-
-    if (existingIdx >= 0) {
-      const prev = productCatalog[existingIdx];
-      const merged = { ...prev, ...item };
-      if (JSON.stringify(prev) !== JSON.stringify(merged)) {
-        productCatalog[existingIdx] = merged;
-        changed = true;
-      }
-    } else {
-      newItems.push(item);
-      if (skuKey) bySku.set(skuKey, -1);
-      if (idKey) byId.set(idKey, -1);
-      changed = true;
-    }
-  }
-  if (newItems.length > 0) {
-    productCatalog = [...newItems, ...productCatalog];
-  }
-  if (changed) {
-    catalogLastModifiedAt = Date.now();
-  }
-  return changed;
-}
-
-function parseCsvFileToProducts(csvFilePath: string): Product[] {
-  try {
-    const raw = fs.readFileSync(csvFilePath, 'utf8');
-    const parsed = Papa.parse<Record<string, any>>(raw, { header: true, skipEmptyLines: true });
-    if (!parsed.data || parsed.data.length === 0) return [];
-
-    const results: Product[] = [];
-    for (let i = 0; i < parsed.data.length; i++) {
-      const row = parsed.data[i];
-      if (!row || typeof row !== 'object') continue;
-
-      const getField = (keys: string[]): string => {
-        for (const k of Object.keys(row)) {
-          const cleanK = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (keys.includes(cleanK) && row[k] !== undefined && row[k] !== null) {
-            return String(row[k]).trim();
-          }
-        }
-        return '';
-      };
-
-      const sku = getField(['sku', 'model', 'partnumber', 'itemcode', 'productcode', 'code']);
-      const name = getField(['name', 'productname', 'title', 'itemname', 'modelname']) || sku;
-      if (!name) continue;
-
-      const category = getField(['category', 'maincategory', 'department']) || 'Video Surveillance (CCTV)';
-      const subcategory = getField(['subcategory', 'subcategories', 'type', 'producttype']) || 'Enclosures & Housings';
-      const brand = getField(['brand', 'manufacturer', 'make', 'vendor']) || 'Spinel Distribution';
-      const description = getField(['description', 'overview', 'details', 'summary']) || name;
-      const priceRaw = getField(['priceusd', 'price', 'unitprice', 'cost']);
-      const priceUSD = priceRaw ? (parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || 0) : 0;
-      const image = getField(['image', 'images', 'imageurl', 'picture', 'photo', 'thumbnail']);
-
-      const cleanSlug = (sku || name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      results.push({
-        id: `prod-csv-${cleanSlug || i}`,
-        sku: sku || `SKU-${cleanSlug.toUpperCase()}`,
-        name,
-        brand,
-        category,
-        subcategory,
-        priceUSD,
-        stock: 25,
-        rating: 4.8,
-        reviewCount: 14,
-        isChoice: true,
-        featured: true,
-        images: image ? [image] : ['https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80'],
-        description,
-        specs: { Model: sku || name, Brand: brand, Category: subcategory || category },
-        features: ['Industrial Grade Construction', 'Enterprise Warranty Included'],
-        createdAt: new Date().toISOString()
-      });
-    }
-    return results;
-  } catch {
-    return [];
-  }
-}
-
-function getCatalogCandidatePaths() {
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const jsonCandidates = Array.from(new Set([
-    path.join(rootDir, 'products-catalog.json'),
-    path.join(rootDir, 'uploads', 'products-catalog.json')
-  ]));
-
-  const tsDataFiles = Array.from(new Set([
-    path.join(rootDir, 'src', 'data', 'uploadedEnclosureProducts.ts'),
-    path.join(rootDir, 'src', 'data', 'uploadedPagaProducts.ts'),
-    path.join(rootDir, 'src', 'data', 'uploadedProducts.ts'),
-    path.join(rootDir, 'src', 'data', 'seedProducts.ts')
-  ]));
-
-  const csvSearchDirs = Array.from(new Set([
-    rootDir,
-    path.join(rootDir, 'uploads'),
-    path.join(rootDir, 'public')
-  ]));
-
-  return { rootDir, jsonCandidates, tsDataFiles, csvSearchDirs };
-}
-
-// Seed initial file signatures for already-bundled data files and CSVs at startup
-// so server boot performs ZERO disk writes and ZERO unnecessary file reads.
-function seedInitialCatalogSignatures() {
-  const { jsonCandidates, tsDataFiles, csvSearchDirs } = getCatalogCandidatePaths();
-  for (const f of [...jsonCandidates, ...tsDataFiles]) {
-    if (fs.existsSync(f)) {
-      try {
-        const st = fs.statSync(f);
-        catalogDiskSignatures.set(f, `${st.mtimeMs}:${st.size}`);
-      } catch {}
-    }
-  }
-  for (const sDir of csvSearchDirs) {
-    if (fs.existsSync(sDir)) {
-      try {
-        const entries = fs.readdirSync(sDir);
-        for (const entry of entries) {
-          if (entry.toLowerCase().endsWith('.csv')) {
-            const fullCsvPath = path.join(sDir, entry);
-            const st = fs.statSync(fullCsvPath);
-            if (st.isFile()) {
-              catalogDiskSignatures.set(fullCsvPath, `${st.mtimeMs}:${st.size}`);
-            }
-          }
-        }
-      } catch {}
-    }
-  }
-}
-seedInitialCatalogSignatures();
-
-function syncCatalogFromDiskIfNeeded(force = false) {
-  const now = Date.now();
-  if (!force && now - lastDiskCatalogCheck < 15000) return;
-  lastDiskCatalogCheck = now;
-
-  const { jsonCandidates, tsDataFiles, csvSearchDirs } = getCatalogCandidatePaths();
-
-  for (const jFile of jsonCandidates) {
-    if (fs.existsSync(jFile)) {
-      try {
-        const stats = fs.statSync(jFile);
-        const sig = `${stats.mtimeMs}:${stats.size}`;
-        if (catalogDiskSignatures.get(jFile) !== sig) {
-          catalogDiskSignatures.set(jFile, sig);
-          const parsed = JSON.parse(fs.readFileSync(jFile, 'utf8'));
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            mergeProductsIntoCatalog(parsed);
-          }
-        }
-      } catch {}
-    }
-  }
-
-  for (const tsFile of tsDataFiles) {
-    if (fs.existsSync(tsFile)) {
-      try {
-        const stats = fs.statSync(tsFile);
-        const sig = `${stats.mtimeMs}:${stats.size}`;
-        if (catalogDiskSignatures.get(tsFile) !== sig) {
-          catalogDiskSignatures.set(tsFile, sig);
-          const raw = fs.readFileSync(tsFile, 'utf8');
-          const eqIdx = raw.indexOf('=');
-          const firstBracket = eqIdx >= 0 ? raw.indexOf('[', eqIdx) : raw.indexOf('[');
-          const lastBracket = raw.lastIndexOf(']');
-          if (firstBracket >= 0 && lastBracket > firstBracket) {
-            const arrayLiteral = raw.slice(firstBracket, lastBracket + 1);
-            const evaluated = new Function(`return ${arrayLiteral};`)();
-            if (Array.isArray(evaluated) && evaluated.length > 0) {
-              mergeProductsIntoCatalog(evaluated);
-            }
-          }
-        }
-      } catch {}
-    }
-  }
-
-  for (const sDir of csvSearchDirs) {
-    if (fs.existsSync(sDir)) {
-      try {
-        const entries = fs.readdirSync(sDir);
-        for (const entry of entries) {
-          if (entry.toLowerCase().endsWith('.csv')) {
-            const fullCsvPath = path.join(sDir, entry);
-            const st = fs.statSync(fullCsvPath);
-            if (!st.isFile()) continue;
-            const sig = `${st.mtimeMs}:${st.size}`;
-            if (catalogDiskSignatures.get(fullCsvPath) !== sig) {
-              catalogDiskSignatures.set(fullCsvPath, sig);
-              const csvProducts = parseCsvFileToProducts(fullCsvPath);
-              if (csvProducts.length > 0) {
-                mergeProductsIntoCatalog(csvProducts);
-              }
-            }
-          }
-        }
-      } catch {}
-    }
-  }
-}
-
 // -------------------------------------------------------------
 // cPanel MySQL / MariaDB Database Connection & Schema Init
 // -------------------------------------------------------------
@@ -389,15 +115,15 @@ let dbConfigDetails: {
 
 // Multi-path .env and json loader to ensure environment variables are loaded regardless of Passenger cwd
 function loadAllPossibleEnvFiles() {
-  const candidates = Array.from(new Set([
-    path.join(SERVER_DIR, '.env'),
+  const candidates = [
+    path.join(__dirname, '.env'),
     path.join(process.cwd(), '.env'),
     path.join(process.env.APP_ROOT || '', '.env'),
-    path.join(SERVER_DIR, '../.env'),
+    path.join(__dirname, '../.env'),
     path.join(process.cwd(), '../.env'),
-    path.join(SERVER_DIR, 'cpanel.env'),
+    path.join(__dirname, 'cpanel.env'),
     path.join(process.cwd(), 'cpanel.env')
-  ]));
+  ];
   for (const envPath of candidates) {
     if (fs.existsSync(envPath)) {
       try {
@@ -407,12 +133,12 @@ function loadAllPossibleEnvFiles() {
   }
 
   // Also read db_config.json if .env is missing or hidden by cPanel File Manager
-  const jsonPaths = Array.from(new Set([
-    path.join(SERVER_DIR, 'db_config.json'),
+  const jsonPaths = [
+    path.join(__dirname, 'db_config.json'),
     path.join(process.cwd(), 'db_config.json'),
-    path.join(SERVER_DIR, 'config.json'),
+    path.join(__dirname, 'config.json'),
     path.join(process.cwd(), 'config.json')
-  ]));
+  ];
   for (const jPath of jsonPaths) {
     if (fs.existsSync(jPath)) {
       try {
@@ -757,7 +483,7 @@ interface PendingPasswordReset {
 const pendingPasswordResets = new Map<string, PendingPasswordReset>();
 
 // Multi-tiered Email Delivery Engine for cPanel & Production
-async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
   const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
@@ -947,7 +673,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
 }
 
 // Multi-tiered Password Reset OTP Delivery from noreply@spineldistribution.com
-async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const subject = `Password Reset Verification Code: ${otp} - Spinel Distribution`;
   const senderEmail = 'noreply@spineldistribution.com';
@@ -1324,7 +1050,6 @@ app.get('/api/categories', (req, res) => {
 // 3. Products Search & Catalog API
 // NOTE: Total master product count is purposely kept hidden from public store!
 app.get('/api/products', (req, res) => {
-
   const {
     category,
     subcategory,
@@ -1416,7 +1141,6 @@ app.get('/api/products', (req, res) => {
 
 // 4. Single Product Detail
 app.get('/api/products/:id', (req, res) => {
-
   const product = productCatalog.find(p => p.id === req.params.id || p.sku === req.params.id);
   if (!product) {
     return res.status(404).json({ error: 'Product not found' });
@@ -2204,8 +1928,6 @@ app.post('/api/products/batch', requireAdmin, (req, res) => {
   }
 
   const durationMs = Date.now() - startTime;
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
 
   res.json({
@@ -2226,8 +1948,6 @@ app.post('/api/products', requireAdmin, (req, res) => {
   }
   newProd.id = newProd.id || `prod-man-${Date.now()}`;
   productCatalog.unshift(newProd);
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   res.status(201).json(newProd);
 });
 
@@ -2251,8 +1971,6 @@ app.put('/api/products/:id', requireAdmin, (req, res) => {
   };
 
   productCatalog[index] = updated;
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   res.json(updated);
 });
 
@@ -2263,8 +1981,6 @@ app.delete('/api/products/:id', requireAdmin, (req, res) => {
   if (productCatalog.length === initialLen) {
     return res.status(404).json({ error: 'Product not found' });
   }
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   res.json({ success: true, remaining: productCatalog.length });
 });
 
@@ -2272,16 +1988,12 @@ app.delete('/api/products/:id', requireAdmin, (req, res) => {
 app.delete('/api/products', requireAdmin, (req, res) => {
   const previousCount = productCatalog.length;
   productCatalog = [];
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   res.json({ success: true, message: `Cleared all ${previousCount} products from catalog`, remaining: 0 });
 });
 
 app.post('/api/products/clear', requireAdmin, (req, res) => {
   const previousCount = productCatalog.length;
   productCatalog = [];
-  catalogLastModifiedAt = Date.now();
-  persistCatalogJsonToDisk();
   res.json({ success: true, message: `Cleared all ${previousCount} products from catalog`, remaining: 0 });
 });
 
@@ -2567,13 +2279,13 @@ function saveQuotePictureFile(base64OrUrl: string | null | undefined): string | 
     const relativeUrl = `/Images/Request_Quotes/${filename}`;
 
     // Target "Images/Request_Quotes" in app root and mirror to web builds
-    const targetDirs = Array.from(new Set([
+    const targetDirs = [
       path.join(process.cwd(), 'Images', 'Request_Quotes'),
-      path.join(SERVER_DIR, 'Images', 'Request_Quotes'),
+      path.join(__dirname, 'Images', 'Request_Quotes'),
       path.join(process.cwd(), 'public', 'Images', 'Request_Quotes'),
       path.join(process.cwd(), 'client-build', 'Images', 'Request_Quotes'),
       path.join(process.cwd(), 'dist', 'Images', 'Request_Quotes')
-    ]));
+    ];
 
     for (const dir of targetDirs) {
       try {
@@ -2762,7 +2474,7 @@ app.delete('/api/quotes/:id', async (req, res) => {
     return res.status(404).json({ error: 'Quote not found' });
   }
 
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
   if (pool) {
     try {
       const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
@@ -2782,7 +2494,7 @@ app.get('/api/db-status', async (req, res) => {
   const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
   const database = process.env.DB_NAME || process.env.MYSQL_DATABASE || '(not configured)';
   const user = process.env.DB_USER || process.env.MYSQL_USER || '(not configured)';
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
 
   if (pool && isDbConnected) {
     try {
@@ -3012,124 +2724,32 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
 let viteMounted = false;
-let isReloadScheduled = false;
 
-// In-memory cache for compiled index.html and live signatures to ensure 0.00 MB/s idle & request Disk I/O on cPanel
-let cachedSpaHtml: { filePath: string; content: string; mtime: number } | null = null;
-let lastHtmlCacheCheckAt = 0;
-let cachedBuildSignature = '';
-let lastSignatureCheckAt = 0;
-
-function getLatestCompiledIndexHtml(forceRefresh = false): { filePath: string; content: string; mtime: number } | null {
-  const now = Date.now();
-  if (!forceRefresh && cachedSpaHtml && now - lastHtmlCacheCheckAt < 10000) {
-    return cachedSpaHtml;
-  }
-  lastHtmlCacheCheckAt = now;
-
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const candidates = Array.from(new Set([
-    path.join(rootDir, 'dist', 'index.html'),
-    path.join(rootDir, 'client-build', 'index.html'),
-    path.join(process.cwd(), 'dist', 'index.html'),
-    path.join(process.cwd(), 'client-build', 'index.html'),
-    path.join(SERVER_DIR, 'dist', 'index.html'),
-    path.join(SERVER_DIR, 'client-build', 'index.html'),
-    path.join(rootDir, 'index.html')
-  ]));
-
-  let bestFile: string | null = null;
-  let bestScore = 0;
-  let bestContent = '';
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      try {
-        const stats = fs.statSync(candidate);
-        // Fast path: if we already cached this exact file with the same mtime, reuse cached content without reading disk
-        if (!forceRefresh && cachedSpaHtml && cachedSpaHtml.filePath === candidate && cachedSpaHtml.mtime >= stats.mtimeMs) {
-          return cachedSpaHtml;
-        }
-        const content = fs.readFileSync(candidate, 'utf8');
-        const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
-        if (!isCompiled) continue;
-
-        const tsMatch = content.match(/SPINEL_BUILD_TS:(\d+)/);
-        const embeddedTs = tsMatch ? parseInt(tsMatch[1], 10) : 0;
-        const score = Math.max(embeddedTs, stats.mtimeMs);
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestFile = candidate;
-          bestContent = content;
-        }
-      } catch {}
-    }
-  }
-
-  if (bestFile && bestContent) {
-    cachedSpaHtml = { filePath: bestFile, content: bestContent, mtime: bestScore };
-    return cachedSpaHtml;
-  }
-  return cachedSpaHtml;
-}
-
-function getWorkspaceLiveSignatures(forceRefresh = false): { buildSignature: string; catalogSignature: string } {
-  const now = Date.now();
-  if (!forceRefresh && cachedBuildSignature && now - lastSignatureCheckAt < 10000) {
-    return {
-      buildSignature: cachedBuildSignature,
-      catalogSignature: `${productCatalog.length}:${catalogLastModifiedAt}`
-    };
-  }
-  lastSignatureCheckAt = now;
-
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const latestHtml = getLatestCompiledIndexHtml(forceRefresh);
-  let maxBuildMtime = latestHtml ? latestHtml.mtime : 0;
-  let totalBuildSize = 0;
-
-  const indexJsCandidates = [
-    path.join(rootDir, 'dist', 'assets', 'index.js'),
-    path.join(rootDir, 'client-build', 'assets', 'index.js'),
-    path.join(rootDir, 'assets', 'index.js')
-  ];
-  for (const bt of indexJsCandidates) {
-    if (fs.existsSync(bt)) {
-      try {
-        const st = fs.statSync(bt);
-        if (st.mtimeMs > maxBuildMtime) maxBuildMtime = st.mtimeMs;
-        if (st.size > totalBuildSize) totalBuildSize = st.size;
-      } catch {}
-    }
-  }
-
-  cachedBuildSignature = `${Math.round(maxBuildMtime)}:${totalBuildSize}`;
-  return {
-    buildSignature: cachedBuildSignature,
-    catalogSignature: `${productCatalog.length}:${catalogLastModifiedAt}`
-  };
-}
-
-// Only monitor backend binary & Passenger restart marker for process reload (3 lightweight stat calls)
-const MONITORED_BACKEND_FILES = Array.from(new Set([
+const MONITORED_FILES = [
   path.join(process.cwd(), 'app.js'),
+  path.join(__dirname, 'app.js'),
   path.join(process.cwd(), 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt')
-]));
+  path.join(process.cwd(), 'tmp', 'restart.txt'),
+  path.join(process.cwd(), 'client-build', 'index.html'),
+  path.join(process.cwd(), 'dist', 'index.html'),
+  path.join(process.cwd(), 'index.html'),
+  path.join(process.cwd(), 'package.json')
+];
 
-const initialFileSignatures = new Map<string, { mtimeMs: number; size: number }>();
-for (const f of MONITORED_BACKEND_FILES) {
+// Record file modification timestamps at boot time
+const initialFileMtimes = new Map<string, number>();
+for (const f of MONITORED_FILES) {
   if (fs.existsSync(f)) {
     try {
-      const st = fs.statSync(f);
-      initialFileSignatures.set(f, { mtimeMs: st.mtimeMs, size: st.size });
+      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
     } catch {}
   }
 }
 
+// Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
-  if (IS_AI_STUDIO_DEV || viteMounted || isReloadScheduled) {
+  // Never exit the process in development or preview environments!
+  if (viteMounted) {
     return;
   }
 
@@ -3140,103 +2760,124 @@ function checkAutoReloadOnNewUpload() {
     process.env.NODE_ENV === 'production' ||
     isNaN(Number(PORT))
   );
-  if (!isProductionOrCpanel) return;
+
+  if (!isProductionOrCpanel) {
+    return;
+  }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 15000) return;
+  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
   lastRestartCheck = now;
 
-  for (const f of MONITORED_BACKEND_FILES) {
+  for (const f of MONITORED_FILES) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        const recorded = initialFileSignatures.get(f);
-        const mtimeChanged = recorded !== undefined && Math.abs(stats.mtimeMs - recorded.mtimeMs) > 1000;
-        const sizeChanged = recorded !== undefined && stats.size !== recorded.size;
+        const recorded = initialFileMtimes.get(f);
+        
+        // If file was replaced or modified after the process booted
+        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
+          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
+          initialFileMtimes.set(f, stats.mtimeMs);
+          
+          try {
+            const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
+            fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
+            fs.writeFileSync(restartPath, String(Date.now()));
+          } catch {}
 
-        if (mtimeChanged || sizeChanged) {
-          const base = path.basename(f);
-          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
-          console.log(`[cPanel Auto-Reload] Backend binary change detected on: ${base}. Reloading worker process...`);
-          isReloadScheduled = true;
           setTimeout(() => {
             process.exit(0);
-          }, 350);
+          }, 100);
           break;
         } else if (recorded === undefined) {
-          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
+          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
   }
 }
 
-// Ultra-lightweight 15-second background watcher (0.00 MB/s Disk I/O)
-const cpanelWatchTimer = setInterval(() => {
-  try {
-    syncCatalogFromDiskIfNeeded();
-    checkAutoReloadOnNewUpload();
-  } catch {}
-}, 15000);
-if (typeof cpanelWatchTimer.unref === 'function') {
-  cpanelWatchTimer.unref();
+// Scans all candidate directories to find the single newest compiled index.html
+function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtime: number } | null {
+  const rootDir = process.env.APP_ROOT || process.cwd();
+  const candidates = [
+    path.join(rootDir, 'dist', 'index.html'),
+    path.join(rootDir, 'client-build', 'index.html'),
+    path.join(process.cwd(), 'dist', 'index.html'),
+    path.join(process.cwd(), 'client-build', 'index.html'),
+    path.join(__dirname, 'dist', 'index.html'),
+    path.join(__dirname, 'client-build', 'index.html'),
+    path.join(rootDir, 'index.html'),
+    path.join(process.cwd(), 'index.html')
+  ];
+
+  let bestFile: string | null = null;
+  let bestMtime = 0;
+  let bestContent = '';
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const stats = fs.statSync(candidate);
+        const content = fs.readFileSync(candidate, 'utf8');
+        // Must be a compiled bundle with assets (not raw dev index referencing src/main.tsx)
+        const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
+        if (isCompiled && stats.mtimeMs > bestMtime) {
+          bestMtime = stats.mtimeMs;
+          bestFile = candidate;
+          bestContent = content;
+        }
+      } catch {}
+    }
+  }
+
+  if (bestFile && bestContent) {
+    return { filePath: bestFile, content: bestContent, mtime: bestMtime };
+  }
+  return null;
 }
 
-// Live version endpoint polled by the frontend to detect cPanel File Manager uploads
-app.get('/api/live-version', (req, res) => {
-  syncCatalogFromDiskIfNeeded();
-  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
-  res.json({
-    status: 'ok',
-    buildSignature,
-    catalogSignature,
-    catalogCount: productCatalog.length,
-    serverBootTime: SERVER_BOOT_TIME,
-    timestamp: Date.now()
-  });
-});
-
-// Serve products-catalog.json and build-version.json dynamically from memory with zero disk I/O
-app.get('/products-catalog.json', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.json(productCatalog);
-});
-
-app.get('/build-version.json', (req, res) => {
-  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.json({ buildTs: buildSignature, catalogSignature, updatedAt: new Date().toISOString() });
-});
-
-// Delivers the newest index.html from RAM cache with strict zero-cache headers
+// Delivers the newest index.html with strict zero-cache headers to eliminate stale browser views
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
-    const { buildSignature } = getWorkspaceLiveSignatures();
-    const versionParam = encodeURIComponent(buildSignature || String(latest.mtime));
-    const freshHtml = latest.content.replace(
-      /(src|href)="(\/assets\/[^"?]+\.(?:js|css))(?:\?[^"]*)?"/g,
-      `$1="$2?v=${versionParam}"`
-    );
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
-    return res.status(200).send(freshHtml);
+    return res.status(200).send(latest.content);
   }
   next();
 }
 
 async function startServer() {
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // Ensure cPanel tmp/restart.txt exists on Passenger
+  if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+    try {
+      const tmpDir = path.join(process.cwd(), 'tmp');
+      fs.mkdirSync(tmpDir, { recursive: true });
+      const restartFile = path.join(tmpDir, 'restart.txt');
+      if (!fs.existsSync(restartFile)) {
+        fs.writeFileSync(restartFile, String(Date.now()));
+      }
+    } catch {}
+  }
+
+  // Auto-reload watcher middleware
+  app.use((req, res, next) => {
+    checkAutoReloadOnNewUpload();
+    next();
+  });
+
   // Dedicated instant restart endpoint
   app.get('/api/system/restart', (req, res) => {
     try {
-      syncCatalogFromDiskIfNeeded(true);
-      getLatestCompiledIndexHtml(true);
-      getWorkspaceLiveSignatures(true);
       const restartFile = path.join(process.cwd(), 'tmp', 'restart.txt');
       fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
       fs.writeFileSync(restartFile, String(Date.now()));
@@ -3244,11 +2885,10 @@ async function startServer() {
 
     res.json({
       success: true,
-      totalCatalogProducts: productCatalog.length,
-      message: 'Server cache refreshed and process reloading with the latest uploaded files.'
+      message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (!IS_AI_STUDIO_DEV && !viteMounted) {
+    if (!viteMounted) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -3256,101 +2896,36 @@ async function startServer() {
     }
   });
 
-  // Initialize Vite dev server asynchronously while allowing app.listen() to bind port 3000 immediately
-  let viteMiddleware: any = null;
-  let viteInitPromise: Promise<void> | null = null;
+  // Mount live Vite middlewares when running in dev environment
   viteMounted = false;
-
-  const isPassengerOrProd = !IS_AI_STUDIO_DEV && Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
-
-  if (!isPassengerOrProd) {
-    viteInitPromise = (async () => {
-      try {
-        const { createServer: createViteServer } = await import('vite');
-        const vite = await createViteServer({
-          server: { middlewareMode: true },
-          appType: 'spa',
-        });
-        viteMiddleware = vite.middlewares;
-        viteMounted = true;
-        console.log('[Storefront] Live Vite dev server successfully mounted.');
-      } catch (viteErr: any) {
-        console.log('[Storefront] Running standalone production bundle.');
-      }
-    })();
+  try {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+    viteMounted = true;
+    console.log('[Storefront] Live Vite dev server successfully mounted.');
+  } catch (viteErr: any) {
+    console.log('[Storefront] Running standalone production bundle.');
   }
 
-  app.use(async (req, res, next) => {
-    if (viteInitPromise) {
-      await viteInitPromise;
-      viteInitPromise = null;
-    }
-    if (viteMiddleware) {
-      return viteMiddleware(req, res, next);
-    }
-    next();
-  });
-
-  // Zero-cache static assets across all candidate build directories
-  const assetPaths = Array.from(new Set([
+  // Static immutable assets for hashed JS and CSS bundles
+  const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
-    path.join(process.cwd(), 'assets'),
-    path.join(SERVER_DIR, 'dist', 'assets'),
-    path.join(SERVER_DIR, 'client-build', 'assets'),
-    path.join(SERVER_DIR, 'assets')
-  ]));
+    path.join(__dirname, 'dist', 'assets'),
+    path.join(__dirname, 'client-build', 'assets')
+  ];
   for (const aPath of assetPaths) {
     if (fs.existsSync(aPath)) {
       app.use('/assets', express.static(aPath, {
-        maxAge: 0,
-        etag: false,
-        lastModified: true,
-        setHeaders: (res) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-          res.setHeader('Pragma', 'no-cache');
-          res.setHeader('Expires', '0');
-          res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
-        }
+        maxAge: '1y',
+        immutable: true
       }));
     }
   }
-
-  // Legacy hashed bundle & chunk fallback: if any browser requests an old hashed file (e.g. /assets/index-BkC2lal8.js)
-  // or legacy split chunk (/assets/vendor-*.js), serve the deterministic bundle or a clean ES module stub.
-  app.get('/assets/:filename', (req, res, next) => {
-    const rawName = req.params.filename || '';
-    let mappedName = '';
-    if (/^index-[A-Za-z0-9_-]+\.js$/.test(rawName)) {
-      mappedName = 'index.js';
-    } else if (/^index-[A-Za-z0-9_-]+\.css$/.test(rawName)) {
-      mappedName = 'index.css';
-    } else if (/^vendor-[a-z0-9_-]+\.js$/i.test(rawName)) {
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      return res.status(200).send('export default {};');
-    }
-
-    if (mappedName) {
-      for (const aPath of assetPaths) {
-        const candidateFile = path.join(aPath, mappedName);
-        if (fs.existsSync(candidateFile)) {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-          res.setHeader('Pragma', 'no-cache');
-          res.setHeader('Expires', '0');
-          res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
-          return res.sendFile(candidateFile);
-        }
-      }
-    }
-    next();
-  });
 
   // Handle root and SPA fallback
   app.get('*', (req, res, next) => {
@@ -3363,7 +2938,7 @@ async function startServer() {
     sendFreshSpaHtml(req, res, next);
   });
 
-  // Bind port immediately on 0.0.0.0 (or cPanel Phusion Passenger socket pipe)
+  // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));
   if (isNamedPipeOrSocket) {
     app.listen(PORT, () => {
@@ -3371,8 +2946,8 @@ async function startServer() {
     });
   } else {
     const portNumber = parseInt(String(PORT), 10);
-    app.listen(portNumber, '0.0.0.0', () => {
-      console.log(`[SPINEL DISTRIBUTION] Server running on http://0.0.0.0:${portNumber}`);
+    app.listen(portNumber, () => {
+      console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);
     });

@@ -193,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex flex-col justify-center px-2.5 py-1.5 rounded cursor-pointer border border-transparent hover:border-[#6b7280] transition-colors leading-tight"
           >
             <span className="text-[10px] sm:text-xs text-gray-300">
-              {user ? `Hello, ${(user.fullName || user.email || 'Customer').split(' ')[0]}` : 'Hello, sign in'}
+              {user ? `Hello, ${user.fullName.split(' ')[0]}` : 'Hello, sign in'}
             </span>
             <div className="flex items-center gap-0.5 font-bold text-xs sm:text-sm text-white">
               <span>Account</span>
