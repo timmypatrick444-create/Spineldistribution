@@ -142,7 +142,14 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.writeFileSync(path.join(clientBuildDir, 'build-version.json'), versionPayload, 'utf-8');
         }
 
-        console.log(`[cPanel Auto-Sync] Synced dist/, client-build/, assets/, app.js, server.cjs, and tmp/restart.txt (Build TS: ${buildTs})`);
+        // 7. Auto-pack cpanel-deploy.zip so the downloaded or synced production zip is always 100% up-to-date
+        try {
+          execSync('node scripts/pack-cpanel.js', {cwd: __dirname, stdio: 'inherit'});
+        } catch (zipErr) {
+          console.warn('[cPanel Auto-Sync] Warning generating cpanel-deploy.zip:', zipErr);
+        }
+
+        console.log(`[cPanel Auto-Sync] Synced dist/, client-build/, assets/, app.js, server.cjs, cpanel-deploy.zip, and tmp/restart.txt (Build TS: ${buildTs})`);
       } catch (err) {
         console.error('[cPanel Auto-Sync] Warning during post-build sync:', err);
       }
