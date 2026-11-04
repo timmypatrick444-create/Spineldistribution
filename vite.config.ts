@@ -92,18 +92,10 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.writeFileSync(distIndexPath, html, 'utf-8');
         }
 
-        // 2. Copy .htaccess and Images/ into dist/ so both root and subdirectory deployments have all static files and zero-cache rules
-        const rootHtaccess = path.resolve(__dirname, '.htaccess');
-        if (fs.existsSync(rootHtaccess) && fs.existsSync(distDir)) {
-          try {
-            fs.copyFileSync(rootHtaccess, path.join(distDir, '.htaccess'));
-          } catch {}
-        }
-        const rootImagesDir = path.resolve(__dirname, 'Images');
-        if (fs.existsSync(rootImagesDir) && fs.existsSync(distDir)) {
-          try {
-            fs.cpSync(rootImagesDir, path.join(distDir, 'Images'), {recursive: true});
-          } catch {}
+        // 2. Ensure no duplicate .htaccess or huge catalog JSON exists inside dist/ before syncing
+        const distHtaccess = path.join(distDir, '.htaccess');
+        if (fs.existsSync(distHtaccess)) {
+          try { fs.rmSync(distHtaccess, {force: true}); } catch {}
         }
 
         // 3. Sync dist/ to client-build/ cleanly (removing stale hashed bundles first)
@@ -114,7 +106,7 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.cpSync(distDir, clientBuildDir, {recursive: true});
         }
 
-        // 4. Sync dist/assets/ to root assets/ cleanly (removing any old index-*.js hashed files)
+        // 4. Sync dist/assets/ to root assets/ cleanly (removing any old index-*.js or vendor-*.js files)
         const distAssetsDir = path.join(distDir, 'assets');
         if (fs.existsSync(distAssetsDir)) {
           if (fs.existsSync(rootAssetsDir)) {
@@ -142,6 +134,7 @@ function cpanelAutoSyncPlugin(): Plugin {
         }
         fs.writeFileSync(path.join(tmpDir, 'restart.txt'), String(buildTs), 'utf-8');
         const versionPayload = JSON.stringify({buildTs, updatedAt: new Date(buildTs).toISOString()}, null, 2);
+        fs.writeFileSync(path.resolve(__dirname, 'build-version.json'), versionPayload, 'utf-8');
         if (fs.existsSync(distDir)) {
           fs.writeFileSync(path.join(distDir, 'build-version.json'), versionPayload, 'utf-8');
         }
@@ -162,26 +155,12 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss(), aistudioMediaPlugin(), cpanelAutoSyncPlugin()],
     build: {
       sourcemap: false,
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 5000,
       rollupOptions: {
         output: {
+          inlineDynamicImports: true,
           entryFileNames: 'assets/index.js',
-          chunkFileNames: 'assets/[name].js',
           assetFileNames: 'assets/[name].[ext]',
-          manualChunks(id) {
-            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
-              return 'vendor-pdf';
-            }
-            if (id.includes('node_modules/xlsx') || id.includes('node_modules/papaparse')) {
-              return 'vendor-sheets';
-            }
-            if (id.includes('node_modules/lucide-react')) {
-              return 'vendor-icons';
-            }
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-              return 'vendor-react';
-            }
-          }
         }
       }
     },

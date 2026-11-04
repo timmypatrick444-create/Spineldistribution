@@ -180,15 +180,18 @@ function MainApp() {
     let knownBuildSig = '';
     let knownCatalogSig = '';
     let isChecking = false;
+    let lastCheckedAt = 0;
 
     const checkLiveCpanelUpdates = async () => {
-      if (isChecking) return;
+      const now = Date.now();
+      if (isChecking || now - lastCheckedAt < 5000) return;
       isChecking = true;
+      lastCheckedAt = now;
       try {
-        const res = await fetch(`/api/live-version?_t=${Date.now()}`, {
+        const res = await fetch(`/api/live-version?_t=${now}`, {
           cache: 'no-store',
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
             'Pragma': 'no-cache'
           }
         });
@@ -201,15 +204,20 @@ function MainApp() {
             knownBuildSig = nextBuildSig;
           } else if (nextBuildSig && nextBuildSig !== knownBuildSig) {
             knownBuildSig = nextBuildSig;
-            // New frontend bundle or HTML uploaded to cPanel File Manager: clear browser cache and reload seamlessly
-            if ('caches' in window) {
+            const lastReloadedSig = sessionStorage.getItem('spinel_reloaded_build_sig');
+            if (lastReloadedSig !== nextBuildSig) {
               try {
-                const keys = await window.caches.keys();
-                await Promise.all(keys.map(k => window.caches.delete(k)));
+                sessionStorage.setItem('spinel_reloaded_build_sig', nextBuildSig);
               } catch {}
+              if ('caches' in window) {
+                try {
+                  const keys = await window.caches.keys();
+                  await Promise.all(keys.map(k => window.caches.delete(k)));
+                } catch {}
+              }
+              window.location.reload();
+              return;
             }
-            window.location.reload();
-            return;
           }
 
           if (!knownCatalogSig) {
@@ -220,7 +228,7 @@ function MainApp() {
           }
         } else {
           // Static hosting fallback: check build-version.json
-          const staticRes = await fetch(`/build-version.json?_t=${Date.now()}`, { cache: 'no-store' });
+          const staticRes = await fetch(`/build-version.json?_t=${now}`, { cache: 'no-store' });
           if (staticRes.ok) {
             const staticInfo = await staticRes.json();
             const nextTs = String(staticInfo.buildTs || '');
@@ -228,7 +236,13 @@ function MainApp() {
               knownBuildSig = nextTs;
             } else if (nextTs && nextTs !== knownBuildSig) {
               knownBuildSig = nextTs;
-              window.location.reload();
+              const lastReloadedSig = sessionStorage.getItem('spinel_reloaded_build_sig');
+              if (lastReloadedSig !== nextTs) {
+                try {
+                  sessionStorage.setItem('spinel_reloaded_build_sig', nextTs);
+                } catch {}
+                window.location.reload();
+              }
             }
           }
         }
@@ -239,12 +253,10 @@ function MainApp() {
       }
     };
 
-    checkLiveCpanelUpdates();
-    const intervalId = window.setInterval(checkLiveCpanelUpdates, 6000);
+    const intervalId = window.setInterval(checkLiveCpanelUpdates, 20000);
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         checkLiveCpanelUpdates();
-        loadProducts();
       }
     };
     window.addEventListener('focus', handleVisibilityOrFocus);

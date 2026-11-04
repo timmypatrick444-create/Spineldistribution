@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { exec } from 'child_process';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
@@ -133,22 +132,16 @@ let catalogLastModifiedAt = Date.now();
 
 function persistCatalogJsonToDisk() {
   const rootDir = process.env.APP_ROOT || process.cwd();
+  const targetFile = path.join(rootDir, 'uploads', 'products-catalog.json');
   const payload = JSON.stringify(productCatalog);
-  const targets = [
-    path.join(rootDir, 'public', 'products-catalog.json'),
-    path.join(rootDir, 'dist', 'products-catalog.json'),
-    path.join(rootDir, 'client-build', 'products-catalog.json')
-  ];
-  for (const t of targets) {
-    try {
-      const dir = path.dirname(t);
-      if (fs.existsSync(dir)) {
-        fs.writeFileSync(t, payload, 'utf8');
-        const st = fs.statSync(t);
-        catalogDiskSignatures.set(t, `${st.mtimeMs}:${st.size}`);
-      }
-    } catch {}
-  }
+  fs.promises
+    .mkdir(path.dirname(targetFile), { recursive: true })
+    .then(() => fs.promises.writeFile(targetFile, payload, 'utf8'))
+    .then(() => fs.promises.stat(targetFile))
+    .then((st) => {
+      catalogDiskSignatures.set(targetFile, `${st.mtimeMs}:${st.size}`);
+    })
+    .catch(() => {});
 }
 
 function mergeProductsIntoCatalog(incoming: Product[]): boolean {
@@ -259,33 +252,29 @@ function getCatalogCandidatePaths() {
   const rootDir = process.env.APP_ROOT || process.cwd();
   const jsonCandidates = Array.from(new Set([
     path.join(rootDir, 'products-catalog.json'),
-    path.join(rootDir, 'public', 'products-catalog.json'),
-    path.join(rootDir, 'dist', 'products-catalog.json'),
-    path.join(rootDir, 'client-build', 'products-catalog.json'),
-    path.join(process.cwd(), 'dist', 'products-catalog.json'),
-    path.join(process.cwd(), 'client-build', 'products-catalog.json'),
-    path.join(SERVER_DIR, 'dist', 'products-catalog.json'),
-    path.join(SERVER_DIR, 'client-build', 'products-catalog.json')
+    path.join(rootDir, 'uploads', 'products-catalog.json')
   ]));
 
   const tsDataFiles = Array.from(new Set([
     path.join(rootDir, 'src', 'data', 'uploadedEnclosureProducts.ts'),
     path.join(rootDir, 'src', 'data', 'uploadedPagaProducts.ts'),
     path.join(rootDir, 'src', 'data', 'uploadedProducts.ts'),
-    path.join(rootDir, 'src', 'data', 'seedProducts.ts'),
-    path.join(process.cwd(), 'src', 'data', 'uploadedEnclosureProducts.ts'),
-    path.join(process.cwd(), 'src', 'data', 'uploadedPagaProducts.ts'),
-    path.join(process.cwd(), 'src', 'data', 'uploadedProducts.ts'),
-    path.join(process.cwd(), 'src', 'data', 'seedProducts.ts')
+    path.join(rootDir, 'src', 'data', 'seedProducts.ts')
   ]));
 
-  return { rootDir, jsonCandidates, tsDataFiles };
+  const csvSearchDirs = Array.from(new Set([
+    rootDir,
+    path.join(rootDir, 'uploads'),
+    path.join(rootDir, 'public')
+  ]));
+
+  return { rootDir, jsonCandidates, tsDataFiles, csvSearchDirs };
 }
 
-// Seed initial file signatures for already-imported data files so boot is instantaneous (<1ms),
-// while any subsequent file upload or edit on cPanel File Manager is detected immediately.
+// Seed initial file signatures for already-bundled data files and CSVs at startup
+// so server boot performs ZERO disk writes and ZERO unnecessary file reads.
 function seedInitialCatalogSignatures() {
-  const { jsonCandidates, tsDataFiles } = getCatalogCandidatePaths();
+  const { jsonCandidates, tsDataFiles, csvSearchDirs } = getCatalogCandidatePaths();
   for (const f of [...jsonCandidates, ...tsDataFiles]) {
     if (fs.existsSync(f)) {
       try {
@@ -294,16 +283,31 @@ function seedInitialCatalogSignatures() {
       } catch {}
     }
   }
+  for (const sDir of csvSearchDirs) {
+    if (fs.existsSync(sDir)) {
+      try {
+        const entries = fs.readdirSync(sDir);
+        for (const entry of entries) {
+          if (entry.toLowerCase().endsWith('.csv')) {
+            const fullCsvPath = path.join(sDir, entry);
+            const st = fs.statSync(fullCsvPath);
+            if (st.isFile()) {
+              catalogDiskSignatures.set(fullCsvPath, `${st.mtimeMs}:${st.size}`);
+            }
+          }
+        }
+      } catch {}
+    }
+  }
 }
 seedInitialCatalogSignatures();
 
-function syncCatalogFromDiskIfNeeded() {
+function syncCatalogFromDiskIfNeeded(force = false) {
   const now = Date.now();
-  if (now - lastDiskCatalogCheck < 1000) return;
+  if (!force && now - lastDiskCatalogCheck < 15000) return;
   lastDiskCatalogCheck = now;
 
-  let anyCatalogUpdated = false;
-  const { rootDir, jsonCandidates, tsDataFiles } = getCatalogCandidatePaths();
+  const { jsonCandidates, tsDataFiles, csvSearchDirs } = getCatalogCandidatePaths();
 
   for (const jFile of jsonCandidates) {
     if (fs.existsSync(jFile)) {
@@ -314,7 +318,7 @@ function syncCatalogFromDiskIfNeeded() {
           catalogDiskSignatures.set(jFile, sig);
           const parsed = JSON.parse(fs.readFileSync(jFile, 'utf8'));
           if (Array.isArray(parsed) && parsed.length > 0) {
-            if (mergeProductsIntoCatalog(parsed)) anyCatalogUpdated = true;
+            mergeProductsIntoCatalog(parsed);
           }
         }
       } catch {}
@@ -336,7 +340,7 @@ function syncCatalogFromDiskIfNeeded() {
             const arrayLiteral = raw.slice(firstBracket, lastBracket + 1);
             const evaluated = new Function(`return ${arrayLiteral};`)();
             if (Array.isArray(evaluated) && evaluated.length > 0) {
-              if (mergeProductsIntoCatalog(evaluated)) anyCatalogUpdated = true;
+              mergeProductsIntoCatalog(evaluated);
             }
           }
         }
@@ -344,12 +348,6 @@ function syncCatalogFromDiskIfNeeded() {
     }
   }
 
-  // Also scan root and uploads/ directories for any newly uploaded .csv product files on cPanel
-  const csvSearchDirs = Array.from(new Set([
-    rootDir,
-    path.join(rootDir, 'uploads'),
-    path.join(rootDir, 'public')
-  ]));
   for (const sDir of csvSearchDirs) {
     if (fs.existsSync(sDir)) {
       try {
@@ -364,7 +362,7 @@ function syncCatalogFromDiskIfNeeded() {
               catalogDiskSignatures.set(fullCsvPath, sig);
               const csvProducts = parseCsvFileToProducts(fullCsvPath);
               if (csvProducts.length > 0) {
-                if (mergeProductsIntoCatalog(csvProducts)) anyCatalogUpdated = true;
+                mergeProductsIntoCatalog(csvProducts);
               }
             }
           }
@@ -372,18 +370,7 @@ function syncCatalogFromDiskIfNeeded() {
       } catch {}
     }
   }
-
-  if (anyCatalogUpdated) {
-    persistCatalogJsonToDisk();
-  }
 }
-
-// Run initial catalog sync & persistence asynchronously after server port is bound
-setTimeout(() => {
-  try {
-    syncCatalogFromDiskIfNeeded();
-  } catch {}
-}, 1500);
 
 // -------------------------------------------------------------
 // cPanel MySQL / MariaDB Database Connection & Schema Init
@@ -1337,8 +1324,6 @@ app.get('/api/categories', (req, res) => {
 // 3. Products Search & Catalog API
 // NOTE: Total master product count is purposely kept hidden from public store!
 app.get('/api/products', (req, res) => {
-  syncCatalogFromDiskIfNeeded();
-  checkAutoReloadOnNewUpload();
 
   const {
     category,
@@ -1431,8 +1416,6 @@ app.get('/api/products', (req, res) => {
 
 // 4. Single Product Detail
 app.get('/api/products/:id', (req, res) => {
-  syncCatalogFromDiskIfNeeded();
-  checkAutoReloadOnNewUpload();
 
   const product = productCatalog.find(p => p.id === req.params.id || p.sku === req.params.id);
   if (!product) {
@@ -3030,331 +3013,20 @@ const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
 let viteMounted = false;
 let isReloadScheduled = false;
-let isAutoBuildRunning = false;
-let lastAutoBuildStartedAt = 0;
 
-function getDirectoryMaxMtime(dirPath: string, depth = 0): { maxMtime: number; totalSize: number; fileCount: number } {
-  if (depth > 3 || !fs.existsSync(dirPath)) return { maxMtime: 0, totalSize: 0, fileCount: 0 };
-  let maxMtime = 0;
-  let totalSize = 0;
-  let fileCount = 0;
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'tmp') continue;
-      const fullPath = path.join(dirPath, entry.name);
-      if (entry.isDirectory()) {
-        const sub = getDirectoryMaxMtime(fullPath, depth + 1);
-        if (sub.maxMtime > maxMtime) maxMtime = sub.maxMtime;
-        totalSize += sub.totalSize;
-        fileCount += sub.fileCount;
-      } else if (entry.isFile()) {
-        try {
-          const st = fs.statSync(fullPath);
-          if (st.mtimeMs > maxMtime) maxMtime = st.mtimeMs;
-          totalSize += st.size;
-          fileCount += 1;
-        } catch {}
-      }
-    }
-  } catch {}
-  return { maxMtime, totalSize, fileCount };
-}
+// In-memory cache for compiled index.html and live signatures to ensure 0.00 MB/s idle & request Disk I/O on cPanel
+let cachedSpaHtml: { filePath: string; content: string; mtime: number } | null = null;
+let lastHtmlCacheCheckAt = 0;
+let cachedBuildSignature = '';
+let lastSignatureCheckAt = 0;
 
-// Automatically keeps dist/, client-build/, and root assets/ synchronized on cPanel
-// so even if a user uploads files to only one folder in cPanel File Manager, all folders reflect the update immediately.
-function syncBuildFoldersOnDiskIfNeeded() {
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const candidates = [
-    { dir: path.join(rootDir, 'dist'), assetsDir: path.join(rootDir, 'dist', 'assets'), indexHtml: path.join(rootDir, 'dist', 'index.html') },
-    { dir: path.join(rootDir, 'client-build'), assetsDir: path.join(rootDir, 'client-build', 'assets'), indexHtml: path.join(rootDir, 'client-build', 'index.html') }
-  ];
-
-  let newestDir: typeof candidates[0] | null = null;
-  let newestMtime = 0;
-
-  for (const c of candidates) {
-    const indexJs = path.join(c.assetsDir, 'index.js');
-    if (fs.existsSync(indexJs)) {
-      try {
-        const st = fs.statSync(indexJs);
-        if (st.mtimeMs > newestMtime) {
-          newestMtime = st.mtimeMs;
-          newestDir = c;
-        }
-      } catch {}
-    }
-  }
-
-  // Also check root /assets/index.js in case user uploaded directly to root /assets
-  const rootAssetsDir = path.join(rootDir, 'assets');
-  const rootIndexJs = path.join(rootAssetsDir, 'index.js');
-  if (fs.existsSync(rootIndexJs)) {
-    try {
-      const rootSt = fs.statSync(rootIndexJs);
-      if (rootSt.mtimeMs > newestMtime + 1000) {
-        for (const c of candidates) {
-          if (fs.existsSync(c.assetsDir)) {
-            try {
-              fs.cpSync(rootAssetsDir, c.assetsDir, { recursive: true });
-            } catch {}
-          }
-        }
-        return;
-      }
-    } catch {}
-  }
-
-  if (newestDir && newestMtime > 0) {
-    // Sync from newest build dir to the other candidate dir and to root /assets
-    for (const c of candidates) {
-      if (c.dir !== newestDir.dir) {
-        const otherIndexJs = path.join(c.assetsDir, 'index.js');
-        const otherMtime = fs.existsSync(otherIndexJs) ? fs.statSync(otherIndexJs).mtimeMs : 0;
-        if (newestMtime > otherMtime + 1000) {
-          try {
-            fs.cpSync(newestDir.dir, c.dir, { recursive: true });
-          } catch {}
-        }
-      }
-    }
-    if (fs.existsSync(newestDir.assetsDir)) {
-      const rootMtime = fs.existsSync(rootIndexJs) ? fs.statSync(rootIndexJs).mtimeMs : 0;
-      if (newestMtime > rootMtime + 1000) {
-        try {
-          fs.cpSync(newestDir.assetsDir, rootAssetsDir, { recursive: true });
-        } catch {}
-      }
-    }
-  }
-}
-
-// Automatically triggers a background build if source files in src/, index.html, or server.ts are modified
-// and are newer than the compiled bundle on disk.
-function triggerAutoBuildIfSourceUpdated() {
-  if (isAutoBuildRunning) return;
+function getLatestCompiledIndexHtml(forceRefresh = false): { filePath: string; content: string; mtime: number } | null {
   const now = Date.now();
-  if (now - lastAutoBuildStartedAt < 15000) return;
-
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const viteBin = path.join(rootDir, 'node_modules', '.bin', 'vite');
-  if (!fs.existsSync(viteBin)) return;
-
-  const srcStats = getDirectoryMaxMtime(path.join(rootDir, 'src'));
-  let latestSourceMtime = srcStats.maxMtime;
-  for (const rootFile of ['index.html', 'server.ts']) {
-    const fp = path.join(rootDir, rootFile);
-    if (fs.existsSync(fp)) {
-      try {
-        const st = fs.statSync(fp);
-        if (st.mtimeMs > latestSourceMtime) latestSourceMtime = st.mtimeMs;
-      } catch {}
-    }
+  if (!forceRefresh && cachedSpaHtml && now - lastHtmlCacheCheckAt < 10000) {
+    return cachedSpaHtml;
   }
+  lastHtmlCacheCheckAt = now;
 
-  const bundleCandidates = [
-    path.join(rootDir, 'dist', 'assets', 'index.js'),
-    path.join(rootDir, 'client-build', 'assets', 'index.js'),
-    path.join(rootDir, 'assets', 'index.js')
-  ];
-  let latestBundleMtime = 0;
-  for (const b of bundleCandidates) {
-    if (fs.existsSync(b)) {
-      try {
-        const st = fs.statSync(b);
-        if (st.mtimeMs > latestBundleMtime) latestBundleMtime = st.mtimeMs;
-      } catch {}
-    }
-  }
-
-  if (latestSourceMtime > latestBundleMtime + 2500) {
-    isAutoBuildRunning = true;
-    lastAutoBuildStartedAt = now;
-    console.log('[Auto-Build] Detected updated source files vs compiled bundle. Rebuilding cPanel bundles in background...');
-    exec('npx vite build', { cwd: rootDir }, (err) => {
-      isAutoBuildRunning = false;
-      if (err) {
-        console.warn('[Auto-Build] Notice:', err.message);
-      } else {
-        console.log('[Auto-Build] Successfully synced dist/, client-build/, assets/, app.js, and server.cjs!');
-      }
-    });
-  }
-}
-
-function getWorkspaceLiveSignatures(): { buildSignature: string; catalogSignature: string } {
-  const rootDir = process.env.APP_ROOT || process.cwd();
-  const buildTargets = [
-    path.join(rootDir, 'dist', 'index.html'),
-    path.join(rootDir, 'client-build', 'index.html'),
-    path.join(rootDir, 'dist', 'assets', 'index.js'),
-    path.join(rootDir, 'client-build', 'assets', 'index.js'),
-    path.join(rootDir, 'assets', 'index.js'),
-    path.join(rootDir, 'assets', 'index.css'),
-    path.join(rootDir, 'index.html'),
-    path.join(rootDir, 'app.js')
-  ];
-  let maxBuildMtime = 0;
-  let totalBuildSize = 0;
-  for (const bt of buildTargets) {
-    if (fs.existsSync(bt)) {
-      try {
-        const st = fs.statSync(bt);
-        if (st.mtimeMs > maxBuildMtime) maxBuildMtime = st.mtimeMs;
-        totalBuildSize += st.size;
-      } catch {}
-    }
-  }
-  const latestHtml = getLatestCompiledIndexHtml();
-  const htmlScore = latestHtml ? latestHtml.mtime : 0;
-  const buildSignature = `${Math.max(maxBuildMtime, htmlScore)}:${totalBuildSize}`;
-  const catalogSignature = `${productCatalog.length}:${catalogLastModifiedAt}`;
-  return { buildSignature, catalogSignature };
-}
-
-const MONITORED_FILES = Array.from(new Set([
-  path.join(process.cwd(), 'app.js'),
-  path.join(SERVER_DIR, 'app.js'),
-  path.join(process.cwd(), 'server.cjs'),
-  path.join(SERVER_DIR, 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt'),
-  path.join(process.cwd(), 'client-build', 'index.html'),
-  path.join(process.cwd(), 'dist', 'index.html'),
-  path.join(process.cwd(), 'client-build', 'assets', 'index.js'),
-  path.join(process.cwd(), 'dist', 'assets', 'index.js'),
-  path.join(process.cwd(), 'assets', 'index.js'),
-  path.join(process.cwd(), 'client-build', 'products-catalog.json'),
-  path.join(process.cwd(), 'dist', 'products-catalog.json'),
-  path.join(process.cwd(), 'src', 'data', 'uploadedEnclosureProducts.ts'),
-  path.join(process.cwd(), 'src', 'data', 'uploadedPagaProducts.ts'),
-  path.join(process.cwd(), 'src', 'data', 'uploadedProducts.ts'),
-  path.join(process.cwd(), 'index.html'),
-  path.join(process.cwd(), 'package.json')
-]));
-
-// Record file modification timestamps & sizes at boot time
-const initialFileSignatures = new Map<string, { mtimeMs: number; size: number }>();
-for (const f of MONITORED_FILES) {
-  if (fs.existsSync(f)) {
-    try {
-      const st = fs.statSync(f);
-      initialFileSignatures.set(f, { mtimeMs: st.mtimeMs, size: st.size });
-    } catch {}
-  }
-}
-
-// Automatically detect when new application files are uploaded to cPanel
-function checkAutoReloadOnNewUpload() {
-  // Never run heavy build folder copies or process exits in AI Studio or Vite dev server mode!
-  if (IS_AI_STUDIO_DEV || viteMounted || isReloadScheduled) {
-    return;
-  }
-
-  const isProductionOrCpanel = Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
-
-  syncBuildFoldersOnDiskIfNeeded();
-
-  if (!isProductionOrCpanel) {
-    return;
-  }
-
-  triggerAutoBuildIfSourceUpdated();
-
-  const now = Date.now();
-  if (now - lastRestartCheck < 1500) return;
-  lastRestartCheck = now;
-
-  for (const f of MONITORED_FILES) {
-    if (fs.existsSync(f)) {
-      try {
-        const stats = fs.statSync(f);
-        const recorded = initialFileSignatures.get(f);
-        const mtimeChanged = recorded !== undefined && Math.abs(stats.mtimeMs - recorded.mtimeMs) > 300;
-        const sizeChanged = recorded !== undefined && stats.size !== recorded.size;
-
-        if (mtimeChanged || sizeChanged) {
-          // Only exit process if app.js, server.cjs, or tmp/restart.txt changed;
-          // for HTML/JS/CSS/JSON changes, the live server already serves them fresh from disk!
-          const base = path.basename(f);
-          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
-          try { syncCatalogFromDiskIfNeeded(); } catch {}
-          try { syncBuildFoldersOnDiskIfNeeded(); } catch {}
-
-          if (base === 'app.js' || base === 'server.cjs' || base === 'restart.txt') {
-            console.log(`[cPanel Auto-Reload] Backend binary change detected on: ${base}. Reloading worker process...`);
-            isReloadScheduled = true;
-
-            try {
-              const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
-              fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
-              const newTs = Date.now();
-              fs.writeFileSync(restartPath, String(newTs));
-              const rStat = fs.statSync(restartPath);
-              initialFileSignatures.set(restartPath, { mtimeMs: rStat.mtimeMs, size: rStat.size });
-            } catch {}
-
-            setTimeout(() => {
-              process.exit(0);
-            }, 350);
-            break;
-          }
-        } else if (recorded === undefined) {
-          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
-        }
-      } catch {}
-    }
-  }
-}
-
-// Background file watcher interval on cPanel so uploaded files trigger sync even before a browser visits
-const cpanelWatchTimer = setInterval(() => {
-  try {
-    syncCatalogFromDiskIfNeeded();
-    checkAutoReloadOnNewUpload();
-  } catch {}
-}, 3000);
-if (typeof cpanelWatchTimer.unref === 'function') {
-  cpanelWatchTimer.unref();
-}
-
-// Live version endpoint polled by the frontend to detect cPanel File Manager uploads in real time
-app.get('/api/live-version', (req, res) => {
-  syncCatalogFromDiskIfNeeded();
-  if (!viteMounted) {
-    syncBuildFoldersOnDiskIfNeeded();
-  }
-  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
-  res.json({
-    status: 'ok',
-    buildSignature,
-    catalogSignature,
-    catalogCount: productCatalog.length,
-    serverBootTime: SERVER_BOOT_TIME,
-    timestamp: Date.now()
-  });
-});
-
-// Serve products-catalog.json and build-version.json dynamically with zero cache
-app.get('/products-catalog.json', (req, res) => {
-  syncCatalogFromDiskIfNeeded();
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.json(productCatalog);
-});
-
-app.get('/build-version.json', (req, res) => {
-  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.json({ buildTs: buildSignature, catalogSignature, updatedAt: new Date().toISOString() });
-});
-
-// Scans all candidate directories to find the single newest compiled index.html
-function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtime: number } | null {
   const rootDir = process.env.APP_ROOT || process.cwd();
   const candidates = Array.from(new Set([
     path.join(rootDir, 'dist', 'index.html'),
@@ -3363,8 +3035,7 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
     path.join(process.cwd(), 'client-build', 'index.html'),
     path.join(SERVER_DIR, 'dist', 'index.html'),
     path.join(SERVER_DIR, 'client-build', 'index.html'),
-    path.join(rootDir, 'index.html'),
-    path.join(process.cwd(), 'index.html')
+    path.join(rootDir, 'index.html')
   ]));
 
   let bestFile: string | null = null;
@@ -3375,12 +3046,14 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
     if (fs.existsSync(candidate)) {
       try {
         const stats = fs.statSync(candidate);
+        // Fast path: if we already cached this exact file with the same mtime, reuse cached content without reading disk
+        if (!forceRefresh && cachedSpaHtml && cachedSpaHtml.filePath === candidate && cachedSpaHtml.mtime >= stats.mtimeMs) {
+          return cachedSpaHtml;
+        }
         const content = fs.readFileSync(candidate, 'utf8');
-        // Must be a compiled bundle with assets (not raw dev index referencing src/main.tsx)
         const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
         if (!isCompiled) continue;
 
-        // Check embedded build timestamp if present (immune to zip extraction mtime flattening)
         const tsMatch = content.match(/SPINEL_BUILD_TS:(\d+)/);
         const embeddedTs = tsMatch ? parseInt(tsMatch[1], 10) : 0;
         const score = Math.max(embeddedTs, stats.mtimeMs);
@@ -3395,15 +3068,148 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
   }
 
   if (bestFile && bestContent) {
-    return { filePath: bestFile, content: bestContent, mtime: bestScore };
+    cachedSpaHtml = { filePath: bestFile, content: bestContent, mtime: bestScore };
+    return cachedSpaHtml;
   }
-  return null;
+  return cachedSpaHtml;
 }
 
-// Delivers the newest index.html with strict zero-cache headers and fresh asset query timestamps
-function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
+function getWorkspaceLiveSignatures(forceRefresh = false): { buildSignature: string; catalogSignature: string } {
+  const now = Date.now();
+  if (!forceRefresh && cachedBuildSignature && now - lastSignatureCheckAt < 10000) {
+    return {
+      buildSignature: cachedBuildSignature,
+      catalogSignature: `${productCatalog.length}:${catalogLastModifiedAt}`
+    };
+  }
+  lastSignatureCheckAt = now;
+
+  const rootDir = process.env.APP_ROOT || process.cwd();
+  const latestHtml = getLatestCompiledIndexHtml(forceRefresh);
+  let maxBuildMtime = latestHtml ? latestHtml.mtime : 0;
+  let totalBuildSize = 0;
+
+  const indexJsCandidates = [
+    path.join(rootDir, 'dist', 'assets', 'index.js'),
+    path.join(rootDir, 'client-build', 'assets', 'index.js'),
+    path.join(rootDir, 'assets', 'index.js')
+  ];
+  for (const bt of indexJsCandidates) {
+    if (fs.existsSync(bt)) {
+      try {
+        const st = fs.statSync(bt);
+        if (st.mtimeMs > maxBuildMtime) maxBuildMtime = st.mtimeMs;
+        if (st.size > totalBuildSize) totalBuildSize = st.size;
+      } catch {}
+    }
+  }
+
+  cachedBuildSignature = `${Math.round(maxBuildMtime)}:${totalBuildSize}`;
+  return {
+    buildSignature: cachedBuildSignature,
+    catalogSignature: `${productCatalog.length}:${catalogLastModifiedAt}`
+  };
+}
+
+// Only monitor backend binary & Passenger restart marker for process reload (3 lightweight stat calls)
+const MONITORED_BACKEND_FILES = Array.from(new Set([
+  path.join(process.cwd(), 'app.js'),
+  path.join(process.cwd(), 'server.cjs'),
+  path.join(process.cwd(), 'tmp', 'restart.txt')
+]));
+
+const initialFileSignatures = new Map<string, { mtimeMs: number; size: number }>();
+for (const f of MONITORED_BACKEND_FILES) {
+  if (fs.existsSync(f)) {
+    try {
+      const st = fs.statSync(f);
+      initialFileSignatures.set(f, { mtimeMs: st.mtimeMs, size: st.size });
+    } catch {}
+  }
+}
+
+function checkAutoReloadOnNewUpload() {
+  if (IS_AI_STUDIO_DEV || viteMounted || isReloadScheduled) {
+    return;
+  }
+
+  const isProductionOrCpanel = Boolean(
+    process.env.PASSENGER_APP_ENV ||
+    process.env.CPANEL_ENV ||
+    process.env.IN_PASSENGER ||
+    process.env.NODE_ENV === 'production' ||
+    isNaN(Number(PORT))
+  );
+  if (!isProductionOrCpanel) return;
+
+  const now = Date.now();
+  if (now - lastRestartCheck < 15000) return;
+  lastRestartCheck = now;
+
+  for (const f of MONITORED_BACKEND_FILES) {
+    if (fs.existsSync(f)) {
+      try {
+        const stats = fs.statSync(f);
+        const recorded = initialFileSignatures.get(f);
+        const mtimeChanged = recorded !== undefined && Math.abs(stats.mtimeMs - recorded.mtimeMs) > 1000;
+        const sizeChanged = recorded !== undefined && stats.size !== recorded.size;
+
+        if (mtimeChanged || sizeChanged) {
+          const base = path.basename(f);
+          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
+          console.log(`[cPanel Auto-Reload] Backend binary change detected on: ${base}. Reloading worker process...`);
+          isReloadScheduled = true;
+          setTimeout(() => {
+            process.exit(0);
+          }, 350);
+          break;
+        } else if (recorded === undefined) {
+          initialFileSignatures.set(f, { mtimeMs: stats.mtimeMs, size: stats.size });
+        }
+      } catch {}
+    }
+  }
+}
+
+// Ultra-lightweight 15-second background watcher (0.00 MB/s Disk I/O)
+const cpanelWatchTimer = setInterval(() => {
+  try {
+    syncCatalogFromDiskIfNeeded();
+    checkAutoReloadOnNewUpload();
+  } catch {}
+}, 15000);
+if (typeof cpanelWatchTimer.unref === 'function') {
+  cpanelWatchTimer.unref();
+}
+
+// Live version endpoint polled by the frontend to detect cPanel File Manager uploads
+app.get('/api/live-version', (req, res) => {
   syncCatalogFromDiskIfNeeded();
-  checkAutoReloadOnNewUpload();
+  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
+  res.json({
+    status: 'ok',
+    buildSignature,
+    catalogSignature,
+    catalogCount: productCatalog.length,
+    serverBootTime: SERVER_BOOT_TIME,
+    timestamp: Date.now()
+  });
+});
+
+// Serve products-catalog.json and build-version.json dynamically from memory with zero disk I/O
+app.get('/products-catalog.json', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.json(productCatalog);
+});
+
+app.get('/build-version.json', (req, res) => {
+  const { buildSignature, catalogSignature } = getWorkspaceLiveSignatures();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.json({ buildTs: buildSignature, catalogSignature, updatedAt: new Date().toISOString() });
+});
+
+// Delivers the newest index.html from RAM cache with strict zero-cache headers
+function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
     const { buildSignature } = getWorkspaceLiveSignatures();
@@ -3425,30 +3231,12 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
 }
 
 async function startServer() {
-  // Ensure cPanel tmp/restart.txt exists on Passenger
-  if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
-    try {
-      const tmpDir = path.join(process.cwd(), 'tmp');
-      fs.mkdirSync(tmpDir, { recursive: true });
-      const restartFile = path.join(tmpDir, 'restart.txt');
-      if (!fs.existsSync(restartFile)) {
-        fs.writeFileSync(restartFile, String(Date.now()));
-      }
-    } catch {}
-  }
-
-  // Auto-reload watcher middleware
-  app.use((req, res, next) => {
-    syncCatalogFromDiskIfNeeded();
-    checkAutoReloadOnNewUpload();
-    next();
-  });
-
   // Dedicated instant restart endpoint
   app.get('/api/system/restart', (req, res) => {
     try {
-      syncCatalogFromDiskIfNeeded();
-      syncBuildFoldersOnDiskIfNeeded();
+      syncCatalogFromDiskIfNeeded(true);
+      getLatestCompiledIndexHtml(true);
+      getWorkspaceLiveSignatures(true);
       const restartFile = path.join(process.cwd(), 'tmp', 'restart.txt');
       fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
       fs.writeFileSync(restartFile, String(Date.now()));
@@ -3457,7 +3245,7 @@ async function startServer() {
     res.json({
       success: true,
       totalCatalogProducts: productCatalog.length,
-      message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
+      message: 'Server cache refreshed and process reloading with the latest uploaded files.'
     });
 
     if (!IS_AI_STUDIO_DEV && !viteMounted) {
@@ -3509,7 +3297,7 @@ async function startServer() {
     next();
   });
 
-  // Zero-cache static assets across all candidate build directories so cPanel File Manager updates reflect immediately
+  // Zero-cache static assets across all candidate build directories
   const assetPaths = Array.from(new Set([
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
@@ -3534,8 +3322,8 @@ async function startServer() {
     }
   }
 
-  // Legacy hashed bundle fallback: if any browser or proxy requests an old hashed file (e.g. /assets/index-BkC2lal8.js),
-  // automatically serve the latest deterministic bundle (/assets/index.js, /assets/index.css, /assets/vendor-*.js).
+  // Legacy hashed bundle & chunk fallback: if any browser requests an old hashed file (e.g. /assets/index-BkC2lal8.js)
+  // or legacy split chunk (/assets/vendor-*.js), serve the deterministic bundle or a clean ES module stub.
   app.get('/assets/:filename', (req, res, next) => {
     const rawName = req.params.filename || '';
     let mappedName = '';
@@ -3543,9 +3331,10 @@ async function startServer() {
       mappedName = 'index.js';
     } else if (/^index-[A-Za-z0-9_-]+\.css$/.test(rawName)) {
       mappedName = 'index.css';
-    } else {
-      const vendorMatch = rawName.match(/^(vendor-[a-z]+)-[A-Za-z0-9_-]+\.js$/);
-      if (vendorMatch) mappedName = `${vendorMatch[1]}.js`;
+    } else if (/^vendor-[a-z0-9_-]+\.js$/i.test(rawName)) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      return res.status(200).send('export default {};');
     }
 
     if (mappedName) {
