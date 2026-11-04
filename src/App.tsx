@@ -28,8 +28,10 @@ import { SEED_PRODUCTS } from './data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './data/uploadedEnclosureProducts';
+import { CUSTOM_UPLOADED_PRODUCTS } from './data/customUploadedProducts';
 
 const INITIAL_SEEDED_PRODUCTS: Product[] = [
+  ...CUSTOM_UPLOADED_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -330,6 +332,7 @@ function MainApp() {
                 onSelectProduct={handleSelectProduct}
                 onSelectCategory={handleSelectCategory}
                 onRequestQuote={handleRequestQuote}
+                onRefreshCatalog={loadProducts}
               />
             )}
 

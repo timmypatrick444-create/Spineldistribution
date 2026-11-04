@@ -1345,5 +1345,764 @@ export const UPLOADED_ENCLOSURE_PRODUCTS: Product[] = [
     "isBestSeller": true,
     "featured": false,
     "createdAt": "2026-10-22T14:15:00.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-041",
+    "sku": "SP-RA-EN-RI-041",
+    "name": "Terminal box HD",
+    "description": "Enclosure solution tailored to the requirements of the food and beverage industry. All-round gap-free silicone seal between enclosure and cover. Hygiene-compliant quick-release hexagon fastener.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 36,
+    "stock": 355,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719327/SP-RA-EN-RI-041.webp"
+    ],
+    "specs": {
+      "Sealing Design": "All-round, gap-free silicone seal between enclosure and cover",
+      "Fasteners": "Hygiene-compliant quick-release hexagon fasteners",
+      "Industry Standard": "Food and beverage industry-compliant hygienic enclosure design",
+      "Sealing System": "Hygienic external gap-free sealing arrangement",
+      "Cover Operation": "Easy-access quick-release cover fastening system"
+    },
+    "features": [
+      "All-round, gap-free silicone seal between enclosure and cover guarantees maximum hygiene and washdown protection",
+      "Hygiene-compliant quick-release hexagon fasteners engineered specifically for food and beverage facilities",
+      "Food and beverage industry-compliant enclosure design eliminates dirt traps and allows easy sanitization",
+      "Hygienic sealing arrangement and easy-access cover fastening ensure rapid inspection turnaround"
+    ],
+    "isChoice": true,
+    "isBestSeller": false,
+    "featured": true,
+    "createdAt": "2026-11-04T07:56:44.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-042",
+    "sku": "SP-RA-EN-RI-042",
+    "name": "Terminal box KX, sheet steel, with gland plate",
+    "description": "The small enclosure KX, terminal box KX, with a gland plate allows for flexible interior installation and simple cable entry with optimum use of space.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 29,
+    "stock": 309,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719326/SP-RA-EN-RI-042.webp"
+    ],
+    "specs": {
+      "Material": "Sheet steel with electrophoretic dipcoat priming and powder coating",
+      "Cable Entry": "Integrated gland plate for adaptable and simple cable entry",
+      "Interior Flexibility": "Flexible interior installation with optimized use of enclosure space",
+      "Form Factor": "Compact terminal box enclosure design",
+      "Wiring Management": "Adaptable cable entry arrangement for easy installation and cable management"
+    },
+    "features": [
+      "Integrated gland plate allows simple, adaptable cable entry while preserving enclosure integrity",
+      "Flexible interior installation layout accommodates DIN rails, terminals, and sub-assemblies",
+      "Optimized compact enclosure design maximizes interior space utilization in confined areas",
+      "Heavy-duty sheet steel construction ensures durability and easy cable management"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:45.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-043",
+    "sku": "SP-RA-EN-RI-043",
+    "name": "Bus enclosures KX, sheet steel, with mini cam lock",
+    "description": "Wall-mounted enclosure made from sheet steel, with cover and viewing panel. Protection category IP 65/NEMA 12. For installing most brands of bus modules and sensors.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 42,
+    "stock": 367,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719325/SP-RA-EN-RI-043.webp"
+    ],
+    "specs": {
+      "Mounting Type": "Wall-mounted sheet steel enclosure",
+      "Cover Design": "Hinged cover with integrated scratch-resistant viewing panel",
+      "Protection Rating": "IP65 / NEMA 12 certified protection rating",
+      "Locking System": "Mini cam lock for rapid opening and secure closure",
+      "Compatibility": "Suitable for installation of most brands of bus modules and sensors"
+    },
+    "features": [
+      "Integrated viewing panel in cover permits rapid visual inspection of bus module status without opening",
+      "Certified IP65 / NEMA 12 protection category shields internal electronics against water spray and dust",
+      "Equipped with mini cam lock providing rapid technician servicing and secure locking",
+      "Engineered for broad compatibility with major fieldbus, industrial Ethernet, and sensor modules"
+    ],
+    "isChoice": true,
+    "isBestSeller": false,
+    "featured": true,
+    "createdAt": "2026-11-04T07:56:46.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-044",
+    "sku": "SP-RA-EN-RI-044",
+    "name": "Terminal box KX, sheet steel, without gland plate",
+    "description": "The small enclosure KX, terminal box KX, without a gland plate allows for flexible interior installation while maintaining a high protection category.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 24,
+    "stock": 129,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719324/SP-RA-EN-RI-044.webp"
+    ],
+    "specs": {
+      "Material": "Robust sheet steel enclosure body and cover",
+      "Enclosure Base": "Gland plate-free solid enclosure design for maximum sealing integrity",
+      "Protection Category": "High IP protection category against environmental contaminants",
+      "Interior Mounting": "Flexible interior installation and adaptable interior configuration",
+      "Footprint": "Compact terminal box design ideal for machine-adjacent installation"
+    },
+    "features": [
+      "Solid gland plate-free body maintains an exceptional protection category and tight enclosure seal",
+      "Flexible interior installation allows custom placement of terminal blocks and control components",
+      "Compact terminal box design fits tight operational spaces on machinery and production skids",
+      "Adaptable interior configuration with precision grounding points and durable powder-coated finish"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:47.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-045",
+    "sku": "SP-RA-EN-RI-045",
+    "name": "Terminal box KX Stainless steel",
+    "description": "The stainless steel terminal box KX delivers maximum data quality and consistency of engineering while ensuring flexibility and reliability across a wide range of applications.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 5.0,
+    "reviewCount": 48,
+    "stock": 428,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719324/SP-RA-EN-RI-045.webp"
+    ],
+    "specs": {
+      "Material": "Premium stainless steel (AISI 304 / 1.4301)",
+      "Engineering Quality": "High data quality and consistency of engineering design",
+      "Installation Flexibility": "Flexible installation options across DIN rails and mounting plates",
+      "Corrosion Protection": "Superior corrosion resistance for harsh chemical and offshore environments",
+      "Application Range": "Reliable performance across a wide range of industrial and marine applications"
+    },
+    "features": [
+      "High-grade stainless steel construction provides superior resistance to aggressive chemicals and moisture",
+      "Standardized engineering design ensures seamless CAD data integration and high engineering consistency",
+      "Continuous polyurethane foam seal delivers reliable ingress protection in challenging outdoor applications",
+      "Flexible installation options accommodate diverse terminal configurations with maximum reliability"
+    ],
+    "isChoice": true,
+    "isBestSeller": true,
+    "featured": true,
+    "createdAt": "2026-11-04T07:56:48.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-046",
+    "sku": "SP-RA-EN-RI-046",
+    "name": "Bus enclosures KX Stainless steel",
+    "description": "The stainless steel bus enclosure KX offers excellent accessibility with 180° hinges as standard, plus a high protection category of IP 66.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 31,
+    "stock": 194,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719322/SP-RA-EN-RI-046.webp"
+    ],
+    "specs": {
+      "Material": "Stainless steel body and cover (AISI 304)",
+      "Hinge Mechanism": "180° hinges supplied as standard for maximum doorway clearance",
+      "Accessibility": "Easy accessibility to enclosure interior for wiring and maintenance",
+      "Protection Category": "IP66 protection category (high protection against dust and water ingress)",
+      "Intended Equipment": "Fieldbus modules, remote I/O terminals, transmitters, and sensors"
+    },
+    "features": [
+      "180° hinges as standard provide full unobstructed access to the interior for wiring and diagnostics",
+      "Certified IP66 protection category ensures dependable defense against heavy seas, jet wash, and dust",
+      "High-grade stainless steel body resists harsh industrial atmospheres and coastal salinity",
+      "Optimized internal profile allows clean installation of most bus modules, couplers, and sensors"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:49.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-047",
+    "sku": "SP-RA-EN-RI-047",
+    "name": "E-Box KX, sheet steel",
+    "description": "The small enclosure KX, E-Box KX (sheet steel), offers remarkable ease of assembly and flexibility when selecting lock systems.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 37,
+    "stock": 524,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719321/SP-RA-EN-RI-047.webp"
+    ],
+    "specs": {
+      "Material": "Sheet steel enclosure with electrostatically applied powder coating",
+      "Assembly Design": "Engineered for remarkable ease of assembly and fast component mounting",
+      "Lock System Selection": "Flexible lock system selection with adaptable locking insert options",
+      "Door Mounting": "Reversible door swing with high-angle opening capability",
+      "Durability": "Durable enclosure design with all-round foamed-in PU gasket"
+    },
+    "features": [
+      "E-Box KX architecture offers remarkable ease of assembly, reducing fabrication and setup hours",
+      "Flexible lock system selection allows field adaptation to double-bit, square, or key-lock inserts",
+      "Rugged sheet steel body with protective priming and textured powder coat finish",
+      "Adaptable interior mounting studs support mounting plates, DIN rails, and grounding lugs"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:50.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-048",
+    "sku": "SP-RA-EN-RI-048",
+    "name": "E-Box KX Stainless steel",
+    "description": "The stainless steel E-Box KX provides user-friendly assembly as well as flexibility when choosing your lock system. The 180° hinges supplied as standard provide excellent accessibility to the enclosure interior.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 5.0,
+    "reviewCount": 45,
+    "stock": 250,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719321/SP-RA-EN-RI-048.webp"
+    ],
+    "specs": {
+      "Material": "AISI 304 / 1.4301 stainless steel with brushed grain finish",
+      "Hinge Mechanism": "180° hinges supplied as standard for wide door clearance",
+      "Accessibility": "Easy accessibility to enclosure interior for installation and servicing",
+      "Lock System Selection": "User-friendly assembly with flexible lock system selection",
+      "Enclosure Protection": "Durable enclosure design certified for corrosive and washdown environments"
+    },
+    "features": [
+      "Stainless steel E-Box KX provides user-friendly assembly and long-lasting corrosion resistance",
+      "180° hinges supplied as standard provide excellent accessibility to the enclosure interior",
+      "Flexible lock system selection allows customization to suit security and operational demands",
+      "High-integrity seamless sealing protects delicate electronics from industrial fluids and moisture"
+    ],
+    "isChoice": true,
+    "isBestSeller": true,
+    "featured": true,
+    "createdAt": "2026-11-04T07:56:51.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-049",
+    "sku": "SP-RA-EN-RI-049",
+    "name": "Polycarbonate enclosures PK with knockouts",
+    "description": "Wall-mounted enclosure of fibreglass-reinforced polycarbonate. Protection category IP 66. Covers feature quick-release fasteners for speedy maintenance. Self-extinguishing material for safety.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 27,
+    "stock": 177,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719320/SP-RA-EN-RI-049.webp"
+    ],
+    "specs": {
+      "Material": "Fibreglass-reinforced polycarbonate wall-mounted enclosure",
+      "Knockouts": "Pre-moulded metric knockouts for convenient and clean cable entries",
+      "Protection Category": "IP66 protection category (dust-tight and protected against strong water jets)",
+      "Cover Fasteners": "Quick-release cover fasteners for speedy inspection and maintenance",
+      "Fire Safety": "Self-extinguishing material for high safety and durability"
+    },
+    "features": [
+      "Wall-mounted fibreglass-reinforced polycarbonate enclosure delivers superior impact strength and non-conductive safety",
+      "Pre-moulded metric knockouts enable clean, effortless field drilling and swift cable gland installation",
+      "Certified IP66 protection category guards components against heavy water spray and airborne dust",
+      "Quick-release fasteners on cover accelerate servicing, with self-extinguishing material ensuring plant safety"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:52.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-050",
+    "sku": "SP-RA-EN-RI-050",
+    "name": "Bus enclosures KX, sheet steel, with double-bit insert",
+    "description": "Wall-mounted enclosure made from sheet steel, with cover and viewing panel. Protection category IP 65/NEMA 12. For installing most brands of bus modules and sensors.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 33,
+    "stock": 203,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719319/SP-RA-EN-RI-050.webp"
+    ],
+    "specs": {
+      "Mounting Type": "Sheet steel wall-mounted enclosure body",
+      "Inspection Window": "Cover with integrated scratch-resistant viewing panel",
+      "Locking Insert": "Double-bit 3mm insert lock mechanism for secure industrial access",
+      "Protection Category": "IP65 / NEMA 12 protection category",
+      "Application": "Suitable for installation of most brands of bus modules and sensors"
+    },
+    "features": [
+      "Double-bit lock insert ensures industrial access control, preventing unauthorized entry to control bus gear",
+      "High-clarity viewing panel permits fast visual monitoring of module LEDs and bus status",
+      "Certified IP65 / NEMA 12 protection category guards against splashing water, oil, and airborne dust",
+      "Optimized mounting geometry supports seamless installation of leading bus components and sensors"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:53.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-051",
+    "sku": "SP-RA-EN-RI-051",
+    "name": "Polycarbonate enclosures PK without knockouts",
+    "description": "Wall-mounted enclosure of fibreglass-reinforced polycarbonate. Protection category IP 66. Covers feature quick-release fasteners for speedy maintenance. Self-extinguishing material for safety.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 22,
+    "stock": 355,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719318/SP-RA-EN-RI-051.webp"
+    ],
+    "specs": {
+      "Material": "Fibreglass-reinforced polycarbonate wall-mounted enclosure",
+      "Side Wall Style": "Smooth side walls without knockouts for total freedom of custom machining",
+      "Protection Category": "IP66 protection category (dust-tight and protected against strong water jets)",
+      "Cover Fasteners": "Quick-release cover fasteners for easy maintenance",
+      "Fire Safety": "Self-extinguishing material ensuring high safety and flame resistance"
+    },
+    "features": [
+      "Smooth solid-wall design without knockouts allows unrestricted custom drilling, milling, and cable entry placement",
+      "Fibreglass-reinforced polycarbonate construction offers heavy impact resistance and complete corrosion immunity",
+      "Certified IP66 ingress protection category shields internal electrical systems from washdowns and moisture",
+      "Quick-release cover fasteners facilitate swift servicing, backed by self-extinguishing material certification"
+    ],
+    "isChoice": true,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T07:56:54.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-052",
+    "sku": "SP-RA-EN-RI-052",
+    "name": "Cast aluminium enclosures GA",
+    "description": "Spray-finished cast aluminium enclosure. Protection category IP 66.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 26,
+    "stock": 274,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719317/SP-RA-EN-RI-052.webp"
+    ],
+    "specs": {
+      "Material": "Cast aluminium enclosure (high mechanical strength and thermal conductivity)",
+      "Surface Finish": "High-durability spray-finished textured surface",
+      "Protection Category": "IP66 ingress protection (dust-tight and protected against powerful water jets)",
+      "Gasket Type": "Continuous all-round seal for harsh atmospheric conditions",
+      "Mounting": "Internal and external mounting channels for secure field installation"
+    },
+    "features": [
+      "High-strength cast aluminium housing engineered to withstand heavy mechanical impact and harsh environments",
+      "Durable spray-finished protective coating resists chemical exposure, oils, and atmospheric corrosion",
+      "Certified IP66 ingress protection prevents dust entry and shields against powerful water spray",
+      "Excellent electromagnetic shielding (EMC) and heat dissipation for sensitive electronics"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:10.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-053",
+    "sku": "SP-RA-EN-RI-053",
+    "name": "Switch housings Stainless steel",
+    "description": "Switch housing made from stainless steel 1.4301 (AISI 304) with switch cut-outs, diameter: 22.5 mm. Protection category IP 66.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 31,
+    "stock": 196,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719317/SP-RA-EN-RI-053.webp"
+    ],
+    "specs": {
+      "Material": "Stainless steel 1.4301 (AISI 304) with brushed surface finish",
+      "Cut-outs": "Standard 22.5 mm diameter switch and pushbutton cut-outs",
+      "Protection Category": "IP66 ingress protection rating",
+      "Sealing": "Continuous foamed-in seal between enclosure body and cover",
+      "Application": "Industrial pushbutton stations, selector switches, and emergency stops"
+    },
+    "features": [
+      "Fabricated from AISI 304 stainless steel providing outstanding corrosion resistance in food, chemical, and maritime sites",
+      "Pre-punched standard 22.5 mm cut-outs accommodate all standard industrial pushbuttons and indicator lights",
+      "Certified IP66 protection category ensures complete defense against dust ingress and high-pressure hose-down",
+      "Captive stainless steel cover screws streamline assembly while ensuring uniform gasket compression"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:11.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-054",
+    "sku": "SP-RA-EN-RI-054",
+    "name": "Switch housing HD",
+    "description": "Enclosure solution with cut-outs for switches, tailored to the requirements of the food and beverage industry. All-round gap-free silicone seal between enclosure and cover. Hygiene-compliant quick-release hexagon fastener.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 5.0,
+    "reviewCount": 43,
+    "stock": 321,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719316/SP-RA-EN-RI-054.webp"
+    ],
+    "specs": {
+      "Cut-outs": "Precision switch cut-outs tailored for hygienic control devices and e-stops",
+      "Industry Compliance": "Hygienic Design (HD) tailored to food and beverage sector requirements",
+      "Sealing Design": "All-round, gap-free external silicone seal between enclosure and cover",
+      "Fastener Type": "Hygiene-compliant quick-release hexagon fasteners",
+      "Cleaning Geometry": "Crevice-free hygienic profile preventing liquid accumulation and bacterial growth"
+    },
+    "features": [
+      "Hygienic Design (HD) eliminates dirt traps and enables rapid, complete chemical washdowns in food processing",
+      "Continuous exterior gap-free food-safe silicone seal guarantees airtight, sanitary boundary protection",
+      "Quick-release hygiene-compliant hexagon fasteners allow fast technician access with sanitary tools",
+      "Pre-machined cut-outs accommodate hygienic pushbuttons and emergency disconnect switches"
+    ],
+    "isChoice": true,
+    "isBestSeller": true,
+    "featured": true,
+    "createdAt": "2026-11-04T08:12:12.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-055",
+    "sku": "SP-RA-EN-RI-055",
+    "name": "Ex enclosures stainless steel, empty enclosure with screw-fastened cover",
+    "description": "Ex enclosure with screw-fastened cover, stainless steel",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 38,
+    "stock": 441,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719315/SP-RA-EN-RI-055.webp"
+    ],
+    "specs": {
+      "Material": "High-grade stainless steel (AISI 304 / AISI 316L)",
+      "Hazardous Classification": "Ex explosion-protected empty enclosure for hazardous zones",
+      "Cover Fastening": "Screw-fastened cover with high-tensile captive fasteners",
+      "Configuration": "Empty enclosure design for customized instrumentation and terminal strips",
+      "Earth Continuity": "Integrated internal and external grounding studs"
+    },
+    "features": [
+      "ATEX/IECEx compliant explosion-proof stainless steel enclosure engineered for hazardous gas and dust zones",
+      "High-integrity screw-fastened cover system delivers uniform sealing and maximum pressure containment",
+      "Unfinished empty enclosure layout allows total flexibility for custom terminal, relay, or barrier installations",
+      "Corrosion-resistant stainless steel construction suitable for petrochemical, refinery, and offshore platforms"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:13.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-056",
+    "sku": "SP-RA-EN-RI-056",
+    "name": "Ex enclosures stainless steel, empty enclosure with hinged door",
+    "description": "Ex enclosure with hinged door, stainless steel",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 47,
+    "stock": 516,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719314/SP-RA-EN-RI-056.webp"
+    ],
+    "specs": {
+      "Material": "Stainless steel body and hinged door",
+      "Door Mechanism": "Robust hinged door providing easy, wide-angle access to the interior",
+      "Ex Protection": "Approved for explosion-protected hazardous environments",
+      "Interior Space": "Generous empty enclosure design for custom electrical assemblies",
+      "Latching": "Industrial multi-point compression latching ensuring airtight seal"
+    },
+    "features": [
+      "Wide-opening hinged stainless steel door provides ergonomic single-person access for routine field servicing",
+      "Hazardous area Ex rating certified for Zone 1, 2, 21, and 22 explosive atmosphere deployments",
+      "Heavy-gauge stainless steel construction protects critical safety equipment from corrosive offshore environments",
+      "Internal mounting grid accommodates modular DIN rails, base plates, and terminal blocks without compromising shell integrity"
+    ],
+    "isChoice": true,
+    "isBestSeller": false,
+    "featured": true,
+    "createdAt": "2026-11-04T08:12:14.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-057",
+    "sku": "SP-RA-EN-RI-057",
+    "name": "Ex enclosures AX plastic, empty enclosure with hinged door",
+    "description": "Ex enclosures with hinged door, plastic",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.7,
+    "reviewCount": 25,
+    "stock": 238,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719314/SP-RA-EN-RI-057.webp"
+    ],
+    "specs": {
+      "Material": "Glass-fibre reinforced antistatic plastic / polyester",
+      "Door Type": "Hinged door with wide opening angle for rapid accessibility",
+      "Ex Protection": "Ex certified for hazardous explosion-risk zones",
+      "Design": "AX plastic empty enclosure architecture",
+      "Insulation": "Non-conductive, double-insulated safety housing"
+    },
+    "features": [
+      "Glass-fibre reinforced antistatic polymer construction eliminates spark hazards in volatile atmospheres",
+      "Hinged door configuration allows convenient technician entry and maintenance of enclosed automation components",
+      "Completely immune to chemical corrosion, salt spray, and moisture, eliminating exterior maintenance costs",
+      "Empty interior profile ready for custom terminal configurations, safety relays, and intrinsic safety barriers"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:15.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-01",
+    "sku": "SP-RA-EN-RI-WME-01",
+    "name": "Basic enclosure AX, sheet steel",
+    "description": "The compact enclosure AX with integral enclosure locators in the roof, base and side forms the familiar 25 mm system pitch pattern from the VX25 large enclosure. With this unique, patented system, AX compact enclosures are prepared for all types of configurations and refits. System components and accessories are easily, quickly and securely installed and retrofitted on rails, with no drilling required.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 54,
+    "stock": 260,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719313/SP-RA-EN-RI-WME-01.webp"
+    ],
+    "specs": {
+      "System Pitch": "Familiar 25 mm system pitch pattern derived from VX25 large enclosure series",
+      "Mounting Technology": "Patented integral enclosure locators in roof, base, and side walls",
+      "Installation Style": "Rail-mounted, tool-free retrofitting with zero drilling required",
+      "Material": "Heavy-duty sheet steel with dipcoat-primed and powder-coated finish",
+      "Configuration": "Flexible configuration options with interchangeable AX/VX25 system components"
+    },
+    "features": [
+      "Patented integral locators bring the 25 mm VX25 pitch pattern into compact AX wall-mounted enclosures",
+      "Complete no-drilling rail mounting system drastically cuts installation time while preserving IP rating",
+      "Easily, quickly, and securely install interior components, chassis rails, and wiring accessories",
+      "High-strength sheet steel body with electrophoretic dipcoat priming delivers outstanding industrial durability"
+    ],
+    "isChoice": true,
+    "isBestSeller": true,
+    "featured": true,
+    "createdAt": "2026-11-04T08:12:16.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-02",
+    "sku": "SP-RA-EN-RI-WME-02",
+    "name": "Basic enclosure AX, stainless steel",
+    "description": "The robust stainless steel enclosure features an integral locator system, enabling fast, easy, reliable and extensive system configuration with no drilling required.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 5.0,
+    "reviewCount": 49,
+    "stock": 382,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719311/SP-RA-EN-RI-WME-02.webp"
+    ],
+    "specs": {
+      "Material": "High-grade stainless steel with fine brushed surface grain",
+      "Locator System": "Integral locator system for fast, reliable configuration",
+      "Mounting": "Fast and easy component mounting without drilling",
+      "System Compatibility": "Compatible with standard AX and VX modular accessory rails",
+      "Environmental Resistance": "Superior chemical, washdown, and marine atmosphere resistance"
+    },
+    "features": [
+      "Integral locator system enables extensive interior configuration without compromising the stainless steel shell",
+      "No-drilling rail-based accessory installation preserves maximum corrosion resistance and IP sealing integrity",
+      "Premium AISI 304 stainless steel construction provides reliable protection in harsh process environments",
+      "Pre-configured for rapid mounting of DIN rails, mounting plates, and cable management accessories"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:17.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-03",
+    "sku": "SP-RA-EN-RI-WME-03",
+    "name": "Plastic enclosures AX without viewing window",
+    "description": "AX plastic enclosures are ideal for applications in challenging situations. Numerous mounting bosses inside the enclosure allow individual interior configuration on a 25 mm pitch pattern, e.g. with punched sections and rails.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.8,
+    "reviewCount": 21,
+    "stock": 105,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719311/SP-RA-EN-RI-WME-03.webp"
+    ],
+    "specs": {
+      "Material": "High-performance glass-fibre reinforced polyester plastic",
+      "Door Style": "Solid plastic door without viewing window",
+      "Mounting Grid": "Numerous integral mounting bosses on a 25 mm pitch pattern",
+      "Rail Compatibility": "Compatible with punched sections, chassis rails, and partial mounting plates",
+      "Environmental Suitability": "Engineered for challenging outdoor, chemical, and wastewater environments"
+    },
+    "features": [
+      "Fibreglass-reinforced polyester body delivers total electrical insulation and complete UV / weather resistance",
+      "Numerous integral internal mounting bosses allow versatile configuration on the 25 mm pitch pattern",
+      "Solid non-transparent door ensures optimal structural rigidity and shields internal equipment from sunlight",
+      "Compatible with standard AX punched sections and rails for rapid, flexible component mounting"
+    ],
+    "isChoice": false,
+    "isBestSeller": false,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:18.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-04",
+    "sku": "SP-RA-EN-RI-WME-04",
+    "name": "Plastic enclosures AX with viewing window",
+    "description": "AX plastic enclosures with viewing window are ideal for applications in challenging situations. Numerous mounting bosses inside the enclosure allow individual interior configuration on a 25 mm pitch pattern, e.g. with punched sections and rails.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 35,
+    "stock": 227,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719310/SP-RA-EN-RI-WME-04.webp"
+    ],
+    "specs": {
+      "Material": "Glass-fibre reinforced polyester with high impact and UV resistance",
+      "Window": "Integrated scratch-resistant transparent viewing window in door",
+      "Mounting Bosses": "Multiple internal bosses arranged on a standardized 25 mm pitch pattern",
+      "Compatibility": "Directly compatible with punched sections and modular mounting rails",
+      "Applications": "Outdoor control panels, solar combiner boxes, and water treatment monitoring"
+    },
+    "features": [
+      "Clear integrated viewing window allows immediate inspection of meters, displays, and indicators without opening",
+      "Moulded glass-fibre reinforced plastic prevents corrosion and offers double-insulated electrical safety",
+      "Standardized 25 mm pitch pattern with internal mounting bosses streamlines rail and component installation",
+      "Engineered to withstand intense sunlight, temperature swings, and challenging industrial atmospheres"
+    ],
+    "isChoice": true,
+    "isBestSeller": false,
+    "featured": true,
+    "createdAt": "2026-11-04T08:12:19.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-05",
+    "sku": "SP-RA-EN-RI-WME-05",
+    "name": "AX wall-mounted enclosure, 3-part",
+    "description": "The delivery concept of the three-part AX wall-mounted enclosures reduces complexity and enhances flexibility. The AX/VX modular system makes these enclosures suitable for a range of applications. The three-part structure ensures easy access.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 4.9,
+    "reviewCount": 41,
+    "stock": 345,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719310/SP-RA-EN-RI-WME-05.webp"
+    ],
+    "specs": {
+      "Architecture": "Three-part swing-frame wall-mounted enclosure (wall section, hinged center section, door)",
+      "System Modular": "Seamless compatibility with Rittal AX/VX modular system accessories",
+      "Accessibility": "Three-part structure guarantees effortless front and rear access to equipment",
+      "Complexity Reduction": "Streamlined delivery concept reducing installation and assembly complexity",
+      "Versatility": "Suitable for telecommunications, network marshalling, and automation controllers"
+    },
+    "features": [
+      "Innovative three-part hinged architecture provides front and rear accessibility for effortless wiring and maintenance",
+      "Reduces installation complexity with pre-aligned modular assemblies and versatile wall mounting",
+      "Full compatibility with the AX/VX modular system allows flexible integration of accessories and rails",
+      "Heavy-duty frame ensures rigid support for heavy equipment swing-out operation without deflection"
+    ],
+    "isChoice": false,
+    "isBestSeller": true,
+    "featured": false,
+    "createdAt": "2026-11-04T08:12:20.000Z"
+  },
+  {
+    "id": "prod-sp-ra-en-ri-wme-06",
+    "sku": "SP-RA-EN-RI-WME-06",
+    "name": "AX wall-mounted enclosure, 3-part With Blue e+ outlet filter",
+    "description": "The delivery concept behind the three-part AX wall-mounted enclosures reduces complexity and enhances flexibility. The AX/VX modular system makes these enclosures suitable for a range of applications. The three-part structure ensures easy access.",
+    "priceUSD": 0,
+    "category": "Enclosures & Housings",
+    "subcategory": "Equipment Enclosures",
+    "brand": "Rittal",
+    "rating": 5.0,
+    "reviewCount": 39,
+    "stock": 271,
+    "images": [
+      "https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719309/SP-RA-EN-RI-WME-06.webp"
+    ],
+    "specs": {
+      "Architecture": "Three-part wall-mounted enclosure with integrated Blue e+ climate ventilation",
+      "Filter System": "Pre-integrated Blue e+ outlet filter for optimal airflow and thermal dissipation",
+      "System Compatibility": "Standard AX/VX modular system compatibility",
+      "Interior Access": "Three-part hinged structure providing convenient front, center, and rear access",
+      "Thermal Management": "Efficient passive / active airflow management preventing heat accumulation"
+    },
+    "features": [
+      "Factory-equipped with Rittal Blue e+ outlet filter for superior air circulation and thermal protection",
+      "Three-part hinged enclosure body permits effortless 360-degree technician access to components and wiring",
+      "Delivery concept drastically cuts assembly hours and reduces on-site configuration complexity",
+      "Modular AX/VX accessory compatibility supports tailored IT, telecom, and industrial automation builds"
+    ],
+    "isChoice": true,
+    "isBestSeller": true,
+    "featured": true,
+    "createdAt": "2026-11-04T08:12:21.000Z"
   }
 ];

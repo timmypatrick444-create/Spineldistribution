@@ -87,10 +87,17 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
 
   const markOrderAsPaid = async (ref: string) => {
     try {
+      const token = localStorage.getItem('spinel_user_token') || localStorage.getItem('spinel_admin_token');
       const res = await fetch(`/api/orders/${currentOrder.id}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentReference: ref })
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          paymentReference: ref,
+          customerEmail: currentOrder.customerEmail 
+        })
       });
 
       if (res.ok) {

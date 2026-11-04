@@ -284,14 +284,25 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 7. Filter strictly ONLY Enclosures & Housings products and randomize for display
+  // 7. Filter strictly ONLY Enclosures & Housings products and prioritize newly uploaded 011-040 products
   const enclosureProducts = useMemo(() => {
     const pool = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
       return cat === 'enclosures & housings';
     });
 
-    return [...pool].sort(() => 0.5 - Math.random());
+    const newBatch = pool.filter(p => {
+      const numMatch = (p.sku || '').match(/-(\d+)$/);
+      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
+      return num >= 11 && num <= 40;
+    });
+    const initialBatch = pool.filter(p => {
+      const numMatch = (p.sku || '').match(/-(\d+)$/);
+      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
+      return num < 11 || num > 40;
+    });
+
+    return [...newBatch, ...initialBatch];
   }, [safeProducts]);
 
   // Eagerly preload all hero slide images into browser cache immediately

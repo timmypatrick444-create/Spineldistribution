@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Star, 
   ChevronRight, 
-  ChevronLeft,
+  ChevronLeft, 
   Filter, 
-  X
+  X 
 } from 'lucide-react';
 import { Product } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -19,16 +19,60 @@ interface CatalogPageProps {
   onSelectProduct: (product: Product) => void;
   onSelectCategory: (categoryName?: string, subcategoryName?: string) => void;
   onRequestQuote?: (product: Product) => void;
+  onRefreshCatalog?: () => void;
 }
 
-// Fisher-Yates shuffle algorithm for randomizing products order on refresh
-const shuffleArray = <T,>(array: T[]): T[] => {
-  const copy = [...array];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+// Interleave products across categories so "All Categories" showcases uploaded products from every category right on Page 1
+const buildBalancedCatalogOrder = (products: Product[]): Product[] => {
+  const byCat = new Map<string, Product[]>();
+  for (const p of products) {
+    const cat = p.category || 'Other';
+    if (!byCat.has(cat)) byCat.set(cat, []);
+    byCat.get(cat)!.push(p);
   }
-  return copy;
+
+  // Prioritize categories with recently uploaded products first
+  const priorityOrder = [
+    'Enclosures & Housings',
+    'Public Address (PAGA) System',
+    'Renewable Energy',
+    'Video Management & Recording',
+    'Security Sensors & Detection',
+    'Mounting & Surveillance Accessories',
+    'Networking & Connectivity',
+    'Video Surveillance & Cameras',
+    'Access Control & Door Security',
+    'Intrusion & Alarm Systems',
+    'Fire Alarm & Life Safety',
+    'Power & Surge Protection',
+    'Cables & Transmission',
+    'Intercom & Entry Systems',
+    'Display & Monitoring',
+    'Tools & Test Equipment'
+  ];
+
+  const orderedCategories = [
+    ...priorityOrder.filter(c => byCat.has(c)),
+    ...Array.from(byCat.keys()).filter(c => !priorityOrder.includes(c))
+  ];
+
+  const result: Product[] = [];
+  let index = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    hasMore = false;
+    for (const cat of orderedCategories) {
+      const list = byCat.get(cat)!;
+      if (index < list.length) {
+        result.push(list[index]);
+        hasMore = true;
+      }
+    }
+    index++;
+  }
+
+  return result;
 };
 
 const ITEMS_PER_PAGE = 50;
@@ -40,9 +84,10 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   searchQuery,
   onSelectProduct,
   onSelectCategory,
-  onRequestQuote
+  onRequestQuote,
+  onRefreshCatalog
 }) => {
-  const { formatPrice, currency, exchangeRate } = useCurrency();
+  const { formatPrice } = useCurrency();
   const { addToCart } = useCart();
 
   // Local Filter States
@@ -60,13 +105,8 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   // Safe product list
   const safeProducts = useMemo(() => Array.isArray(products) ? products : [], [products]);
 
-  // Randomized base order generated whenever the page is refreshed / loaded
-  const [shuffledProducts, setShuffledProducts] = useState<Product[]>([]);
-  useEffect(() => {
-    if (safeProducts.length > 0) {
-      setShuffledProducts(shuffleArray(safeProducts));
-    }
-  }, [safeProducts]);
+  // Balanced multi-category order for "All Categories" view
+  const balancedProducts = useMemo(() => buildBalancedCatalogOrder(safeProducts), [safeProducts]);
 
   // Reset pagination to page 1 whenever search, category, or filters change
   useEffect(() => {
@@ -81,7 +121,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
   // Filtered & Sorted Products
   const filteredProducts = useMemo(() => {
-    const baseList = shuffledProducts.length > 0 ? shuffledProducts : safeProducts;
+    const baseList = (!selectedCategory || selectedCategory === 'All') ? balancedProducts : safeProducts;
 
     return baseList.filter(p => {
       // Category Matching
@@ -132,11 +172,20 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
       if (sortBy === 'price_desc') return b.priceUSD - a.priceUSD;
       if (sortBy === 'rating') return b.rating - a.rating;
       if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      // Default 'featured': maintains randomized product order on page refresh!
+      if (selectedCategory && selectedCategory.toLowerCase().trim() === 'enclosures & housings') {
+        const aMatch = (a.sku || '').match(/-(\d+)$/);
+        const bMatch = (b.sku || '').match(/-(\d+)$/);
+        const aNum = aMatch ? parseInt(aMatch[1], 10) : 0;
+        const bNum = bMatch ? parseInt(bMatch[1], 10) : 0;
+        const aIsNew = aNum >= 11 && aNum <= 40 ? 0 : 1;
+        const bIsNew = bNum >= 11 && bNum <= 40 ? 0 : 1;
+        if (aIsNew !== bIsNew) return aIsNew - bIsNew;
+        return aNum - bNum;
+      }
       return 0;
     });
   }, [
-    shuffledProducts,
+    balancedProducts,
     safeProducts, 
     selectedCategory, 
     selectedSubcategory, 
@@ -178,7 +227,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
     <div className="w-full px-[20px] py-6 font-sans">
       
       {/* Breadcrumbs & Results Top Bar */}
-      <div className="bg-white p-3 rounded-md border border-gray-200 mb-5 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600 shadow-xs">
+      <div className="bg-white p-3 rounded-md border border-gray-200 mb-3 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600 shadow-xs">
         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           <span 
             onClick={() => onSelectCategory(undefined, undefined)}
@@ -221,15 +270,15 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
         </div>
 
         {/* Sort Dropdown & Mobile Filter */}
-        <div className="flex items-center gap-2 shrink-0">
-          <label htmlFor="sort-select" className="text-gray-600">Sort by:</label>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <label htmlFor="sort-select" className="text-gray-600 ml-1">Sort by:</label>
           <select
             id="sort-select"
             value={sortBy}
             onChange={(e: any) => setSortBy(e.target.value)}
             className="bg-gray-50 border border-gray-300 rounded px-2.5 py-1 text-xs text-gray-800 font-medium outline-none focus:border-[#e77600] cursor-pointer"
           >
-            <option value="featured">Featured (Randomized)</option>
+            <option value="featured">Featured (All Categories)</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
             <option value="rating">Avg. Customer Review</option>

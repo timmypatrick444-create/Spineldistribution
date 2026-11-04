@@ -133,7 +133,7 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
               ref={scrollContainerRef}
               className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scroll-smooth scrollbar-none py-2 px-1"
             >
-              {products.slice(0, 18).map((prod, idx) => {
+              {products.slice(0, 60).map((prod, idx) => {
                 const isAdded = addedMap[prod.id];
                 const hasPrice = prod.priceUSD && prod.priceUSD > 0;
 
