@@ -2,6 +2,8 @@
 # Spinel Distribution - cPanel Production Web Server Configuration
 # =====================================================================
 
+FileETag None
+
 # 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -10,12 +12,14 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Prevent Caching of HTML, JSON & API Responses (Ensures live domain always shows newest upload immediately)
+# 2. Zero-Cache Policy for HTML, JS, CSS, JSON & CSV (Ensures any file uploaded in cPanel File Manager reflects immediately)
 <IfModule mod_headers.c>
-  # Bypass LiteSpeed and Cloudflare/Proxy server-side cache for HTML and dynamic views
   Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
+  Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+  Header unset ETag
+  Header unset Last-Modified
 
-  <FilesMatch "\.(html|htm|json)$">
+  <FilesMatch "\.(html|htm|json|js|mjs|css|csv|xml|txt)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
@@ -24,67 +28,24 @@
     Header unset ETag
     Header unset Last-Modified
   </FilesMatch>
-  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|webp)$">
-    Header set Cache-Control "public, max-age=31536000, immutable"
-  </FilesMatch>
 </IfModule>
 
-# 3. Phusion Passenger Configuration (for cPanel Node.js App)
-<IfModule mod_passenger.c>
-  PassengerAppType node
-  PassengerStartupFile app.js
-  PassengerEnabled on
-  PassengerRestartDir tmp
-</IfModule>
-
-# 4. Smart Asset & Single Page Application (SPA) Routing for cPanel Apache / LiteSpeed
+# 3. Fallback Single Page Application (SPA) Routing for Apache
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Never rewrite backend API, health check, or image upload routes
-  RewriteRule ^(api|health|Images|images|uploads)(/|$) - [L]
-
-  # Resolve /assets/* from root /assets/, /client-build/assets/, or /dist/assets/
   RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{DOCUMENT_ROOT}/client-build/assets/$1 -f
-  RewriteRule ^assets/(.*)$ /client-build/assets/$1 [L]
+  RewriteRule ^assets/index-[A-Za-z0-9_-]+\.js$ /assets/index.js [L]
 
   RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
-  RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
-
-  # Serve compiled production client-build/index.html when root / or /index.html is requested directly on Apache/LiteSpeed
-  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
-  RewriteRule ^(index\.html)?$ /client-build/index.html [L]
-
-  RewriteRule ^client-build/index\.html$ - [L]
-  RewriteRule ^dist/index\.html$ - [L]
-
-  # For SPA client-side routes, serve compiled client-build/index.html (or dist/index.html)
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
-  RewriteRule . /client-build/index.html [L]
+  RewriteRule ^assets/index-[A-Za-z0-9_-]+\.css$ /assets/index.css [L]
 
   RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
-  RewriteRule . /dist/index.html [L]
+  RewriteRule ^assets/(vendor-[a-z]+)-[A-Za-z0-9_-]+\.js$ /assets/$1.js [L]
 
+  RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
-
-# 5. Security: Block Direct HTTP Access to Secrets, Environment & Configuration Files
-<FilesMatch "(^\.env|db_config\.json|config\.json|\.sql$|package\.json|package-lock\.json|server\.(ts|cjs)|app\.js|\.git|tsconfig\.json|vite\.config\.ts|\.log$)">
-  <IfModule mod_authz_core.c>
-    Require all denied
-  </IfModule>
-  <IfModule !mod_authz_core.c>
-    Order allow,deny
-    Deny from all
-  </IfModule>
-</FilesMatch>
-

@@ -77,7 +77,7 @@ function cpanelAutoSyncPlugin(): Plugin {
         const rootAssetsDir = path.resolve(__dirname, 'assets');
         const tmpDir = path.resolve(__dirname, 'tmp');
 
-        // 1. Stamp dist/index.html with build timestamp marker so server.ts always knows the newest build
+        // 1. Stamp dist/index.html with build timestamp marker and cache-busting query strings
         const distIndexPath = path.join(distDir, 'index.html');
         if (fs.existsSync(distIndexPath)) {
           let html = fs.readFileSync(distIndexPath, 'utf-8');
@@ -87,10 +87,26 @@ function cpanelAutoSyncPlugin(): Plugin {
           } else {
             html = html.replace('</head>', `  ${marker}\n  </head>`);
           }
+          // Append cache-busting query param to deterministic /assets/*.js and /assets/*.css references
+          html = html.replace(/(src|href)="(\/assets\/[^"?]+\.(?:js|css))(?:\?[^"]*)?"/g, `$1="$2?v=${buildTs}"`);
           fs.writeFileSync(distIndexPath, html, 'utf-8');
         }
 
-        // 2. Sync dist/ to client-build/ cleanly (removing stale bundles first)
+        // 2. Copy .htaccess and Images/ into dist/ so both root and subdirectory deployments have all static files and zero-cache rules
+        const rootHtaccess = path.resolve(__dirname, '.htaccess');
+        if (fs.existsSync(rootHtaccess) && fs.existsSync(distDir)) {
+          try {
+            fs.copyFileSync(rootHtaccess, path.join(distDir, '.htaccess'));
+          } catch {}
+        }
+        const rootImagesDir = path.resolve(__dirname, 'Images');
+        if (fs.existsSync(rootImagesDir) && fs.existsSync(distDir)) {
+          try {
+            fs.cpSync(rootImagesDir, path.join(distDir, 'Images'), {recursive: true});
+          } catch {}
+        }
+
+        // 3. Sync dist/ to client-build/ cleanly (removing stale hashed bundles first)
         if (fs.existsSync(distDir)) {
           if (fs.existsSync(clientBuildDir)) {
             fs.rmSync(clientBuildDir, {recursive: true, force: true});
@@ -98,7 +114,7 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.cpSync(distDir, clientBuildDir, {recursive: true});
         }
 
-        // 3. Sync dist/assets/ to root assets/ so cPanel static or Passenger root resolution always has the latest hashed bundles
+        // 4. Sync dist/assets/ to root assets/ cleanly (removing any old index-*.js hashed files)
         const distAssetsDir = path.join(distDir, 'assets');
         if (fs.existsSync(distAssetsDir)) {
           if (fs.existsSync(rootAssetsDir)) {
@@ -107,9 +123,11 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.cpSync(distAssetsDir, rootAssetsDir, {recursive: true});
         }
 
-        // 4. Bundle server.ts into app.js and server.cjs using esbuild
+        // 5. Bundle server.ts into app.js and server.cjs using esbuild binary directly
+        const esbuildBin = path.resolve(__dirname, 'node_modules', '.bin', 'esbuild');
+        const esbuildCmd = fs.existsSync(esbuildBin) ? `"${esbuildBin}"` : 'npx esbuild';
         execSync(
-          'npx esbuild server.ts --bundle --platform=node --target=node18 --outfile=app.js --external:vite --external:fsevents --external:lightningcss --external:@tailwindcss/oxide --external:esbuild',
+          `${esbuildCmd} server.ts --bundle --platform=node --target=node18 --format=cjs --minify --outfile=app.js --external:vite --external:fsevents --external:lightningcss --external:@tailwindcss/oxide --external:esbuild`,
           {cwd: __dirname, stdio: 'inherit'},
         );
         const appJsPath = path.resolve(__dirname, 'app.js');
@@ -118,16 +136,17 @@ function cpanelAutoSyncPlugin(): Plugin {
           fs.copyFileSync(appJsPath, serverCjsPath);
         }
 
-        // 5. Touch tmp/restart.txt so Phusion Passenger immediately restarts on cPanel upload
+        // 6. Touch tmp/restart.txt and build-version.json so Phusion Passenger and frontend live-watcher detect the update immediately
         if (!fs.existsSync(tmpDir)) {
           fs.mkdirSync(tmpDir, {recursive: true});
         }
         fs.writeFileSync(path.join(tmpDir, 'restart.txt'), String(buildTs), 'utf-8');
-
-        // 6. Regenerate cpanel-deploy.zip if scripts/pack-cpanel.js exists
-        const packScript = path.resolve(__dirname, 'scripts', 'pack-cpanel.js');
-        if (fs.existsSync(packScript)) {
-          execSync('node scripts/pack-cpanel.js', {cwd: __dirname, stdio: 'inherit'});
+        const versionPayload = JSON.stringify({buildTs, updatedAt: new Date(buildTs).toISOString()}, null, 2);
+        if (fs.existsSync(distDir)) {
+          fs.writeFileSync(path.join(distDir, 'build-version.json'), versionPayload, 'utf-8');
+        }
+        if (fs.existsSync(clientBuildDir)) {
+          fs.writeFileSync(path.join(clientBuildDir, 'build-version.json'), versionPayload, 'utf-8');
         }
 
         console.log(`[cPanel Auto-Sync] Synced dist/, client-build/, assets/, app.js, server.cjs, and tmp/restart.txt (Build TS: ${buildTs})`);
@@ -146,6 +165,9 @@ export default defineConfig(() => {
       chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
+          entryFileNames: 'assets/index.js',
+          chunkFileNames: 'assets/[name].js',
+          assetFileNames: 'assets/[name].[ext]',
           manualChunks(id) {
             if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
               return 'vendor-pdf';

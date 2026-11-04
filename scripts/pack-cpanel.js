@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const AdmZip = require('adm-zip');
+import fs from 'fs';
+import path from 'path';
+import AdmZip from 'adm-zip';
 
 function makeCpanelZip() {
   const zipFilename = 'cpanel-deploy.zip';

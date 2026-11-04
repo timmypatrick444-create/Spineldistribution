@@ -2,6 +2,8 @@
 # Spinel Distribution - cPanel Production Web Server Configuration
 # =====================================================================
 
+FileETag None
+
 # 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -10,12 +12,14 @@
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Prevent Caching of HTML, JSON & API Responses (Ensures live domain always shows newest upload immediately)
+# 2. Zero-Cache Policy for HTML, JS, CSS, JSON & CSV (Ensures any file uploaded in cPanel File Manager reflects immediately)
 <IfModule mod_headers.c>
-  # Bypass LiteSpeed and Cloudflare/Proxy server-side cache for HTML and dynamic views
   Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
+  Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+  Header unset ETag
+  Header unset Last-Modified
 
-  <FilesMatch "\.(html|htm|json)$">
+  <FilesMatch "\.(html|htm|json|js|mjs|css|csv|xml|txt)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
@@ -23,9 +27,6 @@
     Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
     Header unset ETag
     Header unset Last-Modified
-  </FilesMatch>
-  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|webp)$">
-    Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>
 
@@ -45,6 +46,16 @@
   # Never rewrite backend API, health check, or image upload routes
   RewriteRule ^(api|health|Images|images|uploads)(/|$) - [L]
 
+  # Map any legacy hashed bundle request (e.g. index-BkC2lal8.js) to deterministic /assets/index.js & /assets/index.css
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(?:client-build/|dist/)?assets/index-[A-Za-z0-9_-]+\.js$ /assets/index.js [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(?:client-build/|dist/)?assets/index-[A-Za-z0-9_-]+\.css$ /assets/index.css [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(?:client-build/|dist/)?assets/(vendor-[a-z]+)-[A-Za-z0-9_-]+\.js$ /assets/$1.js [L]
+
   # Resolve /assets/* from root /assets/, /client-build/assets/, or /dist/assets/
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/client-build/assets/$1 -f
@@ -54,23 +65,26 @@
   RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
   RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
 
-  # Serve compiled production client-build/index.html when root / or /index.html is requested directly on Apache/LiteSpeed
+  # Serve compiled production index.html when root / or /index.html is requested statically on Apache/LiteSpeed
+  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+  RewriteRule ^(index\.html)?$ /dist/index.html [L]
+
   RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
   RewriteRule ^(index\.html)?$ /client-build/index.html [L]
 
-  RewriteRule ^client-build/index\.html$ - [L]
   RewriteRule ^dist/index\.html$ - [L]
+  RewriteRule ^client-build/index\.html$ - [L]
 
-  # For SPA client-side routes, serve compiled client-build/index.html (or dist/index.html)
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
-  RewriteRule . /client-build/index.html [L]
-
+  # For SPA client-side routes, serve compiled dist/index.html or client-build/index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
   RewriteRule . /dist/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
+  RewriteRule . /client-build/index.html [L]
 
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -87,4 +101,3 @@
     Deny from all
   </IfModule>
 </FilesMatch>
-

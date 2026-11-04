@@ -91,56 +91,77 @@ function MainApp() {
   const [products, setProducts] = useState<Product[]>(INITIAL_SEEDED_PRODUCTS);
   const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
 
-  // Fetch products from server to sync updates seamlessly in the background
-  // Merges with INITIAL_SEEDED_PRODUCTS so newly bundled products are always displayed immediately
+  // Fetch products from server (or static products-catalog.json fallback) to sync updates seamlessly
+  // Server list takes priority over INITIAL_SEEDED_PRODUCTS so any file uploaded/edited on cPanel reflects immediately
   const loadProducts = async () => {
     try {
-      const res = await fetch(`/api/products?limit=5000&_t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
+      let serverList: Product[] = [];
+      try {
+        const res = await fetch(`/api/products?limit=10000&_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          serverList = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.products)
+            ? data.products
+            : [];
         }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const serverList: Product[] = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.products)
-          ? data.products
-          : [];
-        if (serverList.length > 0) {
-          // Merge INITIAL_SEEDED_PRODUCTS with serverList so bundled products are never lost
-          const seenSkus = new Set<string>();
-          const seenIds = new Set<string>();
-          const mergedList: Product[] = [];
+      } catch {
+        // Fallback if backend API is temporarily restarting or static hosting is used
+      }
 
-          for (const item of INITIAL_SEEDED_PRODUCTS) {
-            const skuKey = (item.sku || '').toLowerCase().trim();
-            const idKey = (item.id || '').toLowerCase().trim();
-            if (skuKey) seenSkus.add(skuKey);
-            if (idKey) seenIds.add(idKey);
-            mergedList.push(item);
+      if (serverList.length === 0) {
+        try {
+          const fallbackRes = await fetch(`/products-catalog.json?_t=${Date.now()}`, { cache: 'no-store' });
+          if (fallbackRes.ok) {
+            const fallbackData = await fallbackRes.json();
+            if (Array.isArray(fallbackData)) serverList = fallbackData;
           }
+        } catch {}
+      }
 
-          for (const srvItem of serverList) {
-            const skuKey = (srvItem.sku || '').toLowerCase().trim();
-            const idKey = (srvItem.id || '').toLowerCase().trim();
-            if ((skuKey && seenSkus.has(skuKey)) || (idKey && seenIds.has(idKey))) {
-              continue;
-            }
-            if (skuKey) seenSkus.add(skuKey);
-            if (idKey) seenIds.add(idKey);
-            mergedList.push(srvItem);
+      if (serverList.length > 0) {
+        const seenSkus = new Set<string>();
+        const seenIds = new Set<string>();
+        const mergedList: Product[] = [];
+
+        // 1. Place serverList FIRST so newly uploaded or updated products on cPanel override static bundle defaults
+        for (const srvItem of serverList) {
+          if (!srvItem || !srvItem.name) continue;
+          const skuKey = (srvItem.sku || '').toLowerCase().trim();
+          const idKey = (srvItem.id || '').toLowerCase().trim();
+          if ((skuKey && seenSkus.has(skuKey)) || (idKey && seenIds.has(idKey))) {
+            continue;
           }
+          if (skuKey) seenSkus.add(skuKey);
+          if (idKey) seenIds.add(idKey);
+          mergedList.push(srvItem);
+        }
 
-          setProducts(mergedList);
-          if (window.location.pathname.startsWith('/product/')) {
-            const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
-            const found = mergedList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
-            if (found) {
-              setSelectedProduct(found);
-            }
+        // 2. Append any remaining bundled products not already present in serverList
+        for (const item of INITIAL_SEEDED_PRODUCTS) {
+          const skuKey = (item.sku || '').toLowerCase().trim();
+          const idKey = (item.id || '').toLowerCase().trim();
+          if ((skuKey && seenSkus.has(skuKey)) || (idKey && seenIds.has(idKey))) {
+            continue;
+          }
+          if (skuKey) seenSkus.add(skuKey);
+          if (idKey) seenIds.add(idKey);
+          mergedList.push(item);
+        }
+
+        setProducts(mergedList);
+        if (window.location.pathname.startsWith('/product/')) {
+          const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
+          const found = mergedList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
+          if (found) {
+            setSelectedProduct(found);
           }
         }
       }
@@ -153,6 +174,87 @@ function MainApp() {
 
   useEffect(() => {
     loadProducts();
+
+    // Real-time cPanel File Manager Live Sync Watcher:
+    // Automatically detects whenever ANY file (catalog data, CSV, JSON, TS, or frontend bundle) is uploaded or updated on cPanel
+    let knownBuildSig = '';
+    let knownCatalogSig = '';
+    let isChecking = false;
+
+    const checkLiveCpanelUpdates = async () => {
+      if (isChecking) return;
+      isChecking = true;
+      try {
+        const res = await fetch(`/api/live-version?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        if (res.ok) {
+          const info = await res.json();
+          const nextBuildSig = String(info.buildSignature || '');
+          const nextCatalogSig = String(info.catalogSignature || '');
+
+          if (!knownBuildSig) {
+            knownBuildSig = nextBuildSig;
+          } else if (nextBuildSig && nextBuildSig !== knownBuildSig) {
+            knownBuildSig = nextBuildSig;
+            // New frontend bundle or HTML uploaded to cPanel File Manager: clear browser cache and reload seamlessly
+            if ('caches' in window) {
+              try {
+                const keys = await window.caches.keys();
+                await Promise.all(keys.map(k => window.caches.delete(k)));
+              } catch {}
+            }
+            window.location.reload();
+            return;
+          }
+
+          if (!knownCatalogSig) {
+            knownCatalogSig = nextCatalogSig;
+          } else if (nextCatalogSig && nextCatalogSig !== knownCatalogSig) {
+            knownCatalogSig = nextCatalogSig;
+            await loadProducts();
+          }
+        } else {
+          // Static hosting fallback: check build-version.json
+          const staticRes = await fetch(`/build-version.json?_t=${Date.now()}`, { cache: 'no-store' });
+          if (staticRes.ok) {
+            const staticInfo = await staticRes.json();
+            const nextTs = String(staticInfo.buildTs || '');
+            if (!knownBuildSig) {
+              knownBuildSig = nextTs;
+            } else if (nextTs && nextTs !== knownBuildSig) {
+              knownBuildSig = nextTs;
+              window.location.reload();
+            }
+          }
+        }
+      } catch {
+        // Ignore transient network errors
+      } finally {
+        isChecking = false;
+      }
+    };
+
+    checkLiveCpanelUpdates();
+    const intervalId = window.setInterval(checkLiveCpanelUpdates, 6000);
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkLiveCpanelUpdates();
+        loadProducts();
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
   }, []);
 
   // Sync with browser URL path (e.g. /product/:id, /orders, /cart, /admin)
