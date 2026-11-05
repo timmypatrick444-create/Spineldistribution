@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background-color: #eaeded; color: #0F1111;">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,49 +15,11 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <!-- Paystack Inline JS for seamless live payment -->
-    <script src="https://js.paystack.co/v1/inline.js" defer></script>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
   </head>
-  <body class="bg-[#eaeded] text-[#0F1111] antialiased" style="background-color: #eaeded; color: #0F1111; margin: 0; padding: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <body class="bg-[#eaeded] text-[#0F1111] antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      (function () {
-        // Clear any stale Service Workers that could trap old assets in the browser
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function (regs) {
-            for (var i = 0; i < regs.length; i++) {
-              regs[i].unregister();
-            }
-          }).catch(function () {});
-        }
-        // Clear any browser Cache Storage instances from earlier visits
-        if ('caches' in window) {
-          try {
-            caches.keys().then(function (keys) {
-              for (var j = 0; j < keys.length; j++) {
-                caches.delete(keys[j]);
-              }
-            }).catch(function () {});
-          } catch (e) {}
-        }
-        // When served by Vite dev server in AI Studio, @vite/client is injected in <head>.
-        // When compiled by Vite build, /assets/index.js is already injected in <head>.
-        // When raw repository index.html is served directly by cPanel Apache/LiteSpeed, inject compiled bundle immediately at 0ms.
-        var hasViteClient = !!document.querySelector('script[src*="@vite/client"]') || document.documentElement.innerHTML.indexOf('/@react-refresh') !== -1;
-        var hasCompiledBundle = !!document.querySelector('script[src*="/assets/index"]');
-        if (hasViteClient || hasCompiledBundle) return;
-
-        var bust = Date.now();
-        var css = document.createElement('link');
-        css.rel = 'stylesheet';
-        css.href = '/assets/index.css?v=' + bust;
-        document.head.appendChild(css);
-
-        var js = document.createElement('script');
-        js.type = 'module';
-        js.src = '/assets/index.js?v=' + bust;
-        document.head.appendChild(js);
-      })();
-    </script>
   </body>
 </html>
+
