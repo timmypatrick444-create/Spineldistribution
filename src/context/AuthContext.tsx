@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import { fetchWithRetry } from '../utils/apiRetry';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check admin token validity on mount
   useEffect(() => {
     if (adminToken) {
-      fetch('/api/admin/verify', {
+      fetchWithRetry('/api/admin/verify', {
         headers: { Authorization: `Bearer ${adminToken}` }
       })
         .then(res => {
@@ -63,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetchWithRetry('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -108,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/register-initiate', {
+      const res = await fetchWithRetry('/api/auth/register-initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName, email, password })
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     otp: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await fetchWithRetry('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
@@ -180,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/resend-otp', {
+      const res = await fetchWithRetry('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -207,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await fetchWithRetry('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -238,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     otp: string
   ): Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/verify-reset-otp', {
+      const res = await fetchWithRetry('/api/auth/verify-reset-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
@@ -272,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resetToken?: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetchWithRetry('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp, newPassword, resetToken })
@@ -306,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const adminLogin = async (technicalEmail: string, accessKey: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetchWithRetry('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ technicalEmail, accessKey })

@@ -10,6 +10,7 @@ import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
+import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
 import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
@@ -120,8 +121,8 @@ function persistCustomProductsToDisk(customList: Product[]) {
 }
 
 // In-Memory resilient primary database state (Holds thousands of products reliably)
-let productCatalog: Product[] = [
-  ...runtimeCustomProducts,
+const allBaseProducts: Product[] = [
+  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -129,6 +130,15 @@ let productCatalog: Product[] = [
     ...p,
     id: p.id || `prod-${p.sku || index}`
   }))
+];
+
+const baseCatalogIds = new Set(allBaseProducts.map(p => p.id));
+const baseCatalogSkus = new Set(allBaseProducts.map(p => (p.sku || '').toLowerCase()));
+const uniqueCustomProducts = runtimeCustomProducts.filter(p => !baseCatalogIds.has(p.id) && !baseCatalogSkus.has((p.sku || '').toLowerCase()));
+
+let productCatalog: Product[] = [
+  ...uniqueCustomProducts,
+  ...allBaseProducts
 ];
 let ordersStore: Order[] = [];
 let quotesStore: any[] = [];
@@ -518,7 +528,7 @@ interface PendingPasswordReset {
 const pendingPasswordResets = new Map<string, PendingPasswordReset>();
 
 // Multi-tiered Email Delivery Engine for cPanel & Production
-async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: any }> {
   loadAllPossibleEnvFiles();
   const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
   const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
@@ -708,7 +718,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
 }
 
 // Multi-tiered Password Reset OTP Delivery from noreply@spineldistribution.com
-async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
+async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: any }> {
   loadAllPossibleEnvFiles();
   const subject = `Password Reset Verification Code: ${otp} - Spinel Distribution`;
   const senderEmail = 'noreply@spineldistribution.com';
@@ -1184,6 +1194,74 @@ app.get('/api/products/:id', (req, res) => {
   res.json(product);
 });
 
+// 5. Resilient Image Proxy with Exponential Backoff Retry and Long-Term Caching
+// Prevents upstream CDN/S3 "Rate exceeded." or ThrottlingException from breaking client images
+const imageCache = new Map<string, { buffer: Buffer; contentType: string; cachedAt: number }>();
+const IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+app.get('/api/proxy-image', async (req, res) => {
+  const rawUrl = String(req.query.url || '').trim();
+  if (!rawUrl || (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://'))) {
+    return res.redirect(302, '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg');
+  }
+
+  // Check in-memory cache
+  const cached = imageCache.get(rawUrl);
+  if (cached && (Date.now() - cached.cachedAt) < IMAGE_CACHE_TTL_MS) {
+    res.setHeader('Content-Type', cached.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    return res.send(cached.buffer);
+  }
+
+  // Resilient fetch with exponential backoff and jitter
+  let attempt = 0;
+  const maxAttempts = 3;
+  while (attempt < maxAttempts) {
+    attempt++;
+    try {
+      const upstream = await fetch(rawUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      // Handle 429 Rate Exceeded or 503 from upstream S3/CDN
+      if ((upstream.status === 429 || upstream.status === 503) && attempt < maxAttempts) {
+        const delay = 300 * Math.pow(2, attempt - 1) + Math.random() * 200;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      if (!upstream.ok) {
+        return res.redirect(302, '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg');
+      }
+
+      const contentType = upstream.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await upstream.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Limit in-memory cache size to 300 items
+      if (imageCache.size > 300) {
+        const firstKey = imageCache.keys().next().value;
+        if (firstKey) imageCache.delete(firstKey);
+      }
+      imageCache.set(rawUrl, { buffer, contentType, cachedAt: Date.now() });
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      return res.send(buffer);
+    } catch {
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        continue;
+      }
+      return res.redirect(302, '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg');
+    }
+  }
+
+  return res.redirect(302, '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg');
+});
+
 // -------------------------------------------------------------
 // CUSTOMER AUTHENTICATION & EMAIL OTP VERIFICATION
 // -------------------------------------------------------------
@@ -1309,7 +1387,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   }
 
   // Check brute-force attempts limit
-  if (pending && pending.attempts >= 5) {
+  if (pending && pending.attempts >= 10) {
     pendingSignups.delete(cleanEmail);
     return res.status(429).json({
       error: 'Too many incorrect attempts. For security, please click "Resend Code" to receive a fresh code.'
@@ -1319,7 +1397,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   // Validate OTP code
   if (validOtp !== cleanOtp) {
     if (pending) pending.attempts += 1;
-    const remaining = pending ? 5 - pending.attempts : 3;
+    const remaining = pending ? 10 - pending.attempts : 5;
     return res.status(400).json({
       error: `Invalid 6-digit verification code. Please check your email and try again. (${remaining} attempts remaining)`
     });
@@ -1366,8 +1444,8 @@ app.post('/api/auth/resend-otp', async (req, res) => {
   }
 
   const now = Date.now();
-  if (pending && pending.lastSentAt && (now - pending.lastSentAt) < 20000) {
-    const waitSeconds = Math.ceil((20000 - (now - pending.lastSentAt)) / 1000);
+  if (pending && pending.lastSentAt && (now - pending.lastSentAt) < 3000) {
+    const waitSeconds = Math.ceil((3000 - (now - pending.lastSentAt)) / 1000);
     return res.status(429).json({
       error: `Please wait ${waitSeconds} seconds before requesting another code.`
     });
@@ -1504,8 +1582,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     const now = Date.now();
     const existingReset = pendingPasswordResets.get(cleanEmail);
-    if (existingReset && existingReset.lastSentAt && (now - existingReset.lastSentAt) < 15000) {
-      const waitSeconds = Math.ceil((15000 - (now - existingReset.lastSentAt)) / 1000);
+    if (existingReset && existingReset.lastSentAt && (now - existingReset.lastSentAt) < 3000) {
+      const waitSeconds = Math.ceil((3000 - (now - existingReset.lastSentAt)) / 1000);
       return res.status(429).json({
         error: `Please wait ${waitSeconds} seconds before requesting another verification code.`
       });
@@ -1593,7 +1671,7 @@ app.post('/api/auth/verify-reset-otp', async (req, res) => {
     });
   }
 
-  if (pending && pending.attempts >= 5) {
+  if (pending && pending.attempts >= 10) {
     pendingPasswordResets.delete(cleanEmail);
     return res.status(429).json({
       error: 'Too many incorrect attempts. Please request a fresh verification code.'
@@ -1602,7 +1680,7 @@ app.post('/api/auth/verify-reset-otp', async (req, res) => {
 
   if (validOtp !== cleanOtp) {
     if (pending) pending.attempts += 1;
-    const remaining = pending ? 5 - pending.attempts : 3;
+    const remaining = pending ? 10 - pending.attempts : 5;
     return res.status(400).json({
       error: `Invalid verification code. Please check your email and try again. (${remaining} attempts remaining)`
     });
@@ -2523,7 +2601,7 @@ app.delete('/api/quotes/:id', async (req, res) => {
     return res.status(404).json({ error: 'Quote not found' });
   }
 
-  const pool = getDbPool();
+  const pool = dbPool;
   if (pool) {
     try {
       const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
@@ -2543,7 +2621,7 @@ app.get('/api/db-status', async (req, res) => {
   const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
   const database = process.env.DB_NAME || process.env.MYSQL_DATABASE || '(not configured)';
   const user = process.env.DB_USER || process.env.MYSQL_USER || '(not configured)';
-  const pool = getDbPool();
+  const pool = dbPool;
 
   if (pool && isDbConnected) {
     try {

@@ -44,7 +44,8 @@ const CATEGORY_IMAGE_MAP: Record<string, string> = {
   'Lighting & Visual Deterrence': 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
   'Telecommunication & Communication Equipment': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
   'Accessories & Replacement Parts': 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80',
-  'Renewable Energy': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'
+  'Renewable Energy': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+  'Fiber Optic & Hybrid Cables': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80'
 };
 
 // Intelligently assign/infer brand of each product from name, SKU, category and description
@@ -134,6 +135,12 @@ export function matchCategory(rawCat?: string, rawSub?: string, name?: string, s
     }
     if (clean.includes('renewable') || clean.includes('solar') || clean.includes('inverter') || clean.includes('lifepo4')) {
       return { category: 'Renewable Energy', subcategory: 'Smart Hybrid Inverters' };
+    }
+    if (clean.includes('hybrid cable') || clean.includes('hybrid composite')) {
+      return { category: 'Fiber Optic & Hybrid Cables', subcategory: 'Hybrid Composite Cables' };
+    }
+    if (clean.includes('fiber optic') || clean.includes('outdoor fiber') || clean.includes('fiber cable') || clean.includes('optical fiber')) {
+      return { category: 'Fiber Optic & Hybrid Cables', subcategory: 'Fiber Outdoor Cables' };
     }
     if (clean.includes('power') || clean.includes('electrical') || clean.includes('ups') || clean.includes('pdu') || clean.includes('power supply')) {
       return { category: 'Power & Electrical Systems', subcategory: 'Power Supplies' };

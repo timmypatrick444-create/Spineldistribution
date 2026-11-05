@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ServerConfig } from '../types';
+import { fetchWithRetry } from '../utils/apiRetry';
 
 interface CurrencyContextType {
   currency: 'USD' | 'NGN';
@@ -22,7 +23,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const refreshConfig = async () => {
     try {
-      const res = await fetch('/api/config');
+      const res = await fetchWithRetry('/api/config');
       if (res.ok) {
         const data: ServerConfig = await res.json();
         setServerConfig(data);
