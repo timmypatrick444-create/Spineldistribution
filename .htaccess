@@ -2,6 +2,14 @@
 # Spinel Distribution - cPanel Production Web Server Configuration
 # =====================================================================
 
+# 0. Prioritize compiled production index.html over any stale root index.html
+DirectoryIndex dist/index.html client-build/index.html index.html index.php
+
+# Disable LiteSpeed Cache completely so any new file uploaded in cPanel File Manager reflects immediately
+<IfModule LiteSpeed>
+  CacheLookup off
+</IfModule>
+
 FileETag None
 
 # 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")

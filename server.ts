@@ -3147,6 +3147,25 @@ async function startServer() {
     }
   });
 
+  // Dedicated endpoint to download the latest cPanel deployment zip package
+  app.get(['/cpanel-deploy.zip', '/api/cpanel/download-zip'], (req, res) => {
+    const candidates = [
+      path.join(process.cwd(), 'cpanel-deploy.zip'),
+      path.join(process.cwd(), 'public', 'cpanel-deploy.zip'),
+      path.join(process.cwd(), 'dist', 'cpanel-deploy.zip'),
+      path.join(process.cwd(), 'client-build', 'cpanel-deploy.zip')
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', 'attachment; filename="cpanel-deploy.zip"');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.sendFile(c);
+      }
+    }
+    return res.status(404).json({ error: 'cpanel-deploy.zip not found. Run npm run build first.' });
+  });
+
   // Mount live Vite middlewares when running in dev environment
   viteMounted = false;
   try {

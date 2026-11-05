@@ -25,12 +25,21 @@ function makeCpanelZip() {
     '.htaccess',
     'db_config.json',
     'package.json',
+    'build-version.json',
     'cpanel_users_table.sql',
     'cpanel_quotes_table.sql',
     'CPANEL_DEPLOYMENT_GUIDE.md'
   ];
 
   console.log(`[JavaScript Packager] Creating ${zipFilename} for cPanel deployment...`);
+
+  // Add compiled production dist/index.html as the root index.html inside the zip!
+  // This guarantees that extracting cpanel-deploy.zip in public_html immediately replaces any stale root index.html
+  const distIndexPath = path.join(process.cwd(), 'dist', 'index.html');
+  if (fs.existsSync(distIndexPath)) {
+    zip.addLocalFile(distIndexPath, '', 'index.html');
+    console.log(`  + Added compiled production file: index.html (from dist/index.html)`);
+  }
 
   for (const item of includeItems) {
     const itemPath = path.join(process.cwd(), item);
@@ -49,6 +58,21 @@ function makeCpanelZip() {
   zip.writeZip(zipFilename);
   const sizeMb = (fs.statSync(zipFilename).size / (1024 * 1024)).toFixed(2);
   console.log(`[JavaScript Packager] Successfully generated ${zipFilename} (${sizeMb} MB) using pure Node.js!`);
+
+  // Copy cpanel-deploy.zip to public/ and dist/ so it can be downloaded directly from any URL
+  const publicZipPath = path.join(process.cwd(), 'public', zipFilename);
+  try {
+    fs.copyFileSync(zipFilename, publicZipPath);
+    console.log(`  + Synced zip to public/${zipFilename}`);
+  } catch {}
+  const distZipPath = path.join(process.cwd(), 'dist', zipFilename);
+  try {
+    fs.copyFileSync(zipFilename, distZipPath);
+  } catch {}
+  const clientBuildZipPath = path.join(process.cwd(), 'client-build', zipFilename);
+  try {
+    fs.copyFileSync(zipFilename, clientBuildZipPath);
+  } catch {}
 }
 
 makeCpanelZip();
