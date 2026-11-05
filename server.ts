@@ -99,6 +99,11 @@ try {
       const existingSkus = new Set(runtimeCustomProducts.map(p => p.sku));
       for (const item of savedCustom) {
         if (item && item.sku && !existingSkus.has(item.sku)) {
+          // Never re-add obsolete or legacy fiber optic cables
+          const cat = (item.category || '').toLowerCase().trim();
+          if (cat === 'fiber optic & hybrid cables' || cat.includes('fiber optic')) {
+            continue;
+          }
           runtimeCustomProducts.push(item);
           existingSkus.add(item.sku);
         }
@@ -2802,41 +2807,6 @@ app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
   }
 });
 
-// Proxy image endpoint to bypass CORS when embedding product images into PDF invoices
-app.get('/api/proxy-image', async (req, res) => {
-  const imageUrl = req.query.url as string;
-  if (!imageUrl || typeof imageUrl !== 'string') {
-    return res.status(400).send('Image URL is required');
-  }
-
-  try {
-    const parsed = new URL(imageUrl);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return res.status(400).send('Invalid image protocol');
-    }
-
-    const response = await fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).send('Failed to fetch remote image');
-    }
-
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(buffer);
-  } catch (err: any) {
-    console.warn('[Proxy Image Error]', err.message);
-    res.status(500).send('Error proxying image');
-  }
-});
 
 // Global API error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -2966,14 +2936,16 @@ function checkAutoReloadOnNewUpload(): boolean {
           if (fileName === 'cpanel-deploy.zip') {
             try {
               console.log('[cPanel Auto-Deploy] Fresh cpanel-deploy.zip detected! Unpacking automatically into application directory...');
+              const targetDir = process.env.APP_ROOT || __dirname || process.cwd();
               const zip = new AdmZip(f);
-              zip.extractAllTo(process.cwd(), true);
+              zip.extractAllTo(targetDir, true);
               console.log('[cPanel Auto-Deploy] Successfully unpacked cpanel-deploy.zip!');
             } catch (unzipErr) {
               console.error('[cPanel Auto-Deploy] Error extracting cpanel-deploy.zip:', unzipErr);
             }
           }
 
+          syncAllAssetDirectories();
           triggerCpanelPassengerReload(`File modified: ${fileName}`);
 
           // In production standalone mode, exit process with code 0 so Phusion Passenger immediately respawns a fresh worker
@@ -3069,12 +3041,45 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
   return null;
 }
 
+// Computes the newest modification timestamp across all asset bundles, HTML, server bundles, and zip
+function getLatestGlobalTimestamp(): number {
+  let best = SERVER_BOOT_TIME;
+  const filesToCheck = [
+    path.join(process.cwd(), 'dist', 'assets', 'index.js'),
+    path.join(process.cwd(), 'client-build', 'assets', 'index.js'),
+    path.join(process.cwd(), 'assets', 'index.js'),
+    path.join(process.cwd(), 'dist', 'assets', 'index.css'),
+    path.join(process.cwd(), 'client-build', 'assets', 'index.css'),
+    path.join(process.cwd(), 'assets', 'index.css'),
+    path.join(process.cwd(), 'dist', 'index.html'),
+    path.join(process.cwd(), 'client-build', 'index.html'),
+    path.join(process.cwd(), 'index.html'),
+    path.join(process.cwd(), 'app.js'),
+    path.join(process.cwd(), 'server.cjs'),
+    path.join(process.cwd(), 'cpanel-deploy.zip'),
+    path.join(__dirname, 'dist', 'assets', 'index.js'),
+    path.join(__dirname, 'client-build', 'assets', 'index.js'),
+    path.join(__dirname, 'assets', 'index.js')
+  ];
+  for (const f of filesToCheck) {
+    try {
+      if (fs.existsSync(f)) {
+        const stats = fs.statSync(f);
+        if (stats.mtimeMs > best) {
+          best = stats.mtimeMs;
+        }
+      }
+    } catch {}
+  }
+  return Math.floor(best);
+}
+
 // Delivers the newest index.html with dynamic cache-busting query params and strict zero-cache headers
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
     let content = latest.content;
-    const versionTs = latest.mtime || Date.now();
+    const versionTs = getLatestGlobalTimestamp();
 
     // Dynamically stamp script and style tags with the latest version timestamp
     // so any browser loading the page is guaranteed to fetch the fresh index.js and index.css
@@ -3093,6 +3098,87 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     return res.status(200).send(content);
   }
   next();
+}
+
+// Synchronizes dist/assets, client-build/assets, and assets so all locations have identical, latest bundles
+function syncAllAssetDirectories() {
+  try {
+    const root = process.env.APP_ROOT || process.cwd();
+    const dirs = [
+      path.join(root, 'dist', 'assets'),
+      path.join(root, 'client-build', 'assets'),
+      path.join(root, 'assets')
+    ];
+
+    // Synchronize newest index.js
+    let bestJsFile: string | null = null;
+    let bestJsMtime = 0;
+    for (const d of dirs) {
+      const f = path.join(d, 'index.js');
+      if (fs.existsSync(f)) {
+        try {
+          const stats = fs.statSync(f);
+          if (stats.size > 100000 && stats.mtimeMs > bestJsMtime) {
+            bestJsMtime = stats.mtimeMs;
+            bestJsFile = f;
+          }
+        } catch {}
+      }
+    }
+
+    if (bestJsFile) {
+      for (const d of dirs) {
+        if (!fs.existsSync(d)) {
+          try { fs.mkdirSync(d, { recursive: true }); } catch {}
+        }
+        const target = path.join(d, 'index.js');
+        if (target !== bestJsFile) {
+          try {
+            const curStats = fs.existsSync(target) ? fs.statSync(target) : null;
+            if (!curStats || curStats.mtimeMs < bestJsMtime || curStats.size !== fs.statSync(bestJsFile).size) {
+              fs.copyFileSync(bestJsFile, target);
+              console.log(`[Auto-Sync] Synchronized newer ${path.basename(bestJsFile)} to ${target}`);
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Synchronize newest index.css
+    let bestCssFile: string | null = null;
+    let bestCssMtime = 0;
+    for (const d of dirs) {
+      const f = path.join(d, 'index.css');
+      if (fs.existsSync(f)) {
+        try {
+          const stats = fs.statSync(f);
+          if (stats.size > 1000 && stats.mtimeMs > bestCssMtime) {
+            bestCssMtime = stats.mtimeMs;
+            bestCssFile = f;
+          }
+        } catch {}
+      }
+    }
+
+    if (bestCssFile) {
+      for (const d of dirs) {
+        if (!fs.existsSync(d)) {
+          try { fs.mkdirSync(d, { recursive: true }); } catch {}
+        }
+        const target = path.join(d, 'index.css');
+        if (target !== bestCssFile) {
+          try {
+            const curStats = fs.existsSync(target) ? fs.statSync(target) : null;
+            if (!curStats || curStats.mtimeMs < bestCssMtime || curStats.size !== fs.statSync(bestCssFile).size) {
+              fs.copyFileSync(bestCssFile, target);
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Auto-Sync] Warning during directory sync:', err);
+  }
 }
 
 async function startServer() {
@@ -3117,10 +3203,10 @@ async function startServer() {
   // Dedicated version endpoint for live-browser cache validation and auto-reload
   app.get('/api/version', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    const latestHtml = getLatestCompiledIndexHtml();
+    const globalTs = getLatestGlobalTimestamp();
     res.json({
       status: 'ok',
-      buildTs: latestHtml?.mtime || SERVER_BOOT_TIME,
+      buildTs: globalTs,
       serverBootTime: SERVER_BOOT_TIME,
       uptime: Math.floor((Date.now() - SERVER_BOOT_TIME) / 1000)
     });
@@ -3151,9 +3237,7 @@ async function startServer() {
   app.get(['/cpanel-deploy.zip', '/api/cpanel/download-zip'], (req, res) => {
     const candidates = [
       path.join(process.cwd(), 'cpanel-deploy.zip'),
-      path.join(process.cwd(), 'public', 'cpanel-deploy.zip'),
-      path.join(process.cwd(), 'dist', 'cpanel-deploy.zip'),
-      path.join(process.cwd(), 'client-build', 'cpanel-deploy.zip')
+      path.join(process.cwd(), 'public', 'cpanel-deploy.zip')
     ];
     for (const c of candidates) {
       if (fs.existsSync(c)) {
@@ -3184,7 +3268,53 @@ async function startServer() {
   // Start background cPanel File Manager real-time watcher
   startBackgroundCpanelWatcher();
 
-  // Static assets with cache-revalidation headers (zero-cache for JS/CSS so cPanel updates reflect instantly)
+  // Run initial cross-directory asset sync
+  syncAllAssetDirectories();
+
+  // Intelligent dynamic asset resolver: inspects dist/assets, client-build/assets, and assets to serve the single newest file by mtime
+  app.get('/assets/:file(*)', (req, res, next) => {
+    const fileName = req.params.file;
+    const candidates = [
+      path.join(process.cwd(), 'dist', 'assets', fileName),
+      path.join(process.cwd(), 'client-build', 'assets', fileName),
+      path.join(process.cwd(), 'assets', fileName),
+      path.join(__dirname, 'dist', 'assets', fileName),
+      path.join(__dirname, 'client-build', 'assets', fileName),
+      path.join(__dirname, 'assets', fileName)
+    ];
+
+    let newestFile: string | null = null;
+    let newestMtime = 0;
+
+    for (const c of candidates) {
+      try {
+        if (fs.existsSync(c)) {
+          const stats = fs.statSync(c);
+          if (stats.isFile() && stats.mtimeMs > newestMtime) {
+            newestMtime = stats.mtimeMs;
+            newestFile = c;
+          }
+        }
+      } catch {}
+    }
+
+    if (newestFile) {
+      const ext = path.extname(fileName).toLowerCase();
+      if (ext === '.js' || ext === '.mjs') {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      } else if (ext === '.css') {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      }
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+      res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
+      return res.sendFile(newestFile);
+    }
+    next();
+  });
+
+  // Fallback static assets middleware with zero-cache policy
   const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
@@ -3200,7 +3330,6 @@ async function startServer() {
         etag: true,
         lastModified: true,
         setHeaders: (res, filePath) => {
-          // Zero-cache policy for JS and CSS bundles so updates reflect immediately
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
           res.setHeader('Pragma', 'no-cache');
           res.setHeader('Expires', '0');

@@ -30,6 +30,16 @@
             }
           }).catch(function () {});
         }
+        // Clear any browser Cache Storage instances from earlier visits
+        if ('caches' in window) {
+          try {
+            caches.keys().then(function (keys) {
+              for (var j = 0; j < keys.length; j++) {
+                caches.delete(keys[j]);
+              }
+            }).catch(function () {});
+          } catch (e) {}
+        }
         // When served by Vite dev server in AI Studio, @vite/client is injected in <head>.
         // When compiled by Vite build, /assets/index.js is already injected in <head>.
         // When raw repository index.html is served directly by cPanel Apache/LiteSpeed, inject compiled bundle immediately at 0ms.

@@ -110,11 +110,19 @@ function MainApp() {
           // Merge server products while guaranteeing NO products are ever deducted or removed
           const seenIds = new Set<string>();
           const seenSkus = new Set<string>();
+          const validFiberSkus = new Set(UPLOADED_FIBER_CABLE_PRODUCTS.map(p => (p.sku || '').toLowerCase()));
           const merged: Product[] = [];
 
-          // 1. Add products received from server
+          // 1. Add products received from server (excluding any obsolete/legacy fiber products)
           for (const p of productList) {
             if (!p) continue;
+            const cat = (p.category || '').toLowerCase().trim();
+            if (cat === 'fiber optic & hybrid cables' || cat.includes('fiber optic')) {
+              // Only allow the 60 official products from the uploaded catalog
+              if (!validFiberSkus.has((p.sku || '').toLowerCase())) {
+                continue;
+              }
+            }
             const idKey = (p.id || '').toLowerCase().trim();
             const skuKey = (p.sku || '').toLowerCase().trim();
             if (idKey && seenIds.has(idKey)) continue;
@@ -169,21 +177,22 @@ function MainApp() {
             initialBootTime = data.serverBootTime;
             initialBuildTs = data.buildTs;
           } else if (
-            (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 3000) ||
-            (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 3000)
+            (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 2000) ||
+            (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 2000)
           ) {
             console.log('[Live Auto-Update] Server files updated on cPanel! Refreshing application...');
             loadProducts();
             const path = window.location.pathname;
             if (path !== '/checkout' && path !== '/invoice') {
-              window.location.reload();
+              const sep = window.location.search ? '&' : '?';
+              window.location.href = window.location.pathname + window.location.search + (window.location.search.includes('_v=') ? '' : `${sep}_v=${Date.now()}`);
             }
           }
         }
       } catch {}
     };
 
-    const interval = setInterval(checkLiveVersion, 12000);
+    const interval = setInterval(checkLiveVersion, 6000);
     window.addEventListener('focus', checkLiveVersion);
     return () => {
       clearInterval(interval);

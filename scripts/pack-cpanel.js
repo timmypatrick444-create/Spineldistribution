@@ -12,6 +12,14 @@ function makeCpanelZip() {
   }
   fs.writeFileSync(path.join(tmpDir, 'restart.txt'), String(Date.now()));
 
+  // Ensure no stale zip files exist inside subdirectories before packing
+  ['dist', 'client-build', 'public', 'assets'].forEach(dir => {
+    const p = path.join(process.cwd(), dir, zipFilename);
+    if (fs.existsSync(p)) {
+      try { fs.unlinkSync(p); } catch {}
+    }
+  });
+
   const zip = new AdmZip();
 
   const includeItems = [
@@ -47,11 +55,13 @@ function makeCpanelZip() {
 
     const stats = fs.statSync(itemPath);
     if (stats.isDirectory()) {
-      zip.addLocalFolder(itemPath, item);
+      zip.addLocalFolder(itemPath, item, (filename) => !filename.endsWith('.zip'));
       console.log(`  + Added directory: ${item}/`);
     } else {
-      zip.addLocalFile(itemPath, '', item);
-      console.log(`  + Added file: ${item}`);
+      if (!item.endsWith('.zip')) {
+        zip.addLocalFile(itemPath, '', item);
+        console.log(`  + Added file: ${item}`);
+      }
     }
   }
 
@@ -59,19 +69,11 @@ function makeCpanelZip() {
   const sizeMb = (fs.statSync(zipFilename).size / (1024 * 1024)).toFixed(2);
   console.log(`[JavaScript Packager] Successfully generated ${zipFilename} (${sizeMb} MB) using pure Node.js!`);
 
-  // Copy cpanel-deploy.zip to public/ and dist/ so it can be downloaded directly from any URL
+  // Copy cpanel-deploy.zip to public/ so it can be downloaded directly from any URL
   const publicZipPath = path.join(process.cwd(), 'public', zipFilename);
   try {
     fs.copyFileSync(zipFilename, publicZipPath);
     console.log(`  + Synced zip to public/${zipFilename}`);
-  } catch {}
-  const distZipPath = path.join(process.cwd(), 'dist', zipFilename);
-  try {
-    fs.copyFileSync(zipFilename, distZipPath);
-  } catch {}
-  const clientBuildZipPath = path.join(process.cwd(), 'client-build', zipFilename);
-  try {
-    fs.copyFileSync(zipFilename, clientBuildZipPath);
   } catch {}
 }
 

@@ -16,9 +16,9 @@
     <meta http-equiv="Expires" content="0" />
     <!-- Paystack Inline JS for seamless live payment -->
     <script src="https://js.paystack.co/v1/inline.js" defer></script>
-    <script type="module" crossorigin src="/assets/index.js?v=1793904040562"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index.css?v=1793904040562">
-    <!-- SPINEL_BUILD_TS:1793904040562 -->
+    <script type="module" crossorigin src="/assets/index.js?v=1793905773443"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index.css?v=1793905773443">
+    <!-- SPINEL_BUILD_TS:1793905773443 -->
   </head>
   <body class="bg-[#eaeded] text-[#0F1111] antialiased" style="background-color: #eaeded; color: #0F1111; margin: 0; padding: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <div id="root"></div>
@@ -31,6 +31,16 @@
               regs[i].unregister();
             }
           }).catch(function () {});
+        }
+        // Clear any browser Cache Storage instances from earlier visits
+        if ('caches' in window) {
+          try {
+            caches.keys().then(function (keys) {
+              for (var j = 0; j < keys.length; j++) {
+                caches.delete(keys[j]);
+              }
+            }).catch(function () {});
+          } catch (e) {}
         }
         // When served by Vite dev server in AI Studio, @vite/client is injected in <head>.
         // When compiled by Vite build, /assets/index.js is already injected in <head>.
