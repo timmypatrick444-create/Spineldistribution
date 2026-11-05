@@ -14,6 +14,7 @@ import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
 import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
+import AdmZip from 'adm-zip';
 
 dotenv.config();
 
@@ -2846,80 +2847,183 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // -------------------------------------------------------------
-// STOREFRONT & SPA HANDLING (WITH ZERO-CACHE REALTIME DELIVERY)
+// -------------------------------------------------------------
+// STOREFRONT, SPA HANDLING & REAL-TIME CPANEL LIVE RELOAD
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
-let lastRestartCheck = 0;
 let viteMounted = false;
+let isRestartingProcess = false;
 
-const MONITORED_FILES = [
-  path.join(process.cwd(), 'app.js'),
-  path.join(__dirname, 'app.js'),
-  path.join(process.cwd(), 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt'),
-  path.join(process.cwd(), 'client-build', 'index.html'),
-  path.join(process.cwd(), 'dist', 'index.html'),
-  path.join(process.cwd(), 'index.html'),
-  path.join(process.cwd(), 'package.json')
-];
+// List of all critical files and directories to watch on cPanel
+function getMonitoredFilePaths(): string[] {
+  const root = process.cwd();
+  return [
+    path.join(root, 'cpanel-deploy.zip'),
+    path.join(root, 'app.js'),
+    path.join(__dirname, 'app.js'),
+    path.join(root, 'server.cjs'),
+    path.join(__dirname, 'server.cjs'),
+    path.join(root, 'tmp', 'restart.txt'),
+    path.join(root, 'build-version.json'),
+    path.join(root, 'client-build', 'index.html'),
+    path.join(root, 'dist', 'index.html'),
+    path.join(root, 'index.html'),
+    path.join(root, 'client-build', 'assets', 'index.js'),
+    path.join(root, 'dist', 'assets', 'index.js'),
+    path.join(root, 'assets', 'index.js'),
+    path.join(root, 'client-build', 'assets', 'index.css'),
+    path.join(root, 'dist', 'assets', 'index.css'),
+    path.join(root, 'assets', 'index.css'),
+    path.join(root, 'package.json'),
+    path.join(root, 'db_config.json'),
+    path.join(root, '.env'),
+    path.join(root, '.htaccess'),
+    // Directory timestamps change when files are uploaded, deleted, or unzipped inside them
+    path.join(root, 'client-build'),
+    path.join(root, 'dist'),
+    path.join(root, 'assets'),
+    path.join(root, 'Images'),
+    path.join(root, 'src', 'data', 'uploadedFiberCables.ts')
+  ];
+}
 
-// Record file modification timestamps at boot time
-const initialFileMtimes = new Map<string, number>();
-for (const f of MONITORED_FILES) {
-  if (fs.existsSync(f)) {
-    try {
-      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
-    } catch {}
+const knownFileMtimes = new Map<string, number>();
+const knownFileSizes = new Map<string, number>();
+
+function recordFileState(filePath: string) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      knownFileMtimes.set(filePath, stats.mtimeMs);
+      knownFileSizes.set(filePath, stats.size);
+    } else {
+      knownFileMtimes.delete(filePath);
+      knownFileSizes.delete(filePath);
+    }
+  } catch {}
+}
+
+// Seed initial modification timestamps and file sizes
+for (const f of getMonitoredFilePaths()) {
+  recordFileState(f);
+}
+
+// Touch tmp/restart.txt and update build-version.json for Passenger and browser sync
+function triggerCpanelPassengerReload(reason: string) {
+  try {
+    const tmpDir = path.join(process.cwd(), 'tmp');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    const restartFile = path.join(tmpDir, 'restart.txt');
+    const now = Date.now();
+    fs.writeFileSync(restartFile, String(now), 'utf8');
+
+    const versionPayload = JSON.stringify({
+      buildTs: now,
+      serverBootTime: SERVER_BOOT_TIME,
+      updatedAt: new Date(now).toISOString(),
+      reason
+    }, null, 2);
+    try { fs.writeFileSync(path.join(process.cwd(), 'build-version.json'), versionPayload, 'utf8'); } catch {}
+    try { fs.writeFileSync(path.join(process.cwd(), 'dist', 'build-version.json'), versionPayload, 'utf8'); } catch {}
+    try { fs.writeFileSync(path.join(process.cwd(), 'client-build', 'build-version.json'), versionPayload, 'utf8'); } catch {}
+  } catch (err) {
+    console.error('[cPanel Auto-Reload] Error touching restart.txt:', err);
   }
 }
 
-// Automatically detect when new application files are uploaded to cPanel
-function checkAutoReloadOnNewUpload() {
-  // Never exit the process in development or preview environments!
+// Detect when files are uploaded, modified, or unzipped in cPanel File Manager
+function checkAutoReloadOnNewUpload(): boolean {
+  // If Vite dev server is actively mounted (in AI Studio development), Vite handles HMR
   if (viteMounted) {
-    return;
+    return false;
+  }
+  if (isRestartingProcess) {
+    return true;
   }
 
-  const isProductionOrCpanel = Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
+  const monitored = getMonitoredFilePaths();
+  for (const f of monitored) {
+    try {
+      const exists = fs.existsSync(f);
+      const prevMtime = knownFileMtimes.get(f);
+      const prevSize = knownFileSizes.get(f);
 
-  if (!isProductionOrCpanel) {
-    return;
-  }
-
-  const now = Date.now();
-  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
-  lastRestartCheck = now;
-
-  for (const f of MONITORED_FILES) {
-    if (fs.existsSync(f)) {
-      try {
+      if (exists) {
         const stats = fs.statSync(f);
-        const recorded = initialFileMtimes.get(f);
-        
-        // If file was replaced or modified after the process booted
-        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
-          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
-          initialFileMtimes.set(f, stats.mtimeMs);
-          
-          try {
-            const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
-            fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
-            fs.writeFileSync(restartPath, String(Date.now()));
-          } catch {}
+        const mtimeChanged = prevMtime !== undefined && Math.abs(stats.mtimeMs - prevMtime) > 400;
+        const sizeChanged = prevSize !== undefined && stats.size !== prevSize;
+        const newlyCreated = prevMtime === undefined;
 
+        if (mtimeChanged || sizeChanged || newlyCreated) {
+          isRestartingProcess = true;
+          const fileName = path.basename(f);
+          console.log(`[cPanel File Watcher] Modification detected on: ${fileName} (${f}).`);
+          recordFileState(f);
+
+          // If the user uploaded cpanel-deploy.zip into cPanel File Manager, automatically unpack it!
+          if (fileName === 'cpanel-deploy.zip') {
+            try {
+              console.log('[cPanel Auto-Deploy] Fresh cpanel-deploy.zip detected! Unpacking automatically into application directory...');
+              const zip = new AdmZip(f);
+              zip.extractAllTo(process.cwd(), true);
+              console.log('[cPanel Auto-Deploy] Successfully unpacked cpanel-deploy.zip!');
+            } catch (unzipErr) {
+              console.error('[cPanel Auto-Deploy] Error extracting cpanel-deploy.zip:', unzipErr);
+            }
+          }
+
+          triggerCpanelPassengerReload(`File modified: ${fileName}`);
+
+          // In production standalone mode, exit process with code 0 so Phusion Passenger immediately respawns a fresh worker
           setTimeout(() => {
+            console.log(`[cPanel Live Watcher] Exiting worker process so Phusion Passenger immediately boots the new files...`);
             process.exit(0);
-          }, 100);
-          break;
-        } else if (recorded === undefined) {
-          initialFileMtimes.set(f, stats.mtimeMs);
+          }, 200);
+
+          return true;
         }
+      } else if (prevMtime !== undefined) {
+        // Monitored file was removed
+        knownFileMtimes.delete(f);
+        knownFileSizes.delete(f);
+      }
+    } catch {}
+  }
+
+  return false;
+}
+
+// Real-time background watcher for standalone / cPanel production mode
+function startBackgroundCpanelWatcher() {
+  if (viteMounted) return;
+
+  // 1. Polling interval every 1200ms
+  setInterval(() => {
+    if (!viteMounted) {
+      checkAutoReloadOnNewUpload();
+    }
+  }, 1200);
+
+  // 2. Kernel-level fs.watch on root and key directories for immediate event notification
+  const watchDirs = [
+    process.cwd(),
+    path.join(process.cwd(), 'client-build'),
+    path.join(process.cwd(), 'dist'),
+    path.join(process.cwd(), 'assets'),
+    path.join(process.cwd(), 'tmp')
+  ];
+
+  for (const dir of watchDirs) {
+    if (fs.existsSync(dir)) {
+      try {
+        fs.watch(dir, { persistent: false }, (eventType, filename) => {
+          if (!viteMounted && filename) {
+            if (filename.startsWith('.') || filename.endsWith('.tmp') || filename.includes('passenger')) return;
+            checkAutoReloadOnNewUpload();
+          }
+        });
       } catch {}
     }
   }
@@ -2965,18 +3069,28 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
   return null;
 }
 
-// Delivers the newest index.html with strict zero-cache headers to eliminate stale browser views
+// Delivers the newest index.html with dynamic cache-busting query params and strict zero-cache headers
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
+    let content = latest.content;
+    const versionTs = latest.mtime || Date.now();
+
+    // Dynamically stamp script and style tags with the latest version timestamp
+    // so any browser loading the page is guaranteed to fetch the fresh index.js and index.css
+    content = content.replace(
+      /(src|href)="(\/assets\/[^"?]+\.(?:js|css))(?:\?[^"]*)?"/g,
+      `$1="$2?v=${versionTs}"`
+    );
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
     res.removeHeader('ETag');
-    return res.status(200).send(latest.content);
+    return res.status(200).send(content);
   }
   next();
 }
@@ -2985,21 +3099,31 @@ async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
   // Ensure cPanel tmp/restart.txt exists on Passenger
-  if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
-    try {
-      const tmpDir = path.join(process.cwd(), 'tmp');
-      fs.mkdirSync(tmpDir, { recursive: true });
-      const restartFile = path.join(tmpDir, 'restart.txt');
-      if (!fs.existsSync(restartFile)) {
-        fs.writeFileSync(restartFile, String(Date.now()));
-      }
-    } catch {}
-  }
+  try {
+    const tmpDir = path.join(process.cwd(), 'tmp');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const restartFile = path.join(tmpDir, 'restart.txt');
+    if (!fs.existsSync(restartFile)) {
+      fs.writeFileSync(restartFile, String(Date.now()));
+    }
+  } catch {}
 
-  // Auto-reload watcher middleware
+  // Request-level auto-reload check middleware
   app.use((req, res, next) => {
     checkAutoReloadOnNewUpload();
     next();
+  });
+
+  // Dedicated version endpoint for live-browser cache validation and auto-reload
+  app.get('/api/version', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    const latestHtml = getLatestCompiledIndexHtml();
+    res.json({
+      status: 'ok',
+      buildTs: latestHtml?.mtime || SERVER_BOOT_TIME,
+      serverBootTime: SERVER_BOOT_TIME,
+      uptime: Math.floor((Date.now() - SERVER_BOOT_TIME) / 1000)
+    });
   });
 
   // Dedicated instant restart endpoint
@@ -3038,18 +3162,31 @@ async function startServer() {
     console.log('[Storefront] Running standalone production bundle.');
   }
 
-  // Static immutable assets for hashed JS and CSS bundles
+  // Start background cPanel File Manager real-time watcher
+  startBackgroundCpanelWatcher();
+
+  // Static assets with cache-revalidation headers (zero-cache for JS/CSS so cPanel updates reflect instantly)
   const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
+    path.join(process.cwd(), 'assets'),
     path.join(__dirname, 'dist', 'assets'),
-    path.join(__dirname, 'client-build', 'assets')
+    path.join(__dirname, 'client-build', 'assets'),
+    path.join(__dirname, 'assets')
   ];
   for (const aPath of assetPaths) {
     if (fs.existsSync(aPath)) {
       app.use('/assets', express.static(aPath, {
-        maxAge: '1y',
-        immutable: true
+        maxAge: 0,
+        etag: true,
+        lastModified: true,
+        setHeaders: (res, filePath) => {
+          // Zero-cache policy for JS and CSS bundles so updates reflect immediately
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+          res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache, no-store');
+        }
       }));
     }
   }
@@ -3070,6 +3207,7 @@ async function startServer() {
   if (isNamedPipeOrSocket) {
     app.listen(PORT, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on passenger socket: ${PORT}`);
+      console.log(`[cPanel File Watcher] Active - Watching for uploads and changes in cPanel File Manager.`);
     });
   } else {
     const portNumber = parseInt(String(PORT), 10);
@@ -3077,6 +3215,7 @@ async function startServer() {
       console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);
+      console.log(`[cPanel File Watcher] Active - Watching for uploads and changes in cPanel File Manager.`);
     });
   }
 }

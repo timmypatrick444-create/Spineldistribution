@@ -154,6 +154,43 @@ function MainApp() {
     loadProducts();
   }, []);
 
+  // Live auto-updater: detects when files are uploaded to cPanel and automatically refreshes data / page
+  useEffect(() => {
+    let initialBootTime: number | null = null;
+    let initialBuildTs: number | null = null;
+
+    const checkLiveVersion = async () => {
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.serverBootTime) {
+          if (initialBootTime === null) {
+            initialBootTime = data.serverBootTime;
+            initialBuildTs = data.buildTs;
+          } else if (
+            (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 3000) ||
+            (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 3000)
+          ) {
+            console.log('[Live Auto-Update] Server files updated on cPanel! Refreshing application...');
+            loadProducts();
+            const path = window.location.pathname;
+            if (path !== '/checkout' && path !== '/invoice') {
+              window.location.reload();
+            }
+          }
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(checkLiveVersion, 12000);
+    window.addEventListener('focus', checkLiveVersion);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkLiveVersion);
+    };
+  }, []);
+
   // Sync with browser URL path (e.g. /product/:id, /orders, /cart, /admin)
   useEffect(() => {
     const handleLocation = () => {
