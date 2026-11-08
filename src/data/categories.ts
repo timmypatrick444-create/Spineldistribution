@@ -304,17 +304,5 @@ export const CATEGORIES: CategoryDefinition[] = [
       'Lithium LiFePO4 Batteries',
       'Industrial Solar Panels'
     ]
-  },
-  {
-    id: 17,
-    name: 'Fiber Optic & Hybrid Cables',
-    slug: 'fiber-optic-hybrid-cables',
-    description: 'Armored outdoor fiber cables, single-mode and multi-mode loose-tube spools, and composite copper-fiber hybrid cables for long-range IP surveillance, telecom backhaul, and edge power delivery.',
-    iconName: 'Cable',
-    image: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=600&q=80',
-    subcategories: [
-      'Fiber Outdoor Cables',
-      'Hybrid Composite Cables'
-    ]
   }
 ];

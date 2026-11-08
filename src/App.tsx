@@ -28,13 +28,8 @@ import { SEED_PRODUCTS } from './data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './data/uploadedEnclosureProducts';
-import { UPLOADED_FIBER_CABLE_PRODUCTS } from './data/uploadedFiberCables';
-import { CUSTOM_UPLOADED_PRODUCTS } from './data/customUploadedProducts';
-import { fetchWithRetry } from './utils/apiRetry';
 
 const INITIAL_SEEDED_PRODUCTS: Product[] = [
-  ...CUSTOM_UPLOADED_PRODUCTS,
-  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -94,11 +89,12 @@ function MainApp() {
 
   // Global Products State - initialized immediately for ultra-fast, smooth 0ms loading
   const [products, setProducts] = useState<Product[]>(INITIAL_SEEDED_PRODUCTS);
+  const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
 
   // Fetch products from server to sync updates seamlessly in the background
   const loadProducts = async () => {
     try {
-      const res = await fetchWithRetry('/api/products?limit=5000');
+      const res = await fetch('/api/products?limit=5000');
       if (res.ok) {
         const data = await res.json();
         const productList: Product[] = Array.isArray(data)
@@ -107,46 +103,10 @@ function MainApp() {
           ? data.products
           : [];
         if (productList.length > 0) {
-          // Merge server products while guaranteeing NO products are ever deducted or removed
-          const seenIds = new Set<string>();
-          const seenSkus = new Set<string>();
-          const validFiberSkus = new Set(UPLOADED_FIBER_CABLE_PRODUCTS.map(p => (p.sku || '').toLowerCase()));
-          const merged: Product[] = [];
-
-          // 1. Add products received from server (excluding any obsolete/legacy fiber products)
-          for (const p of productList) {
-            if (!p) continue;
-            const cat = (p.category || '').toLowerCase().trim();
-            if (cat === 'fiber optic & hybrid cables' || cat.includes('fiber optic')) {
-              // Only allow the 60 official products from the uploaded catalog
-              if (!validFiberSkus.has((p.sku || '').toLowerCase())) {
-                continue;
-              }
-            }
-            const idKey = (p.id || '').toLowerCase().trim();
-            const skuKey = (p.sku || '').toLowerCase().trim();
-            if (idKey && seenIds.has(idKey)) continue;
-            if (skuKey && seenSkus.has(skuKey)) continue;
-            if (idKey) seenIds.add(idKey);
-            if (skuKey) seenSkus.add(skuKey);
-            merged.push(p);
-          }
-
-          // 2. Guarantee every initial seeded product is preserved, never dropped or reduced
-          for (const p of INITIAL_SEEDED_PRODUCTS) {
-            if (!p) continue;
-            const idKey = (p.id || '').toLowerCase().trim();
-            const skuKey = (p.sku || '').toLowerCase().trim();
-            if ((idKey && seenIds.has(idKey)) || (skuKey && seenSkus.has(skuKey))) continue;
-            if (idKey) seenIds.add(idKey);
-            if (skuKey) seenSkus.add(skuKey);
-            merged.push(p);
-          }
-
-          setProducts(merged);
+          setProducts(productList);
           if (window.location.pathname.startsWith('/product/')) {
             const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
-            const found = merged.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
+            const found = productList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
             if (found) {
               setSelectedProduct(found);
             }
@@ -155,49 +115,13 @@ function MainApp() {
       }
     } catch (err) {
       console.warn('Background sync: using local catalog', err);
+    } finally {
+      setCatalogLoading(false);
     }
   };
 
   useEffect(() => {
     loadProducts();
-  }, []);
-
-  // Live auto-updater: detects when files are uploaded to cPanel and automatically refreshes data / page
-  useEffect(() => {
-    let initialBootTime: number | null = null;
-    let initialBuildTs: number | null = null;
-
-    const checkLiveVersion = async () => {
-      try {
-        const res = await fetch('/api/version', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data && data.serverBootTime) {
-          if (initialBootTime === null) {
-            initialBootTime = data.serverBootTime;
-            initialBuildTs = data.buildTs;
-          } else if (
-            (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 2000) ||
-            (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 2000)
-          ) {
-            console.log('[Live Auto-Update] Server files updated on cPanel! Refreshing application...');
-            loadProducts();
-            const path = window.location.pathname;
-            if (path !== '/checkout' && path !== '/invoice') {
-              const sep = window.location.search ? '&' : '?';
-              window.location.href = window.location.pathname + window.location.search + (window.location.search.includes('_v=') ? '' : `${sep}_v=${Date.now()}`);
-            }
-          }
-        }
-      } catch {}
-    };
-
-    const interval = setInterval(checkLiveVersion, 6000);
-    window.addEventListener('focus', checkLiveVersion);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', checkLiveVersion);
-    };
   }, []);
 
   // Sync with browser URL path (e.g. /product/:id, /orders, /cart, /admin)
@@ -381,7 +305,13 @@ function MainApp() {
 
       {/* 3. Main Body Views */}
       <main className={`flex-1 ${isAdminView ? 'bg-[#0f172a]' : ''}`}>
-        {currentView === 'home' && (
+        {catalogLoading && products.length === 0 ? (
+          <div className="min-h-[400px] flex items-center justify-center text-sm text-gray-600 font-medium">
+            Loading Spinel Distribution Enterprise Hardware Catalog...
+          </div>
+        ) : (
+          <>
+            {currentView === 'home' && (
               <HomePage
                 products={products}
                 onSelectProduct={handleSelectProduct}
@@ -400,7 +330,6 @@ function MainApp() {
                 onSelectProduct={handleSelectProduct}
                 onSelectCategory={handleSelectCategory}
                 onRequestQuote={handleRequestQuote}
-                onRefreshCatalog={loadProducts}
               />
             )}
 
@@ -583,6 +512,8 @@ function MainApp() {
                 />
               )
             )}
+          </>
+        )}
       </main>
 
       {/* 4. Footer - Hidden on unique login & signup pages */}

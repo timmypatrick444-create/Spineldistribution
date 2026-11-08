@@ -284,53 +284,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 7. Filter strictly ONLY Enclosures & Housings products and prioritize newly uploaded 011-040 products
+  // 7. Filter strictly ONLY Enclosures & Housings products and randomize for display
   const enclosureProducts = useMemo(() => {
     const pool = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
       return cat === 'enclosures & housings';
     });
 
-    const newBatch = pool.filter(p => {
-      const numMatch = (p.sku || '').match(/-(\d+)$/);
-      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
-      return num >= 11 && num <= 40;
-    });
-    const initialBatch = pool.filter(p => {
-      const numMatch = (p.sku || '').match(/-(\d+)$/);
-      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
-      return num < 11 || num > 40;
-    });
-
-    return [...newBatch, ...initialBatch];
-  }, [safeProducts]);
-
-  // 8. Filter Hybrid Composite Cables products
-  const hybridCompositeProducts = useMemo(() => {
-    return safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'hybrid composite cables' ||
-        cat === 'hybrid composite cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('hybrid')) ||
-        (p.sku || '').startsWith('SP-HC-')
-      );
-    });
-  }, [safeProducts]);
-
-  // 9. Filter Fiber Outdoor Cables products
-  const fiberOutdoorProducts = useMemo(() => {
-    return safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'fiber outdoor cables' ||
-        cat === 'fiber outdoor cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('outdoor')) ||
-        (p.sku || '').startsWith('SP-FOC-')
-      );
-    });
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
   // Eagerly preload all hero slide images into browser cache immediately
@@ -758,21 +719,6 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       </div>
 
-      {/* 2.4 POWER & CONNECTIVITY IN ONE CABLE - Hybrid Composite Cables */}
-      <ProductSliderSection
-        id="power-connectivity-in-one-cable"
-        title="Power & Connectivity in One Cable"
-        subtitle="Shop high-quality hybrid composite cables combining power and fibre-optic transmission for efficient installations, reliable connectivity, and streamlined infrastructure deployment."
-        products={hybridCompositeProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Hybrid Composite Cables currently loading or unavailable."
-      />
-
       {/* 2.5 COMMUNICATE SAFELY. RESPOND INSTANTLY - Public Address (PAGA) System */}
       <ProductSliderSection
         id="communicate-safely-respond-instantly"
@@ -801,21 +747,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Enclosures & Housings products currently loading or unavailable."
-      />
-
-      {/* 2.9 BUILT FOR RELIABLE OUTDOOR CONNECTIVITY - Fiber Outdoor Cables */}
-      <ProductSliderSection
-        id="built-for-reliable-outdoor-connectivity"
-        title="Built for Reliable Outdoor Connectivity"
-        subtitle="Discover durable outdoor fibre-optic cables designed for high-speed data transmission, long-distance connectivity, and dependable performance in demanding environments."
-        products={fiberOutdoorProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Fiber Outdoor Cables currently loading or unavailable."
       />
 
       {/* 3. SMARTER ACCESS STARTS HERE - Access Credentials */}

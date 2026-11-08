@@ -129,15 +129,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   alt="" 
                   className="w-full h-full object-contain" 
                   referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    if (!target.dataset.retried && img) {
-                      target.dataset.retried = 'true';
-                      target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
-                    } else {
-                      target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                    }
-                  }}
                 />
               </button>
             ))}
@@ -150,16 +141,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               alt={product.name}
               className="max-h-full max-w-full object-contain hover:scale-105 transition-transform duration-300" 
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                const activeSrc = product.images[activeImageIndex] || product.images[0];
-                if (!target.dataset.retried && activeSrc) {
-                  target.dataset.retried = 'true';
-                  target.src = `/api/proxy-image?url=${encodeURIComponent(activeSrc)}`;
-                } else {
-                  target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                }
-              }}
             />
           </div>
 

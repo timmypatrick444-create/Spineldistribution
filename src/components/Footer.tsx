@@ -251,7 +251,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
       <div className="bg-[#131921] px-4 sm:px-6 lg:px-8 py-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap justify-center gap-6 mb-2">
-           © 2026 Spinel Distribution Limited. All Rights Reserved.
+           © 2026 SPINEL DISTRIBUTION Limited. All Rights Reserved.
           </div>
         </div>
       </div>
