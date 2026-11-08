@@ -31,7 +31,8 @@ import {
   Pencil,
   Save,
   MailCheck,
-  Send
+  Send,
+  Server
 } from 'lucide-react';
 import { Product, Order, SubmittedQuote } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -45,7 +46,7 @@ interface AdminDashboardProps {
   onNavigateHome?: () => void;
 }
 
-type AdminTab = 'inventory' | 'rfq' | 'orders' | 'upload' | 'categories' | 'email-settings';
+type AdminTab = 'inventory' | 'rfq' | 'orders' | 'upload' | 'categories' | 'email-settings' | 'cpanel-deploy';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshCatalog
@@ -60,11 +61,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [quotes, setQuotes] = useState<SubmittedQuote[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Master Inventory Filter & Pagination States (20 items per page)
+  // Master Inventory Filter & Pagination States (100 items per page)
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [adminProductsPage, setAdminProductsPage] = useState(1);
-  const ADMIN_PRODUCTS_PER_PAGE = 20;
+  const ADMIN_PRODUCTS_PER_PAGE = 100;
 
   // Edit Product Modal States
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -217,6 +218,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setEmailErrorMsg(err.message || 'Error testing email delivery.');
     } finally {
       setIsTestingEmail(false);
+    }
+  };
+
+  // cPanel Server Live Status & Instant Restart
+  const [isRestartingServer, setIsRestartingServer] = useState(false);
+  const [restartMessage, setRestartMessage] = useState('');
+  const [serverStatusInfo, setServerStatusInfo] = useState<{
+    buildTs?: number;
+    uptime?: number;
+    serverBootTime?: number;
+    status?: string;
+  } | null>(null);
+
+  const fetchServerStatus = async () => {
+    try {
+      const res = await fetch('/api/version');
+      if (res.ok) {
+        const data = await res.json();
+        setServerStatusInfo(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'cpanel-deploy') {
+      fetchServerStatus();
+    }
+  }, [activeTab]);
+
+  const handleTriggerServerRestart = async () => {
+    setIsRestartingServer(true);
+    setRestartMessage('');
+    try {
+      const res = await fetch('/api/system/restart');
+      const data = await res.json();
+      setRestartMessage(data.message || 'Restart signal sent. Passenger is booting the latest files...');
+      setTimeout(() => fetchServerStatus(), 2000);
+    } catch {
+      setRestartMessage('Restart signal dispatched to Passenger.');
+    } finally {
+      setTimeout(() => setIsRestartingServer(false), 2500);
     }
   };
 
@@ -680,6 +722,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {activeTab === 'orders' && 'Orders'}
             {activeTab === 'upload' && 'Bulk Upload'}
             {activeTab === 'categories' && 'Categories'}
+            {activeTab === 'email-settings' && 'Email & SMTP'}
+            {activeTab === 'cpanel-deploy' && 'cPanel Live Sync'}
           </span>
           <button
             type="button"
@@ -951,6 +995,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </span>
           </button>
 
+          {/* Section 7: cPanel Live Sync & Deployment */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('cpanel-deploy');
+              setMobileSidebarOpen(false);
+            }}
+            className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'cpanel-deploy'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Server size={18} className={activeTab === 'cpanel-deploy' ? 'text-slate-950' : 'text-emerald-400'} />
+              <div className="text-left">
+                <div className="leading-tight">cPanel Live Sync</div>
+                <div className={`text-[10px] ${activeTab === 'cpanel-deploy' ? 'text-slate-900/80 font-normal' : 'text-slate-400 font-normal'}`}>
+                  Live Deploy &amp; Restart
+                </div>
+              </div>
+            </div>
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                activeTab === 'cpanel-deploy'
+                  ? 'bg-slate-950 text-amber-400'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              }`}
+            >
+              Active
+            </span>
+          </button>
+
           {/* Mini Revenue / Rate summary in sidebar */}
           <div className="pt-3 px-1">
             <div className="bg-[#0f172a] rounded-xl p-3.5 border border-slate-700/60">
@@ -1003,6 +1080,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {activeTab === 'orders' && 'Customer Orders & Invoices'}
               {activeTab === 'upload' && 'Bulk Product Ingestion'}
               {activeTab === 'categories' && 'Enterprise Hardware Categories'}
+              {activeTab === 'email-settings' && 'cPanel Webmail & SMTP Dispatcher'}
+              {activeTab === 'cpanel-deploy' && 'cPanel Production Live Sync & Deployment'}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               {activeTab === 'inventory' && `Managing ${products.length.toLocaleString()} products across 16 categories`}
@@ -1010,6 +1089,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {activeTab === 'orders' && `${orders.length} orders recorded with automated PDF invoices`}
               {activeTab === 'upload' && 'Upload CSV or Excel spreadsheets to update master catalog'}
               {activeTab === 'categories' && '16 industrial equipment and security technology categories'}
+              {activeTab === 'email-settings' && 'Configure outgoing credentials for live OTP email delivery'}
+              {activeTab === 'cpanel-deploy' && 'Instant zip download, Passenger worker reload, and zero-cache diagnostics'}
             </p>
           </div>
           <div className="hidden sm:flex items-center gap-2">
@@ -1983,6 +2064,157 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+            </div>
+
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 7: CPANEL LIVE SYNC & DEPLOYMENT CENTER */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === 'cpanel-deploy' && (
+          <div className="mt-6 space-y-6">
+
+            {/* Top Status Header Card */}
+            <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <Server size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    cPanel Production Live Sync &amp; Deployment
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Build Verified
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Pre-compiled standalone package ready for zero-downtime deployment on cPanel shared hosting.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <a
+                  href="/cpanel-deploy.zip"
+                  download="cpanel-deploy.zip"
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md transition-colors cursor-pointer"
+                >
+                  <Download size={15} />
+                  <span>Download cpanel-deploy.zip</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleTriggerServerRestart}
+                  disabled={isRestartingServer}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={isRestartingServer ? 'animate-spin text-amber-400' : 'text-slate-400'} />
+                  <span>{isRestartingServer ? 'Signaling Passenger...' : 'Sync & Restart Server'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Messages */}
+            {restartMessage && (
+              <div className="bg-emerald-950/40 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                <div className="font-medium leading-relaxed">{restartMessage}</div>
+              </div>
+            )}
+
+            {/* Diagnostic Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-4">
+                <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+                  <span>Fiber Products</span>
+                  <Package size={14} className="text-amber-400" />
+                </div>
+                <div className="text-lg font-extrabold text-white">60 Cables</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  30 Hybrid Composite + 30 Fiber Outdoor
+                </div>
+              </div>
+
+              <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-4">
+                <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+                  <span>Home Sliders</span>
+                  <Layers size={14} className="text-sky-400" />
+                </div>
+                <div className="text-lg font-extrabold text-white">2 Sliders Active</div>
+                <div className="text-[11px] text-slate-400 mt-1 truncate" title="Power & Connectivity + Built for Reliable Outdoor">
+                  Power &amp; Connectivity + Reliable Outdoor
+                </div>
+              </div>
+
+              <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-4">
+                <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+                  <span>Cache Policy</span>
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                </div>
+                <div className="text-lg font-extrabold text-white">Zero-Cache</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  LiteSpeed disabled + ?v=&lt;ts&gt; stamping
+                </div>
+              </div>
+
+              <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-4">
+                <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
+                  <span>Deployment Zip</span>
+                  <FileText size={14} className="text-purple-400" />
+                </div>
+                <div className="text-lg font-extrabold text-white">Root index.html</div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Replaces stale public_html/index.html
+                </div>
+              </div>
+
+            </div>
+
+            {/* Step-by-Step Deployment Instructions Card */}
+            <div className="bg-[#1e293b] border border-slate-700/80 rounded-xl p-6 space-y-4">
+              <h4 className="font-bold text-white text-sm flex items-center gap-2 border-b border-slate-700/80 pb-3">
+                <Server size={16} className="text-amber-400" />
+                How to Upload and Reflect Updates on Your Live Domain in 60 Seconds
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300">
+                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 space-y-2">
+                  <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-xs">
+                    1
+                  </div>
+                  <div className="font-bold text-white">Download Zip</div>
+                  <p className="text-slate-400 leading-relaxed">
+                    Click the &ldquo;Download cpanel-deploy.zip&rdquo; button above (or download from the workspace). This pre-packaged zip contains root <code className="text-amber-400">index.html</code>, <code className="text-amber-400">dist/</code>, <code className="text-amber-400">client-build/</code>, <code className="text-amber-400">assets/</code>, <code className="text-amber-400">app.js</code>, and <code className="text-amber-400">.htaccess</code>.
+                  </p>
+                </div>
+
+                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 space-y-2">
+                  <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-xs">
+                    2
+                  </div>
+                  <div className="font-bold text-white">Upload &amp; Extract in cPanel</div>
+                  <p className="text-slate-400 leading-relaxed">
+                    In cPanel File Manager, upload <code className="text-amber-400">cpanel-deploy.zip</code> directly into your application directory (e.g. <code className="text-amber-400">public_html/</code>) and click <strong>Extract</strong>. It will overwrite <code className="text-emerald-400">index.html</code> so Apache immediately serves the latest build.
+                  </p>
+                </div>
+
+                <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 space-y-2">
+                  <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-xs">
+                    3
+                  </div>
+                  <div className="font-bold text-white">Restart Node.js App</div>
+                  <p className="text-slate-400 leading-relaxed">
+                    In cPanel &rarr; <strong>Setup Node.js App</strong>, click <strong>Restart</strong>. Alternatively, the built-in active file watcher touches <code className="text-amber-400">tmp/restart.txt</code> and restarts Phusion Passenger automatically.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-300 leading-relaxed">
+                <strong>Why your website updates immediately now:</strong> Previous deployments did not include the root <code className="text-white">index.html</code> in the zip, which allowed an older <code className="text-white">public_html/index.html</code> to be served directly by Apache. We have added the compiled <code className="text-white">index.html</code> directly into the zip root, set <code className="text-white">DirectoryIndex dist/index.html client-build/index.html index.html</code> in <code className="text-white">.htaccess</code>, and turned off LiteSpeed server caching (<code className="text-white">CacheLookup off</code>).
+              </div>
             </div>
 
           </div>

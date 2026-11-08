@@ -36,14 +36,27 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+      if (!token && !user) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
       const emailQuery = user ? `?email=${encodeURIComponent(user.email)}` : '';
-      const res = await fetch(`/api/orders${emailQuery}`);
+      const res = await fetch(`/api/orders${emailQuery}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const data: Order[] = await res.json();
         setOrders(data);
+      } else {
+        setOrders([]);
       }
     } catch (err) {
       console.warn('Failed to load orders', err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }

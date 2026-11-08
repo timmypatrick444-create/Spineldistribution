@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import {execSync} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import {defineConfig, Plugin} from 'vite';
@@ -64,28 +65,109 @@ function aistudioMediaPlugin(): Plugin {
 }
 // LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
+function cpanelAutoSyncPlugin(): Plugin {
+  return {
+    name: 'vite-plugin-cpanel-auto-sync',
+    apply: 'build',
+    closeBundle() {
+      try {
+        const buildTs = Date.now();
+        const distDir = path.resolve(__dirname, 'dist');
+        const clientBuildDir = path.resolve(__dirname, 'client-build');
+        const rootAssetsDir = path.resolve(__dirname, 'assets');
+        const tmpDir = path.resolve(__dirname, 'tmp');
+
+        // 1. Stamp dist/index.html with build timestamp marker and cache-busting query strings
+        const distIndexPath = path.join(distDir, 'index.html');
+        if (fs.existsSync(distIndexPath)) {
+          let html = fs.readFileSync(distIndexPath, 'utf-8');
+          const marker = `<!-- SPINEL_BUILD_TS:${buildTs} -->`;
+          if (html.includes('SPINEL_BUILD_TS:')) {
+            html = html.replace(/<!-- SPINEL_BUILD_TS:\d+ -->/g, marker);
+          } else {
+            html = html.replace('</head>', `  ${marker}\n  </head>`);
+          }
+          // Append cache-busting query param to deterministic /assets/*.js and /assets/*.css references
+          html = html.replace(/(src|href)="(\/assets\/[^"?]+\.(?:js|css))(?:\?[^"]*)?"/g, `$1="$2?v=${buildTs}"`);
+          fs.writeFileSync(distIndexPath, html, 'utf-8');
+        }
+
+        // 2. Ensure no duplicate .htaccess or huge catalog JSON exists inside dist/ before syncing
+        const distHtaccess = path.join(distDir, '.htaccess');
+        if (fs.existsSync(distHtaccess)) {
+          try { fs.rmSync(distHtaccess, {force: true}); } catch {}
+        }
+
+        // 3. Sync dist/ to client-build/ cleanly (removing stale hashed bundles first)
+        if (fs.existsSync(distDir)) {
+          if (fs.existsSync(clientBuildDir)) {
+            fs.rmSync(clientBuildDir, {recursive: true, force: true});
+          }
+          fs.cpSync(distDir, clientBuildDir, {recursive: true});
+        }
+
+        // 4. Sync dist/assets/ to root assets/ cleanly (removing any old index-*.js or vendor-*.js files)
+        const distAssetsDir = path.join(distDir, 'assets');
+        if (fs.existsSync(distAssetsDir)) {
+          if (fs.existsSync(rootAssetsDir)) {
+            fs.rmSync(rootAssetsDir, {recursive: true, force: true});
+          }
+          fs.cpSync(distAssetsDir, rootAssetsDir, {recursive: true});
+        }
+
+        // 5. Bundle server.ts into app.js and server.cjs using esbuild binary directly
+        const esbuildBin = path.resolve(__dirname, 'node_modules', '.bin', 'esbuild');
+        const esbuildCmd = fs.existsSync(esbuildBin) ? `"${esbuildBin}"` : 'npx esbuild';
+        execSync(
+          `${esbuildCmd} server.ts --bundle --platform=node --target=node18 --format=cjs --minify --outfile=app.js --external:vite --external:fsevents --external:lightningcss --external:@tailwindcss/oxide --external:esbuild`,
+          {cwd: __dirname, stdio: 'inherit'},
+        );
+        const appJsPath = path.resolve(__dirname, 'app.js');
+        const serverCjsPath = path.resolve(__dirname, 'server.cjs');
+        if (fs.existsSync(appJsPath)) {
+          fs.copyFileSync(appJsPath, serverCjsPath);
+        }
+
+        // 6. Touch tmp/restart.txt and build-version.json so Phusion Passenger and frontend live-watcher detect the update immediately
+        if (!fs.existsSync(tmpDir)) {
+          fs.mkdirSync(tmpDir, {recursive: true});
+        }
+        fs.writeFileSync(path.join(tmpDir, 'restart.txt'), String(buildTs), 'utf-8');
+        const versionPayload = JSON.stringify({buildTs, updatedAt: new Date(buildTs).toISOString()}, null, 2);
+        fs.writeFileSync(path.resolve(__dirname, 'build-version.json'), versionPayload, 'utf-8');
+        if (fs.existsSync(distDir)) {
+          fs.writeFileSync(path.join(distDir, 'build-version.json'), versionPayload, 'utf-8');
+        }
+        if (fs.existsSync(clientBuildDir)) {
+          fs.writeFileSync(path.join(clientBuildDir, 'build-version.json'), versionPayload, 'utf-8');
+        }
+
+        // 7. Auto-pack cpanel-deploy.zip so the downloaded or synced production zip is always 100% up-to-date
+        try {
+          execSync('node scripts/pack-cpanel.js', {cwd: __dirname, stdio: 'inherit'});
+        } catch (zipErr) {
+          console.warn('[cPanel Auto-Sync] Warning generating cpanel-deploy.zip:', zipErr);
+        }
+
+        console.log(`[cPanel Auto-Sync] Synced dist/, client-build/, assets/, app.js, server.cjs, cpanel-deploy.zip, and tmp/restart.txt (Build TS: ${buildTs})`);
+      } catch (err) {
+        console.error('[cPanel Auto-Sync] Warning during post-build sync:', err);
+      }
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
+    plugins: [react(), tailwindcss(), aistudioMediaPlugin(), cpanelAutoSyncPlugin()],
     build: {
       sourcemap: false,
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 5000,
       rollupOptions: {
         output: {
-          manualChunks(id) {
-            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
-              return 'vendor-pdf';
-            }
-            if (id.includes('node_modules/xlsx') || id.includes('node_modules/papaparse')) {
-              return 'vendor-sheets';
-            }
-            if (id.includes('node_modules/lucide-react')) {
-              return 'vendor-icons';
-            }
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-              return 'vendor-react';
-            }
-          }
+          inlineDynamicImports: true,
+          entryFileNames: 'assets/index.js',
+          assetFileNames: 'assets/[name].[ext]',
         }
       }
     },
@@ -96,10 +178,11 @@ export default defineConfig(() => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
 });
+
