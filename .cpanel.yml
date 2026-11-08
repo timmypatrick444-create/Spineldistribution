@@ -12,16 +12,36 @@
 
 deployment:
   tasks:
-    - export DEPLOYPATH=$(pwd)
-    - echo "Deploying Spinel Distribution in $DEPLOYPATH..."
-    - export PATH=$PATH:/usr/local/bin:/usr/bin:~/.nvm/versions/node/$(ls ~/.nvm/versions/node 2>/dev/null | tail -n 1)/bin
     - |
-      if command -v npm >/dev/null 2>&1; then
-        echo "npm detected in environment. Attempting safe build..."
-        npm run build || echo "[Notice] Build step skipped or failed; using repository pre-built production assets."
+      if [ -d "$HOME/public_html" ]; then
+        TARGET="$HOME/public_html"
+      elif [ -d "/home/$USER/public_html" ]; then
+        TARGET="/home/$USER/public_html"
+      elif [ -d "../public_html" ]; then
+        TARGET="../public_html"
       else
-        echo "[Notice] npm not found in standard PATH; using repository pre-built production assets."
+        TARGET="$(pwd)"
       fi
-    - mkdir -p tmp
-    - touch tmp/restart.txt
-    - echo "Spinel Distribution successfully deployed and Passenger reloaded on cPanel!"
+      echo "Deploying Spinel Distribution production build to $TARGET..."
+
+      if [ "$TARGET" != "$(pwd)" ]; then
+        echo "Syncing production bundles to $TARGET..."
+        /bin/cp -rf dist "$TARGET/" 2>/dev/null || true
+        /bin/cp -rf client-build "$TARGET/" 2>/dev/null || true
+        /bin/cp -rf assets "$TARGET/" 2>/dev/null || true
+        /bin/cp -rf Images "$TARGET/" 2>/dev/null || true
+        /bin/cp -f dist/index.html "$TARGET/index.html" 2>/dev/null || /bin/cp -f index.html "$TARGET/index.html"
+        /bin/cp -f .htaccess "$TARGET/.htaccess" 2>/dev/null || true
+        /bin/cp -f app.js "$TARGET/app.js" 2>/dev/null || true
+        /bin/cp -f server.cjs "$TARGET/server.cjs" 2>/dev/null || true
+        /bin/cp -f package.json "$TARGET/package.json" 2>/dev/null || true
+        /bin/cp -f build-version.json "$TARGET/build-version.json" 2>/dev/null || true
+        /bin/cp -f cpanel-deploy.zip "$TARGET/cpanel-deploy.zip" 2>/dev/null || true
+      else
+        echo "Repository is located directly inside $TARGET."
+        /bin/cp -f dist/index.html "$TARGET/index.html" 2>/dev/null || true
+      fi
+
+      mkdir -p "$TARGET/tmp"
+      touch "$TARGET/tmp/restart.txt"
+      echo "Spinel Distribution deployment to $TARGET completed successfully!"
