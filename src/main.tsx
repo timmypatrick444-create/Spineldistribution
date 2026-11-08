@@ -84,10 +84,14 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <RootErrorBoundary>
-      <App />
-    </RootErrorBoundary>
-  </StrictMode>,
-);
+const rootElement = document.getElementById('root');
+if (rootElement && !(window as any).__SPINEL_MOUNTED__) {
+  (window as any).__SPINEL_MOUNTED__ = true;
+  createRoot(rootElement).render(
+    <StrictMode>
+      <RootErrorBoundary>
+        <App />
+      </RootErrorBoundary>
+    </StrictMode>,
+  );
+}

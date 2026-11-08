@@ -16,9 +16,16 @@
     <meta http-equiv="Expires" content="0" />
     <!-- Paystack Inline JS for seamless live payment -->
     <script src="https://js.paystack.co/v1/inline.js" defer></script>
+    <!-- Production stylesheet fallback for live cPanel deployments -->
+    <link rel="stylesheet" crossorigin href="/assets/index.css" />
   </head>
   <body class="bg-[#eaeded] text-[#0F1111] antialiased" style="background-color: #eaeded; color: #0F1111; margin: 0; padding: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    <div id="root"></div>
+    <div id="root">
+      <div id="spinel-initial-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#131921;background-color:#eaeded;">
+        <div style="font-size:22px;font-weight:900;letter-spacing:1px;color:#131921;margin-bottom:8px;">SPINEL DISTRIBUTION</div>
+        <div style="font-size:14px;color:#565959;">Loading international storefront...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       (function () {
@@ -40,23 +47,24 @@
             }).catch(function () {});
           } catch (e) {}
         }
-        // When served by Vite dev server in AI Studio, @vite/client is injected in <head>.
-        // When compiled by Vite build, /assets/index.js is already injected in <head>.
-        // When raw repository index.html is served directly by cPanel Apache/LiteSpeed, inject compiled bundle immediately at 0ms.
-        var hasViteClient = !!document.querySelector('script[src*="@vite/client"]') || document.documentElement.innerHTML.indexOf('/@react-refresh') !== -1;
-        var hasCompiledBundle = !!document.querySelector('script[src*="/assets/index"]');
-        if (hasViteClient || hasCompiledBundle) return;
 
-        var bust = Date.now();
-        var css = document.createElement('link');
-        css.rel = 'stylesheet';
-        css.href = '/assets/index.css?v=' + bust;
-        document.head.appendChild(css);
-
-        var js = document.createElement('script');
-        js.type = 'module';
-        js.src = '/assets/index.js?v=' + bust;
-        document.head.appendChild(js);
+        // Live production safeguard for cPanel Apache / LiteSpeed hosting:
+        // When running in production (no Vite dev server present), ensure compiled bundle loads
+        var isViteDev = !!document.querySelector('script[src*="@vite/client"]') || 
+                        !!document.querySelector('script[src*="/@vite/client"]') ||
+                        (window.location.port === '3000' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+        if (!isViteDev) {
+          setTimeout(function() {
+            if (!window.__SPINEL_MOUNTED__) {
+              var bust = Date.now();
+              var js = document.createElement('script');
+              js.type = 'module';
+              js.crossOrigin = 'anonymous';
+              js.src = '/assets/index.js?v=' + bust;
+              document.body.appendChild(js);
+            }
+          }, 40);
+        }
       })();
     </script>
   </body>

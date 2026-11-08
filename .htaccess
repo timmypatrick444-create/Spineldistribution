@@ -38,6 +38,17 @@ FileETag None
   </FilesMatch>
 </IfModule>
 
+# 2.1 Explicit MIME Types for JavaScript, CSS, and Assets
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType application/json .json
+  AddType image/svg+xml .svg
+  AddType image/webp .webp
+  AddType image/jpeg .jpg .jpeg
+  AddType image/png .png
+</IfModule>
+
 # 3. Smart Asset & Single Page Application (SPA) Routing for cPanel Apache / LiteSpeed
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -53,7 +64,19 @@ FileETag None
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^(?:client-build/|dist/)?assets/index-[A-Za-z0-9_-]+\.css$ /assets/index.css [L]
 
+  # Prevent raw TypeScript / JSX source files from ever being requested on live cPanel:
+  # Intercept and serve compiled JavaScript bundle immediately
+  RewriteRule ^src/.*$ /assets/index.js [L]
+
   # Resolve /assets/* from root /assets/, /dist/assets/, or /client-build/assets/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond dist/assets/$1 -f
+  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond client-build/assets/$1 -f
+  RewriteRule ^assets/(.*)$ client-build/assets/$1 [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
   RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
@@ -63,6 +86,12 @@ FileETag None
   RewriteRule ^assets/(.*)$ /client-build/assets/$1 [L]
 
   # Serve compiled production index.html when root / or /index.html is requested statically on Apache/LiteSpeed
+  RewriteCond dist/index.html -f
+  RewriteRule ^(index\.html)?$ dist/index.html [L]
+
+  RewriteCond client-build/index.html -f
+  RewriteRule ^(index\.html)?$ client-build/index.html [L]
+
   RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
   RewriteRule ^(index\.html)?$ /dist/index.html [L]
 
@@ -70,6 +99,16 @@ FileETag None
   RewriteRule ^(index\.html)?$ /client-build/index.html [L]
 
   # For SPA client-side routes, serve compiled dist/index.html or client-build/index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond dist/index.html -f
+  RewriteRule . dist/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond client-build/index.html -f
+  RewriteRule . client-build/index.html [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f

@@ -18,8 +18,12 @@ import AdmZip from 'adm-zip';
 
 dotenv.config();
 
-// Prevent uncaught errors from crashing the shared hosting process
-process.on('uncaughtException', (err) => {
+// Prevent uncaught errors from crashing the process
+process.on('uncaughtException', (err: any) => {
+  if (err && err.code === 'EADDRINUSE') {
+    console.warn('[SPINEL] Handled EADDRINUSE notice: port or socket already bound.');
+    return;
+  }
   console.error('[SPINEL] Uncaught Exception:', err);
 });
 process.on('unhandledRejection', (reason, promise) => {
@@ -3023,10 +3027,18 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
     if (fs.existsSync(candidate)) {
       try {
         const stats = fs.statSync(candidate);
-        const content = fs.readFileSync(candidate, 'utf8');
-        // Must be a compiled bundle with assets (not raw dev index referencing src/main.tsx)
-        const isCompiled = (content.includes('assets/') || content.includes('/assets/')) && !content.includes('src/main.tsx');
-        if (isCompiled && stats.mtimeMs > bestMtime) {
+        let content = fs.readFileSync(candidate, 'utf8');
+        // If candidate is a root dev index referencing src/main.tsx, convert it to production bundle references
+        if (content.includes('src/main.tsx')) {
+          content = content.replace(
+            /<script\s+type="module"\s+src="\/src\/main\.tsx"><\/script>/gi,
+            '<script type="module" crossorigin src="/assets/index.js"></script>'
+          );
+          if (!content.includes('/assets/index.css')) {
+            content = content.replace('</head>', '  <link rel="stylesheet" crossorigin href="/assets/index.css">\n</head>');
+          }
+        }
+        if (stats.mtimeMs > bestMtime) {
           bestMtime = stats.mtimeMs;
           bestFile = candidate;
           bestContent = content;
@@ -3250,19 +3262,24 @@ async function startServer() {
     return res.status(404).json({ error: 'cpanel-deploy.zip not found. Run npm run build first.' });
   });
 
-  // Mount live Vite middlewares when running in dev environment
+  // Mount live Vite middlewares ONLY in dev environment (not in production, Phusion Passenger, or standalone app.js)
   viteMounted = false;
-  try {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-    viteMounted = true;
-    console.log('[Storefront] Live Vite dev server successfully mounted.');
-  } catch (viteErr: any) {
-    console.log('[Storefront] Running standalone production bundle.');
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.PASSENGER_APP_ENV || !fs.existsSync(path.join(process.cwd(), 'src', 'main.tsx'));
+  if (!isProduction) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      viteMounted = true;
+      console.log('[Storefront] Live Vite dev server successfully mounted.');
+    } catch (viteErr: any) {
+      console.log('[Storefront] Running standalone production bundle.');
+    }
+  } else {
+    console.log('[Storefront] Running in production mode: serving pre-compiled production bundle.');
   }
 
   // Start background cPanel File Manager real-time watcher
@@ -3339,6 +3356,28 @@ async function startServer() {
     }
   }
 
+  // Production safeguard: If any browser or root index.html requests /src/main.tsx in production, serve compiled /assets/index.js
+  app.get(['/src/main.tsx', '/src/main.ts', '/src/main.jsx', '/src/main.js', '/src/*'], (req, res, next) => {
+    if (viteMounted) return next();
+    const candidateDirs = [
+      path.join(process.cwd(), 'dist', 'assets'),
+      path.join(process.cwd(), 'client-build', 'assets'),
+      path.join(process.cwd(), 'assets'),
+      path.join(__dirname, 'dist', 'assets'),
+      path.join(__dirname, 'client-build', 'assets'),
+      path.join(__dirname, 'assets')
+    ];
+    for (const d of candidateDirs) {
+      const jsPath = path.join(d, 'index.js');
+      if (fs.existsSync(jsPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        return res.sendFile(jsPath);
+      }
+    }
+    next();
+  });
+
   // Handle root and SPA fallback
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
@@ -3353,17 +3392,33 @@ async function startServer() {
   // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));
   if (isNamedPipeOrSocket) {
-    app.listen(PORT, () => {
+    const serverInstance = app.listen(PORT, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on passenger socket: ${PORT}`);
       console.log(`[cPanel File Watcher] Active - Watching for uploads and changes in cPanel File Manager.`);
     });
+    serverInstance.on('error', (err: any) => {
+      console.error('[SPINEL] Server socket error:', err);
+    });
   } else {
     const portNumber = parseInt(String(PORT), 10);
-    app.listen(portNumber, () => {
+    const serverInstance = app.listen(portNumber, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);
       console.log(`[cPanel File Watcher] Active - Watching for uploads and changes in cPanel File Manager.`);
+    });
+    serverInstance.on('error', (err: any) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.warn(`[SPINEL] Notice: Port ${portNumber} is currently occupied. Waiting 1.5s before retry...`);
+        setTimeout(() => {
+          try { serverInstance.close(); } catch {}
+          app.listen(portNumber, () => {
+            console.log(`[SPINEL DISTRIBUTION] Re-established listener on port ${portNumber}`);
+          });
+        }, 1500);
+      } else {
+        console.error('[SPINEL] Server listener error:', err);
+      }
     });
   }
 }
