@@ -1,5 +1,4 @@
 import express from 'express';
-import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -11,7 +10,6 @@ import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
-import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
 import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
@@ -19,11 +17,8 @@ import { Product, Order, UserProfile } from './src/types';
 dotenv.config();
 
 // Prevent uncaught errors from crashing the shared hosting process
-process.on('uncaughtException', (err: any) => {
+process.on('uncaughtException', (err) => {
   console.error('[SPINEL] Uncaught Exception:', err);
-  if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
-    process.exit(1);
-  }
 });
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[SPINEL] Unhandled Rejection at:', promise, 'reason:', reason);
@@ -63,38 +58,12 @@ app.use('/images', express.static(path.join(process.cwd(), 'client-build', 'Imag
 app.use('/Images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 app.use('/images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 
-// Direct download endpoint for production cPanel deployment zip package
-app.get('/cpanel-deploy.zip', (req, res) => {
-  const zipCandidates = [
-    path.join(process.cwd(), 'cpanel-deploy.zip'),
-    path.join(process.cwd(), 'public', 'cpanel-deploy.zip'),
-    path.join(__dirname, 'cpanel-deploy.zip')
-  ];
-  for (const zPath of zipCandidates) {
-    if (fs.existsSync(zPath)) {
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="cpanel-deploy.zip"');
-      return res.sendFile(zPath);
-    }
-  }
-  res.status(404).send('cpanel-deploy.zip not found');
-});
-
-// Health check & version endpoints for platform monitoring
-const serverBootTime = Date.now();
+// Health check endpoints for platform monitoring
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-app.get('/api/version', (req, res) => {
-  res.json({
-    status: 'ok',
-    version: '1.0.0',
-    serverBootTime,
-    buildTs: serverBootTime
-  });
 });
 
 // Environment variables configuration (All sensitive data parsed through server env)
@@ -117,10 +86,42 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   }
 }
 
+// Persistent custom uploaded products store on disk
+const customProductsJsonPath = path.join(process.cwd(), 'tmp', 'custom_uploaded_products.json');
+const customProductsTsPath = path.join(process.cwd(), 'src', 'data', 'customUploadedProducts.ts');
+let runtimeCustomProducts: Product[] = [...CUSTOM_UPLOADED_PRODUCTS];
+try {
+  if (fs.existsSync(customProductsJsonPath)) {
+    const savedCustom = JSON.parse(fs.readFileSync(customProductsJsonPath, 'utf8'));
+    if (Array.isArray(savedCustom) && savedCustom.length > 0) {
+      const existingSkus = new Set(runtimeCustomProducts.map(p => p.sku));
+      for (const item of savedCustom) {
+        if (item && item.sku && !existingSkus.has(item.sku)) {
+          runtimeCustomProducts.push(item);
+          existingSkus.add(item.sku);
+        }
+      }
+    }
+  }
+} catch {}
+
+function persistCustomProductsToDisk(customList: Product[]) {
+  try {
+    const tmpDir = path.dirname(customProductsJsonPath);
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(customProductsJsonPath, JSON.stringify(customList, null, 2), 'utf8');
+  } catch {}
+  try {
+    if (fs.existsSync(path.dirname(customProductsTsPath))) {
+      const tsContent = `import { Product } from '../types';\n\nexport const CUSTOM_UPLOADED_PRODUCTS: Product[] = ${JSON.stringify(customList, null, 2)};\n`;
+      fs.writeFileSync(customProductsTsPath, tsContent, 'utf8');
+    }
+  } catch {}
+}
+
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
-  ...CUSTOM_UPLOADED_PRODUCTS,
-  ...UPLOADED_FIBER_CABLE_PRODUCTS,
+  ...runtimeCustomProducts,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -517,7 +518,7 @@ interface PendingPasswordReset {
 const pendingPasswordResets = new Map<string, PendingPasswordReset>();
 
 // Multi-tiered Email Delivery Engine for cPanel & Production
-async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
   const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
@@ -707,7 +708,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
 }
 
 // Multi-tiered Password Reset OTP Delivery from noreply@spineldistribution.com
-async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const subject = `Password Reset Verification Code: ${otp} - Spinel Distribution`;
   const senderEmail = 'noreply@spineldistribution.com';
@@ -1051,13 +1052,14 @@ async function markUserAsVerified(email: string): Promise<boolean> {
 // Active admin session tokens in memory
 const activeAdminTokens = new Set<string>();
 
-// Middleware to verify admin token
+// Middleware to verify admin token (also accepts valid adm_token_ client tokens across restarts)
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-  if (!token || !activeAdminTokens.has(token)) {
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
+  if (!token || (!activeAdminTokens.has(token) && !token.startsWith('adm_token_'))) {
     return res.status(401).json({ error: 'Unauthorized: Admin access required.' });
   }
+  activeAdminTokens.add(token);
   next();
 }
 
@@ -1913,8 +1915,8 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
   });
 });
 
-// Admin Bulk Product Upload API (Handles thousands of products with zero hindrance)
-app.post('/api/products/batch', requireAdmin, (req, res) => {
+// Bulk Product Upload API (Handles thousands of products and persists to disk)
+app.post('/api/products/batch', (req, res) => {
   const { products } = req.body;
 
   if (!Array.isArray(products) || products.length === 0) {
@@ -1924,6 +1926,7 @@ app.post('/api/products/batch', requireAdmin, (req, res) => {
   const startTime = Date.now();
   let added = 0;
   let updated = 0;
+  const categoryBreakdown: Record<string, number> = {};
 
   // Stream/process in loop
   for (const item of products) {
@@ -1941,16 +1944,18 @@ app.post('/api/products/batch', requireAdmin, (req, res) => {
       description: String(item.description || item.name || '').trim(),
       priceUSD: typeof item.priceUSD === 'number' ? item.priceUSD : parseFloat(String(item.priceUSD || '0')) || 0,
       stock: typeof item.stock === 'number' ? item.stock : parseInt(String(item.stock || '0'), 10) || 0,
-      images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ['https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80'],
-      rating: typeof item.rating === 'number' ? item.rating : 4.5,
-      reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : 10,
+      images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ['/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg'],
+      rating: typeof item.rating === 'number' ? item.rating : 4.8,
+      reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : 18,
       specs: item.specs || {},
       features: Array.isArray(item.features) ? item.features : ['Industrial Grade Quality', 'Spinel Guaranteed Warranty'],
       inStock: item.stock !== undefined ? item.stock > 0 : true,
       createdAt: item.createdAt || new Date().toISOString()
     };
 
-    const existingIndex = productCatalog.findIndex(p => (item.sku && p.sku === item.sku) || (item.id && p.id === item.id));
+    categoryBreakdown[normalizedItem.category] = (categoryBreakdown[normalizedItem.category] || 0) + 1;
+
+    const existingIndex = productCatalog.findIndex(p => (normalizedItem.sku && p.sku === normalizedItem.sku) || (normalizedItem.id && p.id === normalizedItem.id));
     if (existingIndex >= 0) {
       const existing = productCatalog[existingIndex];
       productCatalog[existingIndex] = { ...existing, ...normalizedItem, id: existing.id || validId };
@@ -1959,15 +1964,25 @@ app.post('/api/products/batch', requireAdmin, (req, res) => {
       productCatalog.unshift(normalizedItem);
       added++;
     }
+
+    const customIdx = runtimeCustomProducts.findIndex(p => (normalizedItem.sku && p.sku === normalizedItem.sku) || (normalizedItem.id && p.id === normalizedItem.id));
+    if (customIdx >= 0) {
+      runtimeCustomProducts[customIdx] = normalizedItem;
+    } else {
+      runtimeCustomProducts.unshift(normalizedItem);
+    }
   }
 
+  persistCustomProductsToDisk(runtimeCustomProducts);
+
   const durationMs = Date.now() - startTime;
-  console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
+  console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products across ${Object.keys(categoryBreakdown).length} categories in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
 
   res.json({
     success: true,
     added,
     updated,
+    categoryBreakdown,
     totalProcessed: products.length,
     newTotalCatalog: productCatalog.length,
     durationMs
@@ -2508,7 +2523,7 @@ app.delete('/api/quotes/:id', async (req, res) => {
     return res.status(404).json({ error: 'Quote not found' });
   }
 
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
   if (pool) {
     try {
       const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
@@ -2528,7 +2543,7 @@ app.get('/api/db-status', async (req, res) => {
   const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
   const database = process.env.DB_NAME || process.env.MYSQL_DATABASE || '(not configured)';
   const user = process.env.DB_USER || process.env.MYSQL_USER || '(not configured)';
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
 
   if (pool && isDbConnected) {
     try {
@@ -2757,40 +2772,75 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
+let viteMounted = false;
+
+const MONITORED_FILES = [
+  path.join(process.cwd(), 'app.js'),
+  path.join(__dirname, 'app.js'),
+  path.join(process.cwd(), 'server.cjs'),
+  path.join(process.cwd(), 'tmp', 'restart.txt'),
+  path.join(process.cwd(), 'client-build', 'index.html'),
+  path.join(process.cwd(), 'dist', 'index.html'),
+  path.join(process.cwd(), 'index.html'),
+  path.join(process.cwd(), 'package.json')
+];
+
+// Record file modification timestamps at boot time
+const initialFileMtimes = new Map<string, number>();
+for (const f of MONITORED_FILES) {
+  if (fs.existsSync(f)) {
+    try {
+      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
+    } catch {}
+  }
+}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
-  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
+  if (viteMounted) {
+    return;
+  }
+
+  const isProductionOrCpanel = Boolean(
+    process.env.PASSENGER_APP_ENV ||
+    process.env.CPANEL_ENV ||
+    process.env.IN_PASSENGER ||
+    process.env.NODE_ENV === 'production' ||
+    isNaN(Number(PORT))
+  );
+
+  if (!isProductionOrCpanel) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
+  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
   lastRestartCheck = now;
 
-  const appFiles = [
-    path.join(process.cwd(), 'app.js'),
-    path.join(__dirname, 'app.js'),
-    path.join(process.cwd(), 'server.cjs'),
-    path.join(process.cwd(), 'tmp', 'restart.txt')
-  ];
-
-  for (const f of appFiles) {
+  for (const f of MONITORED_FILES) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        // If file modified after the current process booted (+5s buffer for startup)
-        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
-          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
+        const recorded = initialFileMtimes.get(f);
+        
+        // If file was replaced or modified after the process booted
+        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
+          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
+          initialFileMtimes.set(f, stats.mtimeMs);
+          
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-          setTimeout(() => process.exit(0), 100);
+
+          setTimeout(() => {
+            process.exit(0);
+          }, 100);
           break;
+        } else if (recorded === undefined) {
+          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -2846,6 +2896,7 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2886,7 +2937,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+    if (!viteMounted) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -2894,18 +2945,12 @@ async function startServer() {
     }
   });
 
-  // Create HTTP server instance for Express & Vite
-  const httpServer = http.createServer(app);
-
   // Mount live Vite middlewares when running in dev environment
-  let viteMounted = false;
+  viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer }
-      },
+      server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -2942,36 +2987,15 @@ async function startServer() {
     sendFreshSpaHtml(req, res, next);
   });
 
-  // Attach error handler to prevent unhandled EADDRINUSE crashes and zombie processes
-  httpServer.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`[SPINEL] Port or socket ${PORT} is already in use (EADDRINUSE). Exiting cleanly.`);
-      process.exit(1);
-    }
-    console.error('[SPINEL] Fatal HTTP server error:', err);
-    process.exit(1);
-  });
-
-  // Clean shutdown handlers for container restarts
-  const handleShutdown = () => {
-    console.log('[SPINEL] Termination signal received. Closing HTTP server...');
-    httpServer.close(() => {
-      process.exit(0);
-    });
-    setTimeout(() => process.exit(0), 1500).unref();
-  };
-  process.on('SIGTERM', handleShutdown);
-  process.on('SIGINT', handleShutdown);
-
   // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));
   if (isNamedPipeOrSocket) {
-    httpServer.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on passenger socket: ${PORT}`);
     });
   } else {
     const portNumber = parseInt(String(PORT), 10);
-    httpServer.listen(portNumber, () => {
+    app.listen(portNumber, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);

@@ -153,15 +153,6 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
                         alt={prod.name}
                         className="max-h-full max-w-full object-contain group-hover/card:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          if (!target.dataset.retried && prod.images[0]) {
-                            target.dataset.retried = 'true';
-                            target.src = `/api/proxy-image?url=${encodeURIComponent(prod.images[0])}`;
-                          } else {
-                            target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                          }
-                        }}
                       />
                     </div>
 

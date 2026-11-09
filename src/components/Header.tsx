@@ -487,18 +487,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('category', 'Hybrid Composite Cables')}
+          onClick={() => onNavigate('category', 'Renewable Energy')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1"
         >
-          <span>Hybrid Composite Cables</span>
+          <span>Renewable Solar &amp; Inverters</span>
         </button>
 
         <button
           type="button"
-          onClick={() => onNavigate('category', 'Fiber Outdoor Cables')}
+          onClick={() => onNavigate('category', 'Storage & Data Infrastructure')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
-          Fiber Outdoor Cables
+          Surveillance Hard Drives
         </button>
 
       </div>

@@ -41,36 +41,6 @@ interface HeroSlide {
 const HERO_SLIDES: HeroSlide[] = [
   {
     id: 1,
-    title: 'Fiber Optic Cables',
-    subtitle: 'Data transmission, reliable connectivity & fibre networking',
-    ctaText: 'Explore Fiber Optic Cables',
-    category: 'Fiber Optic & Hybrid Cables',
-    subcategory: 'Fiber Outdoor Cables',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226019/Fiber_Optic_Cables.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 2,
-    title: 'Hybrid Composite Cables',
-    subtitle: 'Integrated power and fibre transmission connectivity',
-    ctaText: 'Explore Hybrid Cables',
-    category: 'Fiber Optic & Hybrid Cables',
-    subcategory: 'Hybrid Composite Cables',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/Hybrid_Composite_Cables.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 3,
-    title: 'Enclosures',
-    subtitle: 'Durable equipment protection for industrial and electrical installations',
-    ctaText: 'Explore Enclosures',
-    category: 'Enclosures & Housings',
-    subcategory: 'Equipment Enclosures',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/enclosure.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 4,
     title: 'Ex Junction Boxes',
     subtitle: 'Hazardous-area protection, robust enclosures & secure electrical connections',
     ctaText: 'Explore Ex Junction Boxes',
@@ -80,7 +50,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 5,
+    id: 2,
     title: 'IT Racks & Enclosures',
     subtitle: 'Secure equipment housing, optimized cable management & efficient airflow',
     ctaText: 'Explore IT Racks',
@@ -90,7 +60,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 6,
+    id: 3,
     title: 'Explosion-Proof Telephone Systems',
     subtitle: 'Reliable voice communication, hazardous-area protection & rugged industrial performance',
     ctaText: 'Explore PAGA Systems',
@@ -99,7 +69,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 7,
+    id: 4,
     title: 'Intelligent Video Surveillance',
     subtitle: 'Ultra low-light Starlight sensors, vehicle classification & facial recognition',
     ctaText: 'Explore Cameras & NVRs',
@@ -108,7 +78,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 8,
+    id: 5,
     title: 'Smart Hybrid Solar Inverters',
     subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
     ctaText: 'Shop Renewable Energy',
@@ -117,7 +87,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 9,
+    id: 6,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
@@ -258,13 +228,30 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 5. Filter Renewable Energy products (strictly from 'Renewable Energy' category)
+  // 5. Filter Renewable Energy products and randomize for display
   const renewableEnergyProducts = useMemo(() => {
     const renewable = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
-      return cat === 'renewable energy';
+      const sub = (p.subcategory || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      return (
+        cat === 'renewable energy' ||
+        cat.includes('renewable') ||
+        cat.includes('solar') ||
+        cat.includes('energy') ||
+        sub.includes('inverter') ||
+        sub.includes('battery') ||
+        sub.includes('solar') ||
+        name.includes('inverter') ||
+        name.includes('battery') ||
+        name.includes('solar') ||
+        name.includes('hybrid') ||
+        name.includes('lifepo4')
+      );
     });
-    return renewable;
+
+    const pool = renewable.length >= 4 ? renewable : safeProducts.filter(p => (p.category || '').toLowerCase().includes('power'));
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
   // 6. Filter Public Address (PAGA) System products and randomize for display
@@ -316,34 +303,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     });
 
     return [...newBatch, ...initialBatch];
-  }, [safeProducts]);
-
-  // 8. Filter Hybrid Composite Cables products
-  const hybridCompositeProducts = useMemo(() => {
-    return safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'hybrid composite cables' ||
-        cat === 'hybrid composite cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('hybrid')) ||
-        (p.sku || '').startsWith('SP-HC-')
-      );
-    });
-  }, [safeProducts]);
-
-  // 9. Filter Fiber Outdoor Cables products
-  const fiberOutdoorProducts = useMemo(() => {
-    return safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'fiber outdoor cables' ||
-        cat === 'fiber outdoor cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('outdoor')) ||
-        (p.sku || '').startsWith('SP-FOC-')
-      );
-    });
   }, [safeProducts]);
 
   // Eagerly preload all hero slide images into browser cache immediately
@@ -771,21 +730,6 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       </div>
 
-      {/* 2.4 POWER & CONNECTIVITY IN ONE CABLE - Hybrid Composite Cables */}
-      <ProductSliderSection
-        id="power-connectivity-in-one-cable"
-        title="Power & Connectivity in One Cable"
-        subtitle="Shop high-quality hybrid composite cables combining power and fibre-optic transmission for efficient installations, reliable connectivity, and streamlined infrastructure deployment."
-        products={hybridCompositeProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Hybrid Composite Cables currently loading or unavailable."
-      />
-
       {/* 2.5 COMMUNICATE SAFELY. RESPOND INSTANTLY - Public Address (PAGA) System */}
       <ProductSliderSection
         id="communicate-safely-respond-instantly"
@@ -814,21 +758,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Enclosures & Housings products currently loading or unavailable."
-      />
-
-      {/* 2.9 BUILT FOR RELIABLE OUTDOOR CONNECTIVITY - Fiber Outdoor Cables */}
-      <ProductSliderSection
-        id="built-for-reliable-outdoor-connectivity"
-        title="Built for Reliable Outdoor Connectivity"
-        subtitle="Discover durable outdoor fibre-optic cables designed for high-speed data transmission, long-distance connectivity, and dependable performance in demanding environments."
-        products={fiberOutdoorProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Fiber Outdoor Cables currently loading or unavailable."
       />
 
       {/* 3. SMARTER ACCESS STARTS HERE - Access Credentials */}

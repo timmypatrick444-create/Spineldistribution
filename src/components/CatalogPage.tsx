@@ -36,7 +36,6 @@ const buildBalancedCatalogOrder = (products: Product[]): Product[] => {
     'Enclosures & Housings',
     'Public Address (PAGA) System',
     'Renewable Energy',
-    'Fiber Optic & Hybrid Cables',
     'Video Management & Recording',
     'Security Sensors & Detection',
     'Mounting & Surveillance Accessories',
@@ -482,15 +481,6 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                           decoding="async"
                           className="max-h-full max-w-full object-contain hover:scale-105 transition-transform"
                           referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement;
-                            if (!target.dataset.retried) {
-                              target.dataset.retried = 'true';
-                              target.src = `/api/proxy-image?url=${encodeURIComponent(prod.images[0])}`;
-                            } else {
-                              target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                            }
-                          }}
                         />
                       </div>
 
