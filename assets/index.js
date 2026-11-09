@@ -16609,18 +16609,18 @@ const Header = ({
         "button",
         {
           type: "button",
-          onClick: () => onNavigate("category", "Renewable Energy"),
+          onClick: () => onNavigate("category", "Hybrid Composite Cables"),
           className: "py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Renewable Solar & Inverters" })
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Hybrid Composite Cables" })
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
           type: "button",
-          onClick: () => onNavigate("category", "Storage & Data Infrastructure"),
+          onClick: () => onNavigate("category", "Fiber Outdoor Cables"),
           className: "py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white",
-          children: "Surveillance Hard Drives"
+          children: "Fiber Outdoor Cables"
         }
       )
     ] })
