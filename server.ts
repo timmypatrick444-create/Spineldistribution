@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -16,8 +17,11 @@ import { Product, Order, UserProfile } from './src/types';
 dotenv.config();
 
 // Prevent uncaught errors from crashing the shared hosting process
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err: any) => {
   console.error('[SPINEL] Uncaught Exception:', err);
+  if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
+    process.exit(1);
+  }
 });
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[SPINEL] Unhandled Rejection at:', promise, 'reason:', reason);
@@ -2723,75 +2727,40 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
-let viteMounted = false;
-
-const MONITORED_FILES = [
-  path.join(process.cwd(), 'app.js'),
-  path.join(__dirname, 'app.js'),
-  path.join(process.cwd(), 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt'),
-  path.join(process.cwd(), 'client-build', 'index.html'),
-  path.join(process.cwd(), 'dist', 'index.html'),
-  path.join(process.cwd(), 'index.html'),
-  path.join(process.cwd(), 'package.json')
-];
-
-// Record file modification timestamps at boot time
-const initialFileMtimes = new Map<string, number>();
-for (const f of MONITORED_FILES) {
-  if (fs.existsSync(f)) {
-    try {
-      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
-    } catch {}
-  }
-}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
+  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (viteMounted) {
-    return;
-  }
-
-  const isProductionOrCpanel = Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
-
-  if (!isProductionOrCpanel) {
+  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
+  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
   lastRestartCheck = now;
 
-  for (const f of MONITORED_FILES) {
+  const appFiles = [
+    path.join(process.cwd(), 'app.js'),
+    path.join(__dirname, 'app.js'),
+    path.join(process.cwd(), 'server.cjs'),
+    path.join(process.cwd(), 'tmp', 'restart.txt')
+  ];
+
+  for (const f of appFiles) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        const recorded = initialFileMtimes.get(f);
-        
-        // If file was replaced or modified after the process booted
-        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
-          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
-          initialFileMtimes.set(f, stats.mtimeMs);
-          
+        // If file modified after the current process booted (+5s buffer for startup)
+        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
+          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-
-          setTimeout(() => {
-            process.exit(0);
-          }, 100);
+          setTimeout(() => process.exit(0), 100);
           break;
-        } else if (recorded === undefined) {
-          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -2847,7 +2816,6 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2888,7 +2856,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (!viteMounted) {
+    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -2896,12 +2864,18 @@ async function startServer() {
     }
   });
 
+  // Create HTTP server instance for Express & Vite
+  const httpServer = http.createServer(app);
+
   // Mount live Vite middlewares when running in dev environment
-  viteMounted = false;
+  let viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer }
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -2938,15 +2912,36 @@ async function startServer() {
     sendFreshSpaHtml(req, res, next);
   });
 
+  // Attach error handler to prevent unhandled EADDRINUSE crashes and zombie processes
+  httpServer.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[SPINEL] Port or socket ${PORT} is already in use (EADDRINUSE). Exiting cleanly.`);
+      process.exit(1);
+    }
+    console.error('[SPINEL] Fatal HTTP server error:', err);
+    process.exit(1);
+  });
+
+  // Clean shutdown handlers for container restarts
+  const handleShutdown = () => {
+    console.log('[SPINEL] Termination signal received. Closing HTTP server...');
+    httpServer.close(() => {
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(0), 1500).unref();
+  };
+  process.on('SIGTERM', handleShutdown);
+  process.on('SIGINT', handleShutdown);
+
   // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));
   if (isNamedPipeOrSocket) {
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on passenger socket: ${PORT}`);
     });
   } else {
     const portNumber = parseInt(String(PORT), 10);
-    app.listen(portNumber, () => {
+    httpServer.listen(portNumber, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);

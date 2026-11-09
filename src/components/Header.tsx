@@ -439,6 +439,22 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Direct category shortcuts */}
         <button
           type="button"
+          onClick={() => onNavigate('category', 'Enclosures & Housings')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white"
+        >
+          Enclosures &amp; Housings
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('category', 'Public Address (PAGA) System')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
+        >
+          Public Address (PAGA)
+        </button>
+
+        <button
+          type="button"
           onClick={() => onNavigate('category', 'Video Surveillance & Cameras')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
