@@ -41,12 +41,32 @@ Our workflow is dual-configured: whenever it runs, it also automatically publish
 4. Click **Save**.
 5. Your site is live!
 
----
+### Fixing the "Upgrade Required" Error on Your Custom Domain (`spineldistribution.com`)
 
-### Included Fixes in this Release
+If visiting **`https://spineldistribution.com`** shows a black screen with text **`Upgrade Required`**, here is why:
+- Your domain's DNS is currently pointing to **`102.203.116.14`** (an OLITT website builder server).
+- Because the OLITT free plan / trial expired or does not support custom domains without an upgrade, OLITT's server responds with `HTTP 426 Upgrade Required`.
+- Your domain is **not** currently reaching GitHub Pages or your hosting server!
 
-- **Vite Base Path (`base: './'`)**: Configured relative paths so scripts and CSS load seamlessly whether hosted at root or subpath `/<repository-name>/`.
-- **SPA Fallback (`404.html`)**: Automatically generates `dist/404.html` so direct navigation or page refreshes on subroutes (`/cart`, `/catalog`, `/quote`, `/orders`) load properly without 404 errors.
-- **Jekyll Bypassed (`.nojekyll`)**: Added `.nojekyll` so GitHub Pages serves all assets directly without Jekyll processing.
-- **Branch Support**: The workflow triggers on both `main` and `master`, plus supports manual triggering via `workflow_dispatch`.
-- **TypeScript & Applet Stability**: Fixed all TypeScript errors, missing types, and property typos.
+#### How to fix this in your Domain Registrar (Truehost / Namecheap / GoDaddy / Whogohost):
+
+##### If deploying to GitHub Pages:
+1. Log in to where you bought `spineldistribution.com` (your DNS manager).
+2. Delete the old A record pointing to `102.203.116.14`.
+3. Add these **4 A records** for `@` (host apex):
+   - `185.199.108.153`
+   - `185.199.109.153`
+   - `185.199.110.153`
+   - `185.199.111.153`
+4. Add a **CNAME record** for `www`:
+   - Name: `www`
+   - Target: `<your-github-username>.github.io`
+5. In your GitHub repository under **Settings > Pages > Custom domain**, type `spineldistribution.com` and click **Save**.
+6. Check the box **"Enforce HTTPS"**.
+7. Your domain will immediately display the full Spinel Distribution application!
+
+##### If deploying to cPanel:
+1. Find your cPanel server's **Shared IP Address** (displayed on the right-hand panel of your cPanel dashboard).
+2. In your domain DNS manager, change the A record for `spineldistribution.com` from `102.203.116.14` to your cPanel Shared IP address.
+3. In cPanel **Setup Node.js App**, make sure the app root is set to `public_html` with startup file `app.js` and Node `20.x`, then click **Restart**.
+

@@ -24,7 +24,9 @@ function makeCpanelZip() {
     '.htaccess',
     'db_config.json',
     'package.json',
+    'CNAME',
     'cpanel_users_table.sql',
+    'cpanel_quotes_table.sql',
     'cpanel_quote_table.sql',
     'CPANEL_DEPLOYMENT_GUIDE.md'
   ];
