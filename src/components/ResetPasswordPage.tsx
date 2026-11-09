@@ -42,6 +42,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
   const [error, setError] = useState<string>('');
   const [successNotice, setSuccessNotice] = useState<string>('');
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const [devOtpNotice, setDevOtpNotice] = useState<string | undefined>();
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -90,6 +91,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
         return;
       }
 
+      setDevOtpNotice(res.devOtp);
       setSuccessNotice(`A 6-digit verification code has been sent to ${cleanEmail}.`);
       setResendCooldown(25);
       setStep('verify_otp');
@@ -314,8 +316,17 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
               </div>
 
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 mb-5 leading-relaxed">
-                A 6-digit verification code has been sent to your email address <span className="font-bold underline">{email}</span>. Please check your inbox or spam folder.
+                A 6-digit verification code was dispatched from <span className="font-bold">noreply@spineldistribution.com</span> to <span className="font-bold underline">{email}</span>.
               </div>
+
+              {devOtpNotice && (
+                <div className="mb-4 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center justify-between">
+                  <span>Development Verification Code:</span>
+                  <span className="font-mono font-bold tracking-widest text-sm bg-white px-2 py-0.5 rounded border border-blue-300">
+                    {devOtpNotice}
+                  </span>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-3.5 rounded-md text-xs sm:text-sm mb-5 flex items-start gap-2 shadow-2xs">

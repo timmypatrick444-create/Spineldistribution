@@ -705,11 +705,11 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
         </div>
       </div>
       <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-        &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+        Sent automatically from ${senderEmail} &bull; &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
       </div>
     </div>
   `;
-  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes.`;
+  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes. Sent from noreply@spineldistribution.com.`;
   const logs: string[] = [];
 
   const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
@@ -1211,7 +1211,8 @@ app.post('/api/auth/register-initiate', async (req, res) => {
         ? `A 6-digit verification code has been sent to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
@@ -1363,7 +1364,8 @@ app.post('/api/auth/resend-otp', async (req, res) => {
       ? `A fresh 6-digit verification code has been sent to ${cleanEmail}.`
       : `New code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
     email: cleanEmail,
-    emailSent: emailResult.success
+    emailSent: emailResult.success,
+    devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? newOtp : undefined
   });
 });
 
@@ -1427,7 +1429,8 @@ app.post('/api/auth/login', async (req, res) => {
         error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
         pendingVerification: true,
         email: cleanEmail,
-        emailSent: emailResult.success
+        emailSent: emailResult.success,
+        devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
       });
     }
 
@@ -1514,10 +1517,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return res.json({
       success: true,
       message: emailResult.success
-        ? `A 6-digit verification code has been sent to ${cleanEmail}.`
+        ? `A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]', err);
