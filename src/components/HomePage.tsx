@@ -27,49 +27,9 @@ interface HomePageProps {
   onRequestQuote?: (product: Product) => void;
 }
 
-interface HeroSlide {
-  id: number;
-  title: string;
-  subtitle: string;
-  ctaText: string;
-  category: string;
-  subcategory?: string;
-  image: string;
-  accentColor: string;
-}
-
-const HERO_SLIDES: HeroSlide[] = [
+const HERO_SLIDES = [
   {
     id: 1,
-    title: 'Ex Junction Boxes',
-    subtitle: 'Hazardous-area protection, robust enclosures & secure electrical connections',
-    ctaText: 'Explore Ex Junction Boxes',
-    category: 'Enclosures & Housings',
-    subcategory: 'Junction Boxes',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032693/Ex_Junction_Box.png',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 2,
-    title: 'IT Racks & Enclosures',
-    subtitle: 'Secure equipment housing, optimized cable management & efficient airflow',
-    ctaText: 'Explore IT Racks',
-    category: 'Enclosures & Housings',
-    subcategory: 'IT Racks',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032693/IT_Racks.png',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 3,
-    title: 'Explosion-Proof Telephone Systems',
-    subtitle: 'Reliable voice communication, hazardous-area protection & rugged industrial performance',
-    ctaText: 'Explore PAGA Systems',
-    category: 'Public Address (PAGA) System',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1793032692/Ex_Telephone_System.png',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 4,
     title: 'Intelligent Video Surveillance',
     subtitle: 'Ultra low-light Starlight sensors, vehicle classification & facial recognition',
     ctaText: 'Explore Cameras & NVRs',
@@ -78,7 +38,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 5,
+    id: 2,
     title: 'Smart Hybrid Solar Inverters',
     subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
     ctaText: 'Shop Renewable Energy',
@@ -87,7 +47,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 6,
+    id: 3,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
@@ -284,25 +244,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 7. Filter strictly ONLY Enclosures & Housings products and prioritize newly uploaded 011-040 products
+  // 7. Filter strictly ONLY Enclosures & Housings products and randomize for display
   const enclosureProducts = useMemo(() => {
     const pool = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
       return cat === 'enclosures & housings';
     });
 
-    const newBatch = pool.filter(p => {
-      const numMatch = (p.sku || '').match(/-(\d+)$/);
-      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
-      return num >= 11 && num <= 40;
-    });
-    const initialBatch = pool.filter(p => {
-      const numMatch = (p.sku || '').match(/-(\d+)$/);
-      const num = numMatch ? parseInt(numMatch[1], 10) : 0;
-      return num < 11 || num > 40;
-    });
-
-    return [...newBatch, ...initialBatch];
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
   // Eagerly preload all hero slide images into browser cache immediately
@@ -362,7 +311,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div>
               <button
                 type="button"
-                onClick={() => onSelectCategory(slide.category, slide.subcategory)}
+                onClick={() => onSelectCategory(slide.category)}
                 className="bg-[#febd69] hover:bg-[#f3a847] text-[#131921] font-bold px-5 sm:px-6 py-2 sm:py-2.5 rounded shadow-lg text-xs sm:text-sm transition-all transform hover:scale-[1.02] cursor-pointer"
               >
                 {slide.ctaText}

@@ -60,11 +60,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [quotes, setQuotes] = useState<SubmittedQuote[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Master Inventory Filter & Pagination States (100 items per page)
+  // Master Inventory Filter & Pagination States (20 items per page)
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [adminProductsPage, setAdminProductsPage] = useState(1);
-  const ADMIN_PRODUCTS_PER_PAGE = 100;
+  const ADMIN_PRODUCTS_PER_PAGE = 20;
 
   // Edit Product Modal States
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);

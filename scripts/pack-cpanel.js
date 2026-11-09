@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import AdmZip from 'adm-zip';
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
 
 function makeCpanelZip() {
   const zipFilename = 'cpanel-deploy.zip';
@@ -19,14 +19,13 @@ function makeCpanelZip() {
     'server.cjs',
     'dist',
     'client-build',
-    'assets',
     'Images',
     'tmp',
     '.htaccess',
     'db_config.json',
     'package.json',
     'cpanel_users_table.sql',
-    'cpanel_quotes_table.sql',
+    'cpanel_quote_table.sql',
     'CPANEL_DEPLOYMENT_GUIDE.md'
   ];
 

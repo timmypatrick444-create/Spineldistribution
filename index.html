@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background-color: #eaeded; color: #0F1111;">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,61 +10,12 @@
     <meta property="og:description" content="International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and renewable energy." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Prevent stale browser caching on live cPanel deployments -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <!-- Paystack Inline JS for seamless live payment -->
-    <script src="https://js.paystack.co/v1/inline.js" defer></script>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
   </head>
-  <body class="bg-[#eaeded] text-[#0F1111] antialiased" style="background-color: #eaeded; color: #0F1111; margin: 0; padding: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    <div id="root">
-      <!-- Instant branded shell rendered at 0ms before JS bundle mounts; automatically replaced by React createRoot -->
-      <div style="min-height: 100vh; display: flex; flex-direction: column; background-color: #eaeded;">
-        <header style="background-color: #131921; color: #ffffff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #232F3E;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 16px; font-weight: 800; letter-spacing: 0.04em; color: #ffffff;">SPINEL</span>
-            <span style="font-size: 16px; font-weight: 800; letter-spacing: 0.04em; color: #febd69;">DISTRIBUTION</span>
-          </div>
-          <div style="font-size: 12px; color: #cbd5e1; font-weight: 600;">Enterprise Security &amp; Infrastructure</div>
-        </header>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 48px 16px;">
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px 32px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 420px; width: 100%;">
-            <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">SPINEL DISTRIBUTION</div>
-            <div style="font-size: 13px; color: #475569;">Loading enterprise hardware catalog...</div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <body class="bg-[#eaeded] text-[#0F1111] antialiased">
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      (function () {
-        // Clear any stale Service Workers that could trap old assets in the browser
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function (regs) {
-            for (var i = 0; i < regs.length; i++) {
-              regs[i].unregister();
-            }
-          }).catch(function () {});
-        }
-        // When served by Vite dev server in AI Studio, @vite/client is injected in <head>.
-        // When compiled by Vite build, /assets/index.js is already injected in <head>.
-        // When raw repository index.html is served directly by cPanel Apache/LiteSpeed, inject compiled bundle immediately at 0ms.
-        var hasViteClient = !!document.querySelector('script[src*="@vite/client"]') || document.documentElement.innerHTML.indexOf('/@react-refresh') !== -1;
-        var hasCompiledBundle = !!document.querySelector('script[src*="/assets/index"]');
-        if (hasViteClient || hasCompiledBundle) return;
-
-        var bust = Date.now();
-        var css = document.createElement('link');
-        css.rel = 'stylesheet';
-        css.href = '/assets/index.css?v=' + bust;
-        document.head.appendChild(css);
-
-        var js = document.createElement('script');
-        js.type = 'module';
-        js.src = '/assets/index.js?v=' + bust;
-        document.head.appendChild(js);
-      })();
-    </script>
   </body>
 </html>
+

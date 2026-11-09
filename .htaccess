@@ -2,8 +2,6 @@
 # Spinel Distribution - cPanel Production Web Server Configuration
 # =====================================================================
 
-FileETag None
-
 # 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -12,78 +10,24 @@ FileETag None
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Zero-Cache Policy for HTML, JS, CSS, JSON & CSV (Ensures any file uploaded in cPanel File Manager reflects immediately)
+# 2. Prevent Caching of HTML (Ensures live domain always shows newest version)
 <IfModule mod_headers.c>
-  Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
-  Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-  Header unset ETag
-  Header unset Last-Modified
-
-  <FilesMatch "\.(html|htm|json|js|mjs|css|csv|xml|txt)$">
-    Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0"
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
-    Header set Surrogate-Control "no-store"
-    Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
     Header unset ETag
     Header unset Last-Modified
   </FilesMatch>
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|webp)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>
 
-# 3. Smart Asset & Single Page Application (SPA) Routing for cPanel Apache / LiteSpeed
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-
-  # Never rewrite backend API, health check, image/upload routes, or already-resolved dist/client-build paths
-  RewriteRule ^(api|health|Images|images|uploads|dist|client-build)(/|$) - [L]
-
-  # Map any legacy hashed bundle request (e.g. index-BkC2lal8.js) to deterministic /assets/index.js & /assets/index.css
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteRule ^(?:client-build/|dist/)?assets/index-[A-Za-z0-9_-]+\.js$ /assets/index.js [L]
-
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteRule ^(?:client-build/|dist/)?assets/index-[A-Za-z0-9_-]+\.css$ /assets/index.css [L]
-
-  # Resolve /assets/* from root /assets/, /dist/assets/, or /client-build/assets/
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
-  RewriteRule ^assets/(.*)$ /dist/assets/$1 [L]
-
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{DOCUMENT_ROOT}/client-build/assets/$1 -f
-  RewriteRule ^assets/(.*)$ /client-build/assets/$1 [L]
-
-  # Serve compiled production index.html when root / or /index.html is requested statically on Apache/LiteSpeed
-  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
-  RewriteRule ^(index\.html)?$ /dist/index.html [L]
-
-  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
-  RewriteRule ^(index\.html)?$ /client-build/index.html [L]
-
-  # For SPA client-side routes, serve compiled dist/index.html or client-build/index.html
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
-  RewriteRule . /dist/index.html [L]
-
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{DOCUMENT_ROOT}/client-build/index.html -f
-  RewriteRule . /client-build/index.html [L]
-
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
+# 3. Phusion Passenger Configuration
+<IfModule mod_passenger.c>
+  PassengerAppType node
+  PassengerStartupFile app.js
+  PassengerEnabled on
+  PassengerRestartDir tmp
 </IfModule>
-
-# 4. Security: Block Direct HTTP Access to Secrets, Environment & Server Source Files
-<FilesMatch "(^\.env|db_config\.json|config\.json|\.sql$|package\.json|package-lock\.json|server\.(ts|cjs)|app\.js|\.git|tsconfig\.json|vite\.config\.ts|\.log$)">
-  <IfModule mod_authz_core.c>
-    Require all denied
-  </IfModule>
-  <IfModule !mod_authz_core.c>
-    Order allow,deny
-    Deny from all
-  </IfModule>
-</FilesMatch>

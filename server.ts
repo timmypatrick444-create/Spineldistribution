@@ -10,7 +10,6 @@ import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
-import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
@@ -86,42 +85,8 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   }
 }
 
-// Persistent custom uploaded products store on disk
-const customProductsJsonPath = path.join(process.cwd(), 'tmp', 'custom_uploaded_products.json');
-const customProductsTsPath = path.join(process.cwd(), 'src', 'data', 'customUploadedProducts.ts');
-let runtimeCustomProducts: Product[] = [...CUSTOM_UPLOADED_PRODUCTS];
-try {
-  if (fs.existsSync(customProductsJsonPath)) {
-    const savedCustom = JSON.parse(fs.readFileSync(customProductsJsonPath, 'utf8'));
-    if (Array.isArray(savedCustom) && savedCustom.length > 0) {
-      const existingSkus = new Set(runtimeCustomProducts.map(p => p.sku));
-      for (const item of savedCustom) {
-        if (item && item.sku && !existingSkus.has(item.sku)) {
-          runtimeCustomProducts.push(item);
-          existingSkus.add(item.sku);
-        }
-      }
-    }
-  }
-} catch {}
-
-function persistCustomProductsToDisk(customList: Product[]) {
-  try {
-    const tmpDir = path.dirname(customProductsJsonPath);
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    fs.writeFileSync(customProductsJsonPath, JSON.stringify(customList, null, 2), 'utf8');
-  } catch {}
-  try {
-    if (fs.existsSync(path.dirname(customProductsTsPath))) {
-      const tsContent = `import { Product } from '../types';\n\nexport const CUSTOM_UPLOADED_PRODUCTS: Product[] = ${JSON.stringify(customList, null, 2)};\n`;
-      fs.writeFileSync(customProductsTsPath, tsContent, 'utf8');
-    }
-  } catch {}
-}
-
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
-  ...runtimeCustomProducts,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -1052,14 +1017,13 @@ async function markUserAsVerified(email: string): Promise<boolean> {
 // Active admin session tokens in memory
 const activeAdminTokens = new Set<string>();
 
-// Middleware to verify admin token (also accepts valid adm_token_ client tokens across restarts)
+// Middleware to verify admin token
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
-  if (!token || (!activeAdminTokens.has(token) && !token.startsWith('adm_token_'))) {
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  if (!token || !activeAdminTokens.has(token)) {
     return res.status(401).json({ error: 'Unauthorized: Admin access required.' });
   }
-  activeAdminTokens.add(token);
   next();
 }
 
@@ -1915,8 +1879,8 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
   });
 });
 
-// Bulk Product Upload API (Handles thousands of products and persists to disk)
-app.post('/api/products/batch', (req, res) => {
+// Admin Bulk Product Upload API (Handles thousands of products with zero hindrance)
+app.post('/api/products/batch', requireAdmin, (req, res) => {
   const { products } = req.body;
 
   if (!Array.isArray(products) || products.length === 0) {
@@ -1926,7 +1890,6 @@ app.post('/api/products/batch', (req, res) => {
   const startTime = Date.now();
   let added = 0;
   let updated = 0;
-  const categoryBreakdown: Record<string, number> = {};
 
   // Stream/process in loop
   for (const item of products) {
@@ -1944,18 +1907,16 @@ app.post('/api/products/batch', (req, res) => {
       description: String(item.description || item.name || '').trim(),
       priceUSD: typeof item.priceUSD === 'number' ? item.priceUSD : parseFloat(String(item.priceUSD || '0')) || 0,
       stock: typeof item.stock === 'number' ? item.stock : parseInt(String(item.stock || '0'), 10) || 0,
-      images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ['/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg'],
-      rating: typeof item.rating === 'number' ? item.rating : 4.8,
-      reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : 18,
+      images: Array.isArray(item.images) && item.images.length > 0 ? item.images : ['https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80'],
+      rating: typeof item.rating === 'number' ? item.rating : 4.5,
+      reviewCount: typeof item.reviewCount === 'number' ? item.reviewCount : 10,
       specs: item.specs || {},
       features: Array.isArray(item.features) ? item.features : ['Industrial Grade Quality', 'Spinel Guaranteed Warranty'],
       inStock: item.stock !== undefined ? item.stock > 0 : true,
       createdAt: item.createdAt || new Date().toISOString()
     };
 
-    categoryBreakdown[normalizedItem.category] = (categoryBreakdown[normalizedItem.category] || 0) + 1;
-
-    const existingIndex = productCatalog.findIndex(p => (normalizedItem.sku && p.sku === normalizedItem.sku) || (normalizedItem.id && p.id === normalizedItem.id));
+    const existingIndex = productCatalog.findIndex(p => (item.sku && p.sku === item.sku) || (item.id && p.id === item.id));
     if (existingIndex >= 0) {
       const existing = productCatalog[existingIndex];
       productCatalog[existingIndex] = { ...existing, ...normalizedItem, id: existing.id || validId };
@@ -1964,25 +1925,15 @@ app.post('/api/products/batch', (req, res) => {
       productCatalog.unshift(normalizedItem);
       added++;
     }
-
-    const customIdx = runtimeCustomProducts.findIndex(p => (normalizedItem.sku && p.sku === normalizedItem.sku) || (normalizedItem.id && p.id === normalizedItem.id));
-    if (customIdx >= 0) {
-      runtimeCustomProducts[customIdx] = normalizedItem;
-    } else {
-      runtimeCustomProducts.unshift(normalizedItem);
-    }
   }
 
-  persistCustomProductsToDisk(runtimeCustomProducts);
-
   const durationMs = Date.now() - startTime;
-  console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products across ${Object.keys(categoryBreakdown).length} categories in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
+  console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
 
   res.json({
     success: true,
     added,
     updated,
-    categoryBreakdown,
     totalProcessed: products.length,
     newTotalCatalog: productCatalog.length,
     durationMs
@@ -2772,75 +2723,40 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
-let viteMounted = false;
-
-const MONITORED_FILES = [
-  path.join(process.cwd(), 'app.js'),
-  path.join(__dirname, 'app.js'),
-  path.join(process.cwd(), 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt'),
-  path.join(process.cwd(), 'client-build', 'index.html'),
-  path.join(process.cwd(), 'dist', 'index.html'),
-  path.join(process.cwd(), 'index.html'),
-  path.join(process.cwd(), 'package.json')
-];
-
-// Record file modification timestamps at boot time
-const initialFileMtimes = new Map<string, number>();
-for (const f of MONITORED_FILES) {
-  if (fs.existsSync(f)) {
-    try {
-      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
-    } catch {}
-  }
-}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
+  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (viteMounted) {
-    return;
-  }
-
-  const isProductionOrCpanel = Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
-
-  if (!isProductionOrCpanel) {
+  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
+  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
   lastRestartCheck = now;
 
-  for (const f of MONITORED_FILES) {
+  const appFiles = [
+    path.join(process.cwd(), 'app.js'),
+    path.join(__dirname, 'app.js'),
+    path.join(process.cwd(), 'server.cjs'),
+    path.join(process.cwd(), 'tmp', 'restart.txt')
+  ];
+
+  for (const f of appFiles) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        const recorded = initialFileMtimes.get(f);
-        
-        // If file was replaced or modified after the process booted
-        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
-          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
-          initialFileMtimes.set(f, stats.mtimeMs);
-          
+        // If file modified after the current process booted (+5s buffer for startup)
+        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
+          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-
-          setTimeout(() => {
-            process.exit(0);
-          }, 100);
+          setTimeout(() => process.exit(0), 100);
           break;
-        } else if (recorded === undefined) {
-          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -2896,7 +2812,6 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2937,7 +2852,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (!viteMounted) {
+    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -2946,7 +2861,7 @@ async function startServer() {
   });
 
   // Mount live Vite middlewares when running in dev environment
-  viteMounted = false;
+  let viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
