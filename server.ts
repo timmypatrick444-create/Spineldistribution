@@ -63,6 +63,23 @@ app.use('/images', express.static(path.join(process.cwd(), 'client-build', 'Imag
 app.use('/Images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 app.use('/images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 
+// Direct download endpoint for production cPanel deployment zip package
+app.get('/cpanel-deploy.zip', (req, res) => {
+  const zipCandidates = [
+    path.join(process.cwd(), 'cpanel-deploy.zip'),
+    path.join(process.cwd(), 'public', 'cpanel-deploy.zip'),
+    path.join(__dirname, 'cpanel-deploy.zip')
+  ];
+  for (const zPath of zipCandidates) {
+    if (fs.existsSync(zPath)) {
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="cpanel-deploy.zip"');
+      return res.sendFile(zPath);
+    }
+  }
+  res.status(404).send('cpanel-deploy.zip not found');
+});
+
 // Health check & version endpoints for platform monitoring
 const serverBootTime = Date.now();
 app.get('/api/health', (req, res) => {
