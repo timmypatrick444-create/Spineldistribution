@@ -162,7 +162,18 @@ function MainApp() {
     loadProducts();
   }, []);
 
-  // Live auto-updater: detects when files are uploaded to cPanel and automatically refreshes data / page
+  // Clean up any stale ?_v=... query parameters from address bar without reloading
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('_v=')) {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete('_v');
+      const cleanSearch = searchParams.toString();
+      const cleanUrl = window.location.pathname + (cleanSearch ? `?${cleanSearch}` : '') + window.location.hash;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  }, []);
+
+  // Background catalog data sync: refreshes data in memory without any page reload or URL mutation
   useEffect(() => {
     let initialBootTime: number | null = null;
     let initialBuildTs: number | null = null;
@@ -180,23 +191,18 @@ function MainApp() {
             (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 2000) ||
             (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 2000)
           ) {
-            console.log('[Live Auto-Update] Server files updated on cPanel! Refreshing application...');
+            // Silently refresh products in-memory without any URL changes or page reloads
+            initialBootTime = data.serverBootTime;
+            initialBuildTs = data.buildTs;
             loadProducts();
-            const path = window.location.pathname;
-            if (path !== '/checkout' && path !== '/invoice') {
-              const sep = window.location.search ? '&' : '?';
-              window.location.href = window.location.pathname + window.location.search + (window.location.search.includes('_v=') ? '' : `${sep}_v=${Date.now()}`);
-            }
           }
         }
       } catch {}
     };
 
-    const interval = setInterval(checkLiveVersion, 6000);
-    window.addEventListener('focus', checkLiveVersion);
+    const interval = setInterval(checkLiveVersion, 30000);
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', checkLiveVersion);
     };
   }, []);
 

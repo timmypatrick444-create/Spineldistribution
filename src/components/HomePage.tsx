@@ -228,30 +228,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 5. Filter Renewable Energy products and randomize for display
+  // 5. Filter Renewable Energy products (strictly from 'Renewable Energy' category)
   const renewableEnergyProducts = useMemo(() => {
     const renewable = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      const name = (p.name || '').toLowerCase().trim();
-      return (
-        cat === 'renewable energy' ||
-        cat.includes('renewable') ||
-        cat.includes('solar') ||
-        cat.includes('energy') ||
-        sub.includes('inverter') ||
-        sub.includes('battery') ||
-        sub.includes('solar') ||
-        name.includes('inverter') ||
-        name.includes('battery') ||
-        name.includes('solar') ||
-        name.includes('hybrid') ||
-        name.includes('lifepo4')
-      );
+      return cat === 'renewable energy';
     });
-
-    const pool = renewable.length >= 4 ? renewable : safeProducts.filter(p => (p.category || '').toLowerCase().includes('power'));
-    return [...pool].sort(() => 0.5 - Math.random());
+    return renewable;
   }, [safeProducts]);
 
   // 6. Filter Public Address (PAGA) System products and randomize for display
