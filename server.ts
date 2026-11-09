@@ -11,6 +11,8 @@ import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
+import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
+import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
@@ -100,6 +102,8 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
+  ...CUSTOM_UPLOADED_PRODUCTS,
+  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,

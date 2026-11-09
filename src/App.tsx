@@ -24,6 +24,7 @@ import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Product, Order } from './types';
+import { CATEGORIES } from './data/categories';
 import { SEED_PRODUCTS } from './data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './data/uploadedPagaProducts';
@@ -313,6 +314,25 @@ function MainApp() {
 
   // Category selection handler
   const handleSelectCategory = (catName?: string, subcatName?: string) => {
+    // If a subcategory name was passed as catName without subcatName, map it to parent category
+    if (catName && !subcatName) {
+      for (const cat of CATEGORIES) {
+        if (cat.name.toLowerCase() === catName.toLowerCase()) {
+          setSelectedCategory(cat.name);
+          setSelectedSubcategory(undefined);
+          setSearchQuery('');
+          navigateTo('catalog');
+          return;
+        }
+        if (cat.subcategories.some(s => s.toLowerCase() === catName.toLowerCase())) {
+          setSelectedCategory(cat.name);
+          setSelectedSubcategory(catName);
+          setSearchQuery('');
+          navigateTo('catalog');
+          return;
+        }
+      }
+    }
     setSelectedCategory(catName);
     setSelectedSubcategory(subcatName);
     setSearchQuery('');

@@ -41,6 +41,36 @@ interface HeroSlide {
 const HERO_SLIDES: HeroSlide[] = [
   {
     id: 1,
+    title: 'Fiber Optic Cables',
+    subtitle: 'Data transmission, reliable connectivity & fibre networking',
+    ctaText: 'Explore Fiber Optic Cables',
+    category: 'Fiber Optic & Hybrid Cables',
+    subcategory: 'Fiber Outdoor Cables',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226019/Fiber_Optic_Cables.webp',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 2,
+    title: 'Hybrid Composite Cables',
+    subtitle: 'Integrated power and fibre transmission connectivity',
+    ctaText: 'Explore Hybrid Cables',
+    category: 'Fiber Optic & Hybrid Cables',
+    subcategory: 'Hybrid Composite Cables',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/Hybrid_Composite_Cables.webp',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 3,
+    title: 'Enclosures',
+    subtitle: 'Durable equipment protection for industrial and electrical installations',
+    ctaText: 'Explore Enclosures',
+    category: 'Enclosures & Housings',
+    subcategory: 'Equipment Enclosures',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/enclosure.webp',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 4,
     title: 'Ex Junction Boxes',
     subtitle: 'Hazardous-area protection, robust enclosures & secure electrical connections',
     ctaText: 'Explore Ex Junction Boxes',
@@ -50,7 +80,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 2,
+    id: 5,
     title: 'IT Racks & Enclosures',
     subtitle: 'Secure equipment housing, optimized cable management & efficient airflow',
     ctaText: 'Explore IT Racks',
@@ -60,7 +90,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 3,
+    id: 6,
     title: 'Explosion-Proof Telephone Systems',
     subtitle: 'Reliable voice communication, hazardous-area protection & rugged industrial performance',
     ctaText: 'Explore PAGA Systems',
@@ -69,7 +99,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 4,
+    id: 7,
     title: 'Intelligent Video Surveillance',
     subtitle: 'Ultra low-light Starlight sensors, vehicle classification & facial recognition',
     ctaText: 'Explore Cameras & NVRs',
@@ -78,7 +108,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 5,
+    id: 8,
     title: 'Smart Hybrid Solar Inverters',
     subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
     ctaText: 'Shop Renewable Energy',
@@ -87,7 +117,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 6,
+    id: 9,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
