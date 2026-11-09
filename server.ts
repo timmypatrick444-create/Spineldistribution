@@ -2478,12 +2478,12 @@ app.delete('/api/quotes/:id', async (req, res) => {
     return res.status(404).json({ error: 'Quote not found' });
   }
 
-  const pool = getDbPool();
+  const pool = await getOrInitDbPool();
   if (pool) {
     try {
       const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
       if (numericId) {
-        await pool.execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
+        await (pool as any).execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
       }
     } catch (err: any) {
       console.warn('[MySQL] Delete quote error:', err.message);
@@ -2498,11 +2498,11 @@ app.get('/api/db-status', async (req, res) => {
   const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
   const database = process.env.DB_NAME || process.env.MYSQL_DATABASE || '(not configured)';
   const user = process.env.DB_USER || process.env.MYSQL_USER || '(not configured)';
-  const pool = getDbPool();
+  const pool = await getOrInitDbPool();
 
   if (pool && isDbConnected) {
     try {
-      const [rows]: any = await pool.query('SELECT COUNT(*) as count FROM `Request_Quote`');
+      const [rows]: any = await (pool as any).query('SELECT COUNT(*) as count FROM `Request_Quote`');
       const count = Array.isArray(rows) && rows[0]?.count !== undefined ? rows[0].count : 0;
       return res.json({
         connected: true,
@@ -2619,7 +2619,7 @@ app.post(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [result]: any = await pool.execute(
+        const [result]: any = await (pool as any).execute(
           'INSERT INTO `Contact_Inquiry` (`Contact_Person`, `Email`, `Company_Name`, `Phone_Number`, `Subject`, `Message`) VALUES (?, ?, ?, ?, ?, ?)',
           [finalContactPerson, finalEmail, finalCompanyName, finalPhoneNumber, finalSubject, finalMessage]
         );
@@ -2664,7 +2664,7 @@ app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [rows]: any = await pool.query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
+        const [rows]: any = await (pool as any).query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
         if (Array.isArray(rows) && rows.length > 0) {
           return res.json({ success: true, count: rows.length, inquiries: rows });
         }
@@ -2704,9 +2704,9 @@ app.get('/api/proxy-image', async (req, res) => {
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Content-Type', contentType);
+    res.header('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
   } catch (err: any) {
     console.warn('[Proxy Image Error]', err.message);
@@ -2811,12 +2811,14 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
-    res.setHeader('Surrogate-Control', 'no-store');
-    res.removeHeader('ETag');
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+    res.header('Surrogate-Control', 'no-store');
+    if (typeof (res as any).removeHeader === 'function') {
+      (res as any).removeHeader('ETag');
+    }
     return res.status(200).send(latest.content);
   }
   next();

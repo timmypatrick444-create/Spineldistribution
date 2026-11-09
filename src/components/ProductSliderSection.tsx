@@ -133,7 +133,7 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
               ref={scrollContainerRef}
               className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scroll-smooth scrollbar-none py-2 px-1"
             >
-              {products.slice(0, 18).map((prod, idx) => {
+              {products.slice(0, 60).map((prod, idx) => {
                 const isAdded = addedMap[prod.id];
                 const hasPrice = prod.priceUSD && prod.priceUSD > 0;
 
@@ -153,6 +153,15 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
                         alt={prod.name}
                         className="max-h-full max-w-full object-contain group-hover/card:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (!target.dataset.retried && prod.images[0]) {
+                            target.dataset.retried = 'true';
+                            target.src = `/api/proxy-image?url=${encodeURIComponent(prod.images[0])}`;
+                          } else {
+                            target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
+                          }
+                        }}
                       />
                     </div>
 

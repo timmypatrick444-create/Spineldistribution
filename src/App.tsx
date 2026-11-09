@@ -36,13 +36,47 @@ const INITIAL_SEEDED_PRODUCTS: Product[] = [
   ...SEED_PRODUCTS
 ];
 
+// Helper to handle subpath hosting like GitHub Pages (e.g. /repo-name/)
+export function getAppBasePath(): string {
+  if (typeof window === 'undefined') return '';
+  if (window.location.hostname.endsWith('github.io')) {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    if (segments.length > 0) {
+      return '/' + segments[0];
+    }
+  }
+  return '';
+}
+
+export function getNormalizedPath(): string {
+  if (typeof window === 'undefined') return '/';
+  const basePath = getAppBasePath();
+  let path = window.location.pathname;
+  if (basePath && path.startsWith(basePath)) {
+    path = path.slice(basePath.length);
+  }
+  if (!path.startsWith('/')) {
+    path = '/' + path;
+  }
+  if (path.length > 1 && path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+  return path;
+}
+
+export function toFullPath(targetPath: string): string {
+  const basePath = getAppBasePath();
+  if (!basePath) return targetPath;
+  return targetPath === '/' ? `${basePath}/` : `${basePath}${targetPath}`;
+}
+
 function MainApp() {
   const { isAdmin } = useAuth();
 
   // Navigation / View State with initial route detection
   const [currentView, setCurrentView] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
+      const path = getNormalizedPath();
       if (path.startsWith('/product/')) return 'product';
       if (path === '/admin/dashboard' || path === '/admin') return 'admin-dashboard';
       if (path === '/orders') return 'orders';
@@ -68,9 +102,12 @@ function MainApp() {
   const [pendingAuthOtp, setPendingAuthOtp] = useState<string | undefined>();
   const [resetPasswordEmail, setResetPasswordEmail] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/product/')) {
-      const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
-      return INITIAL_SEEDED_PRODUCTS.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase()) || null;
+    if (typeof window !== 'undefined') {
+      const path = getNormalizedPath();
+      if (path.startsWith('/product/')) {
+        const prodId = decodeURIComponent(path.replace('/product/', '')).trim();
+        return INITIAL_SEEDED_PRODUCTS.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase()) || null;
+      }
     }
     return null;
   });
@@ -105,8 +142,9 @@ function MainApp() {
           : [];
         if (productList.length > 0) {
           setProducts(productList);
-          if (window.location.pathname.startsWith('/product/')) {
-            const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
+          const path = getNormalizedPath();
+          if (path.startsWith('/product/')) {
+            const prodId = decodeURIComponent(path.replace('/product/', '')).trim();
             const found = productList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
             if (found) {
               setSelectedProduct(found);
@@ -128,7 +166,7 @@ function MainApp() {
   // Sync with browser URL path (e.g. /product/:id, /orders, /cart, /admin)
   useEffect(() => {
     const handleLocation = () => {
-      const path = window.location.pathname;
+      const path = getNormalizedPath();
       if (path.startsWith('/product/')) {
         const prodId = decodeURIComponent(path.replace('/product/', '')).trim();
         if (prodId) {
@@ -217,8 +255,9 @@ function MainApp() {
       targetPath = prodId ? `/product/${encodeURIComponent(prodId)}` : '/';
     }
 
-    if (window.location.pathname !== targetPath) {
-      window.history.pushState({}, '', targetPath);
+    const fullTargetPath = toFullPath(targetPath);
+    if (window.location.pathname !== fullTargetPath) {
+      window.history.pushState({}, '', fullTargetPath);
     }
   };
 

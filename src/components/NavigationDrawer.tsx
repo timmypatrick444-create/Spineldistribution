@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, User, ArrowLeft } from 'lucide-react';
+import { X, ChevronRight, User, ArrowLeft, Home } from 'lucide-react';
 import { CATEGORIES } from '../data/categories';
 import { useAuth } from '../context/AuthContext';
 import { CategoryDefinition } from '../types';
@@ -106,7 +106,24 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
           ) : (
             /* Main Menu View */
             <div className="py-2">
-              <div className="px-6 py-2 font-bold text-gray-900 text-base uppercase tracking-wider text-xs">
+              {/* Home Page Navigation */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCategory(null);
+                  onNavigate('home');
+                  onClose();
+                }}
+                className="w-full text-left px-6 py-3 font-semibold text-gray-900 hover:bg-amber-50 hover:text-amber-800 flex items-center justify-between transition-colors border-b border-gray-100 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Home size={18} className="text-amber-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-bold text-gray-900 group-hover:text-amber-800">Home</span>
+                </div>
+                <ChevronRight size={16} className="text-gray-400 group-hover:text-amber-600" />
+              </button>
+
+              <div className="px-6 pt-3 pb-2 font-bold text-gray-900 uppercase tracking-wider text-xs">
                 Shop By Category
               </div>
 
