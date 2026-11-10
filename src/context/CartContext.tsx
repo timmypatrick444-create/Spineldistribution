@@ -19,17 +19,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('spinel_cart');
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter(
-        (item: any) =>
-          item &&
-          typeof item === 'object' &&
-          item.product &&
-          typeof item.product === 'object' &&
-          typeof item.product.id === 'string'
-      );
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -46,13 +36,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [cart]);
 
   const addToCart = (product: Product, quantity = 1) => {
-    if (!product || !product.id) return;
     setCart(prev => {
-      const existing = prev.find(item => item?.product?.id === product.id);
+      const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         return prev.map(item =>
-          item?.product?.id === product.id
-            ? { ...item, quantity: (Number(item.quantity) || 0) + quantity }
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
@@ -61,7 +50,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item?.product?.id !== productId));
+    setCart(prev => prev.filter(item => item.product.id !== productId));
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -71,7 +60,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setCart(prev =>
       prev.map(item =>
-        item?.product?.id === productId ? { ...item, quantity } : item
+        item.product.id === productId ? { ...item, quantity } : item
       )
     );
   };
@@ -80,11 +69,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCart([]);
   };
 
-  const totalItemsCount = cart.reduce((total, item) => total + (Number(item?.quantity) || 0), 0);
-  const subtotalUSD = cart.reduce(
-    (total, item) => total + (Number(item?.product?.priceUSD) || 0) * (Number(item?.quantity) || 0),
-    0
-  );
+  const totalItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const subtotalUSD = cart.reduce((total, item) => total + item.product.priceUSD * item.quantity, 0);
   const subtotalNGN = convertToNGN(subtotalUSD);
 
   return (

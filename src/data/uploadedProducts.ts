@@ -14998,7 +14998,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
   },
   {
     id: "prod-pelco-slspcil-1001",
-    sku: "PELCO-SLSPCIL-1001",
+    sku: "SLSPCIL-1001",
     name: "Pelco SLSPCIL-1001 In-Ceiling Mount for 6.1-Inch (156mm) Dome Cameras",
     description: "SLSPCIL-1001. In-ceiling mount for 6.1\" (156mm) Dome camera. Flush recessed in-ceiling mounting kit designed for 6.1-inch (156mm) diameter fixed and PTZ dome cameras.",
     priceUSD: 39.6,
@@ -24268,7 +24268,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
   },
   {
     id: "prod-net-poe60u-1bte-2",
-    sku: "POE60U-1BTE-INJ",
+    sku: "POE60U-1BTE",
     name: "Phihong POE60U-1BTE Indoor Single Port Gigabit 60W IEEE 802.3bt PoE Midspan Injector",
     description: "POE60U-1BTE. Gigabit 802.3bt 60 W PoE Injector; Indoor; single port. Enterprise single-port PoE injector supplying 60W over standard Ethernet cabling.",
     priceUSD: 223.02,
@@ -24300,7 +24300,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
   },
   {
     id: "prod-net-poe90u-1bt-2",
-    sku: "POE90U-1BT-COMM",
+    sku: "POE90U-1BT",
     name: "Phihong POE90U-1BT Single Port 90W 802.3bt Ultra PoE Injector (Commercial)",
     description: "POE90U-1BT. PoE injector 802.3bt 90W Single Port. High-capacity 90-watt 802.3bt PoE injector with auto-sensing Gigabit Ethernet.",
     priceUSD: 359.96,
@@ -24396,7 +24396,7 @@ export const UPLOADED_RENEWABLE_ENERGY_PRODUCTS: Product[] = [
   },
   {
     id: "prod-net-poea30u-na-2",
-    sku: "POEA30U-1ATE-M-R-NA-MSI-REVB",
+    sku: "POEA30U-1ATE-M-R-NA-MSI",
     name: "Microsemi POEA30U-1ATE-M-R-NA-MSI 30W Gigabit PoE+ Injector (North American Cord, Rev B)",
     description: "POEA30U-1ATE-M-R-NA-MSI. PoE+ Single port injector 30W with North American power cord. Standard single-port Gigabit PoE+ power injector delivering 30 Watts of regulated 56V DC power.",
     priceUSD: 124.81,

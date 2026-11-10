@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [adminToken]);
 
-  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }> => {
+  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
