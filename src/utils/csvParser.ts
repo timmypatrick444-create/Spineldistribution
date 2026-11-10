@@ -11,6 +11,7 @@ export interface RawProductRow {
   desc?: string;
   price?: string | number;
   priceUSD?: string | number;
+  priceusd?: string | number;
   'price(usd)'?: string | number;
   category?: string;
   subcategory?: string;
@@ -21,6 +22,7 @@ export interface RawProductRow {
   images?: string;
   image?: string;
   specs?: string;
+  features?: string;
   isChoice?: string | boolean;
   [key: string]: any;
 }
@@ -42,14 +44,21 @@ const CATEGORY_IMAGE_MAP: Record<string, string> = {
   'Lighting & Visual Deterrence': 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
   'Telecommunication & Communication Equipment': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
   'Accessories & Replacement Parts': 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80',
-  'Renewable Energy': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'
+  'Renewable Energy': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+  'Fiber Optic & Hybrid Cables': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80'
 };
 
 // Intelligently assign/infer brand of each product from name, SKU, category and description
 export function inferBrand(name: string, sku: string, category: string, subcategory: string, description: string): string {
   const text = `${name} ${sku} ${description}`.toLowerCase();
   
-  if (text.includes('axis') || sku.toUpperCase().startsWith('AXIS')) return 'Axis Communications';
+  if (text.includes('crouse-hinds') || text.includes('crouse hinds') || text.includes('ceag') || text.includes('hernis') || text.includes('oxalis') || text.includes('medc') || text.includes('fhf')) return 'Eaton Crouse-Hinds';
+  if (text.includes('tripp lite') || text.includes('smartrack')) return 'Eaton Tripp Lite';
+  if (text.includes('b-line') || text.includes('b line')) return 'Eaton B-Line';
+  if (text.includes('eaton')) return 'Eaton';
+  if (text.includes('axis') || sku.toUpperCase().startsWith('AXIS') || sku.toUpperCase().startsWith('AX-')) return 'Axis Communications';
+  if (text.includes('pelco')) return 'Pelco';
+  if (text.includes('2n ') || sku.toUpperCase().startsWith('2N')) return '2N';
   if (text.includes('hikvision') || sku.toUpperCase().includes('DS-2CD') || sku.toUpperCase().includes('DS-7')) return 'Hikvision';
   if (text.includes('dahua') || sku.toUpperCase().includes('IPC-H') || sku.toUpperCase().includes('NVR5')) return 'Dahua Technology';
   if (text.includes('hanwha') || text.includes('wisenet') || sku.toUpperCase().startsWith('XNV')) return 'Hanwha Vision';
@@ -61,6 +70,8 @@ export function inferBrand(name: string, sku: string, category: string, subcateg
   if (text.includes('bosch') || text.includes('flexidome') || text.includes('autodome')) return 'Bosch Security Systems';
   if (text.includes('honeywell') || text.includes('pro-watch')) return 'Honeywell Security';
   if (text.includes('victron') || text.includes('multiplus') || text.includes('smartsolar')) return 'Victron Energy';
+  if (text.includes('infinisolar')) return 'InfiniSolar';
+  if (text.includes('gennex')) return 'Gennex';
   if (text.includes('suprema') || text.includes('biostation') || text.includes('facestation')) return 'Suprema';
   if (text.includes('hid') || text.includes('iclass') || text.includes('signo')) return 'HID Global';
   if (text.includes('seagate') || text.includes('skyhawk')) return 'Seagate Technology';
@@ -69,7 +80,6 @@ export function inferBrand(name: string, sku: string, category: string, subcateg
   if (text.includes('uniview') || text.includes('unv')) return 'Uniview';
   if (text.includes('tp-link') || text.includes('omada')) return 'TP-Link Omada';
   if (text.includes('milestone') || text.includes('xprotect')) return 'Milestone Systems';
-  if (text.includes('eaton')) return 'Eaton Power';
   if (text.includes('cyberpower')) return 'CyberPower Systems';
   if (text.includes('huawei')) return 'Huawei Enterprise';
 
@@ -80,38 +90,96 @@ export function inferBrand(name: string, sku: string, category: string, subcateg
   if (category.includes('Access Control')) return 'Spinel Access Technologies';
   if (category.includes('Networking') || category.includes('Telecommunication')) return 'Spinel Networks';
   if (category.includes('Public Address')) return 'Spinel Acoustics & PAGA';
+  if (category.includes('Enclosures')) return 'Eaton Crouse-Hinds';
 
   return 'Spinel Distribution';
 }
 
-// Normalize category name against predefined list
-export function matchCategory(rawCat?: string): { category: string; subcategory: string } {
-  if (!rawCat) {
-    return {
-      category: 'Video Surveillance & Cameras',
-      subcategory: 'Network Cameras'
-    };
-  }
+// Normalize category name against predefined list of 16 categories
+export function matchCategory(rawCat?: string, rawSub?: string, name?: string, sheetName?: string): { category: string; subcategory: string } {
+  const candidates = [rawCat, sheetName, rawSub].filter(Boolean).map(s => String(s).trim());
 
-  const clean = rawCat.trim().toLowerCase();
-  
-  // Direct category match
-  for (const cat of CATEGORIES) {
-    if (cat.name.toLowerCase() === clean || cat.slug === clean) {
-      return { category: cat.name, subcategory: cat.subcategories[0] || 'General' };
-    }
-    // Check if user specified a subcategory directly in category field
-    for (const sub of cat.subcategories) {
-      if (sub.toLowerCase() === clean) {
-        return { category: cat.name, subcategory: sub };
+  for (const candidate of candidates) {
+    const clean = candidate.toLowerCase();
+    // 1. Exact category or slug match
+    for (const cat of CATEGORIES) {
+      if (cat.name.toLowerCase() === clean || cat.slug === clean) {
+        return { category: cat.name, subcategory: cat.subcategories[0] || 'General' };
+      }
+      // 2. Exact subcategory match
+      for (const sub of cat.subcategories) {
+        if (sub.toLowerCase() === clean) {
+          return { category: cat.name, subcategory: sub };
+        }
       }
     }
-  }
 
-  // Partial match
-  for (const cat of CATEGORIES) {
-    if (cat.name.toLowerCase().includes(clean) || clean.includes(cat.name.toLowerCase())) {
-      return { category: cat.name, subcategory: cat.subcategories[0] || 'General' };
+    // 3. Partial or keyword match on category candidate
+    for (const cat of CATEGORIES) {
+      if (cat.name.toLowerCase().includes(clean) || clean.includes(cat.name.toLowerCase())) {
+        return { category: cat.name, subcategory: cat.subcategories[0] || 'General' };
+      }
+      for (const sub of cat.subcategories) {
+        if (sub.toLowerCase().includes(clean) || clean.includes(sub.toLowerCase())) {
+          return { category: cat.name, subcategory: sub };
+        }
+      }
+    }
+
+    // 4. Keyword aliases
+    if (clean.includes('enclosure') || clean.includes('housing') || clean.includes('junction box') || clean.includes('it rack')) {
+      return { category: 'Enclosures & Housings', subcategory: 'Equipment Enclosures' };
+    }
+    if (clean.includes('paga') || clean.includes('public address') || clean.includes('speaker') || clean.includes('sounder') || clean.includes('horn')) {
+      return { category: 'Public Address (PAGA) System', subcategory: 'Public Address Systems' };
+    }
+    if (clean.includes('renewable') || clean.includes('solar') || clean.includes('inverter') || clean.includes('lifepo4')) {
+      return { category: 'Renewable Energy', subcategory: 'Smart Hybrid Inverters' };
+    }
+    if (clean.includes('hybrid cable') || clean.includes('hybrid composite')) {
+      return { category: 'Fiber Optic & Hybrid Cables', subcategory: 'Hybrid Composite Cables' };
+    }
+    if (clean.includes('fiber optic') || clean.includes('outdoor fiber') || clean.includes('fiber cable') || clean.includes('optical fiber')) {
+      return { category: 'Fiber Optic & Hybrid Cables', subcategory: 'Fiber Outdoor Cables' };
+    }
+    if (clean.includes('power') || clean.includes('electrical') || clean.includes('ups') || clean.includes('pdu') || clean.includes('power supply')) {
+      return { category: 'Power & Electrical Systems', subcategory: 'Power Supplies' };
+    }
+    if (clean.includes('storage') || clean.includes('hard drive') || clean.includes('hdd') || clean.includes('nas') || clean.includes('san')) {
+      return { category: 'Storage & Data Infrastructure', subcategory: 'Network Storage' };
+    }
+    if (clean.includes('software') || clean.includes('license')) {
+      return { category: 'Security Software & Licenses', subcategory: 'Software Licenses' };
+    }
+    if (clean.includes('sensor') || clean.includes('detection') || clean.includes('radar') || clean.includes('pir')) {
+      return { category: 'Security Sensors & Detection', subcategory: 'Motion Sensors' };
+    }
+    if (clean.includes('network') || clean.includes('switch') || clean.includes('router') || clean.includes('wi-fi') || clean.includes('wifi')) {
+      return { category: 'Networking & Connectivity', subcategory: 'Network Switches' };
+    }
+    if (clean.includes('intercom') || clean.includes('ip phone') || clean.includes('door station')) {
+      return { category: 'Intercom & IP Communication', subcategory: 'IP Intercoms' };
+    }
+    if (clean.includes('access control') || clean.includes('biometric') || clean.includes('reader') || clean.includes('credential') || clean.includes('lock')) {
+      return { category: 'Access Control & Door Security', subcategory: 'Access Control Readers' };
+    }
+    if (clean.includes('nvr') || clean.includes('vms') || clean.includes('video management') || clean.includes('recording') || clean.includes('encoder') || clean.includes('decoder')) {
+      return { category: 'Video Management & Recording', subcategory: 'Network Video Recorders (NVR)' };
+    }
+    if (clean.includes('mount') || clean.includes('bracket') || clean.includes('pendant')) {
+      return { category: 'Mounting & Surveillance Accessories', subcategory: 'Camera Mounts' };
+    }
+    if (clean.includes('light') || clean.includes('illuminator') || clean.includes('deterrence') || clean.includes('strobe')) {
+      return { category: 'Lighting & Visual Deterrence', subcategory: 'Security Lighting' };
+    }
+    if (clean.includes('telecom') || clean.includes('microwave') || clean.includes('uhf') || clean.includes('vhf') || clean.includes('satellite') || clean.includes('radio')) {
+      return { category: 'Telecommunication & Communication Equipment', subcategory: 'Wireless Communication' };
+    }
+    if (clean.includes('replacement') || clean.includes('spare part') || clean.includes('upgrade kit') || clean.includes('accessory') || clean.includes('accessories')) {
+      return { category: 'Accessories & Replacement Parts', subcategory: 'Replacement Parts' };
+    }
+    if (clean.includes('camera') || clean.includes('surveillance') || clean.includes('ptz') || clean.includes('dome') || clean.includes('bullet') || clean.includes('thermal')) {
+      return { category: 'Video Surveillance & Cameras', subcategory: 'Network Cameras' };
     }
   }
 
@@ -125,29 +193,41 @@ export function matchSubcategory(categoryName: string, rawSub?: string): string 
   const cat = CATEGORIES.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
   if (!cat) return rawSub || 'General';
 
-  if (!rawSub) return cat.subcategories[0] || 'General';
+  if (!rawSub || !String(rawSub).trim()) return cat.subcategories[0] || 'General';
 
-  const clean = rawSub.trim().toLowerCase();
+  const clean = String(rawSub).trim().toLowerCase();
   for (const sub of cat.subcategories) {
-    if (sub.toLowerCase() === clean || sub.toLowerCase().includes(clean) || clean.includes(sub.toLowerCase())) {
+    if (sub.toLowerCase() === clean) {
+      return sub;
+    }
+  }
+  for (const sub of cat.subcategories) {
+    if (sub.toLowerCase().includes(clean) || clean.includes(sub.toLowerCase())) {
       return sub;
     }
   }
 
-  return cat.subcategories[0] || rawSub;
+  return String(rawSub).trim();
 }
 
 // Convert a single raw object into a validated Product object
-export function convertRowToProduct(row: RawProductRow, index: number): Product {
-  const name = String(row.name || row.title || `Enterprise Hardware Item #${index + 1}`).trim();
-  const matched = matchCategory(row.category);
+export function convertRowToProduct(row: RawProductRow, index: number, sheetName?: string): Product {
+  const rawName = row.name || row.productname || row.title || row.item || row.model || '';
+  const name = String(rawName || `Enterprise Hardware Item #${index + 1}`).trim();
+  const rawCat = row.category || row.department || row.group;
+  const rawSub = row.subcategory || row.sub || row.type;
+  const matched = matchCategory(rawCat, rawSub, name, sheetName);
   const category = matched.category;
-  const subcategory = matchSubcategory(category, row.subcategory || matched.subcategory);
+  const subcategory = matchSubcategory(category, rawSub || matched.subcategory);
   
   // Price handling: support products with price and products without price (RFQ quote required)
   const rawPrice = row.priceUSD !== undefined 
     ? row.priceUSD 
-    : (row.price !== undefined ? row.price : (row['price(usd)'] !== undefined ? row['price(usd)'] : row['priceusd']));
+    : (row.priceusd !== undefined 
+      ? row.priceusd 
+      : (row.price !== undefined 
+        ? row.price 
+        : (row['price(usd)'] !== undefined ? row['price(usd)'] : row.unitprice)));
   
   let priceUSD = 0;
   if (rawPrice !== undefined && rawPrice !== null && String(rawPrice).trim() !== '') {
@@ -157,12 +237,14 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
     }
   }
 
-  const rawStock = row.stock || row['stockquantity'] || row.qty;
-  let stock = typeof rawStock === 'number' ? rawStock : parseInt(String(rawStock || '50').replace(/[^0-9]/g, ''), 10);
-  if (isNaN(stock) || stock < 0) stock = 25;
+  const rawStock = row.stock ?? row.stockquantity ?? row.qty ?? row.quantity;
+  let stock = typeof rawStock === 'number' ? rawStock : parseInt(String(rawStock ?? '50').replace(/[^0-9]/g, ''), 10);
+  if (isNaN(stock) || stock < 0) stock = 50;
 
-  const sku = String(row.sku || `SPN-${category.slice(0, 3).toUpperCase()}-${Date.now().toString(36).slice(-4).toUpperCase()}-${index + 1}`).trim();
-  const description = String(row.description || row.desc || `${name}. High reliability industrial solution supplied by Spinel Distribution.`).trim();
+  const rawSku = row.sku || row.partnumber || row.partno || row.modelnumber || row.code;
+  const sku = String(rawSku || `SPN-${category.slice(0, 3).toUpperCase()}-${Date.now().toString(36).slice(-4).toUpperCase()}-${index + 1}`).trim();
+  const rawDesc = row.description || row.desc || row.details || row.summary;
+  const description = String(rawDesc || `${name}. High reliability industrial solution supplied by Spinel Distribution.`).trim();
   
   // Brand is automatically assigned and displayed
   const brand = row.brand && String(row.brand).trim().length > 0 && String(row.brand).trim().toLowerCase() !== 'undefined'
@@ -171,34 +253,25 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
 
   // Images parse
   let images: string[] = [];
-  const rawImages = row.images || row.image || row['imageurl'];
+  const rawImages = row.images || row.image || row.imageurl || row.img || row.photo || row.picture;
   if (typeof rawImages === 'string' && rawImages.trim()) {
-    images = rawImages.split(/[,;|]/).map(s => s.trim()).filter(s => s.startsWith('http'));
+    images = rawImages.split(/[,;|]/).map(s => s.trim()).filter(s => s.startsWith('http') || s.startsWith('/'));
   }
   if (images.length === 0) {
     images = [CATEGORY_IMAGE_MAP[category] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=800&q=80'];
   }
 
   // Parse specs if available as json string or key:value;
-  const specs: Record<string, string> = {
-    'Brand': brand,
-    'Model / SKU': sku,
-    'Condition': 'New - Factory Sealed Enterprise Pack',
-    'Warranty': '3 Years Spinel Distribution Replacement Warranty'
-  };
+  const specs: Record<string, string> = {};
+  const features: string[] = [];
 
-  const features: string[] = [
-    'Official Spinel Distribution certified equipment',
-    'Engineered for 24/7 mission-critical operations',
-    'Compliance with international safety & cybersecurity standards'
-  ];
-
-  if (row.specs && typeof row.specs === 'string') {
+  const rawSpecs = row.specs || row.specifications || row.specification || row.features;
+  if (rawSpecs && typeof rawSpecs === 'string') {
     try {
-      if (row.specs.startsWith('{')) {
-        Object.assign(specs, JSON.parse(row.specs));
+      if (rawSpecs.trim().startsWith('{')) {
+        Object.assign(specs, JSON.parse(rawSpecs.trim()));
       } else {
-        const parts = row.specs.split(';');
+        const parts = rawSpecs.split(';');
         let specIndex = 1;
         for (const p of parts) {
           const trimmed = p.trim();
@@ -207,10 +280,10 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
             const [k, ...rest] = trimmed.split(':');
             if (k && rest.length > 0) specs[k.trim()] = rest.join(':').trim();
           } else {
-            specs[`Spec_${specIndex}`] = trimmed;
+            specs[`Specification ${specIndex}`] = trimmed;
             specIndex++;
           }
-          if (features.length < 6) {
+          if (features.length < 8) {
             features.push(trimmed);
           }
         }
@@ -220,10 +293,26 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
     }
   }
 
-  const isChoice = row.isChoice === true || String(row.isChoice).toLowerCase() === 'true';
+  if (Object.keys(specs).length === 0) {
+    specs['Brand'] = brand;
+    specs['Model / SKU'] = sku;
+    specs['Category'] = `${category} — ${subcategory}`;
+    specs['Condition'] = 'New - Factory Sealed Enterprise Pack';
+  }
+
+  if (features.length === 0) {
+    features.push(
+      `Official ${brand} Industrial & Enterprise Grade Hardware`,
+      'Engineered for 24/7 Mission-Critical Operations',
+      'Spinel Distribution Authorized Partner Warranty & Support'
+    );
+  }
+
+  const isChoice = row.isChoice === true || String(row.isChoice || row.ischoice).toLowerCase() === 'true';
+  const cleanSkuId = sku.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   return {
-    id: `prod-bulk-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}-${index}`,
+    id: `prod-${cleanSkuId || `${Date.now().toString(36)}-${index}`}`,
     sku,
     name,
     description,
@@ -231,14 +320,15 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
     category,
     subcategory,
     brand,
-    rating: parseFloat((4.6 + (Math.random() * 0.4)).toFixed(1)),
-    reviewCount: Math.floor(25 + Math.random() * 350),
+    rating: parseFloat((4.7 + ((index % 4) * 0.1)).toFixed(1)),
+    reviewCount: 18 + ((index * 7) % 65),
     stock,
     images,
     specs,
     features,
-    isChoice: isChoice ?? (index % 4 === 0),
-    featured: index % 5 === 0,
+    isChoice: isChoice || (index % 3 === 0),
+    isBestSeller: index % 4 === 0,
+    featured: true,
     createdAt: new Date().toISOString()
   };
 }
@@ -246,24 +336,30 @@ export function convertRowToProduct(row: RawProductRow, index: number): Product 
 // Parse CSV text string (handles thousands of lines safely)
 export function parseCSVString(csvContent: string): { products: Product[]; stats: BulkUploadStats } {
   const startTime = Date.now();
-  const parsed = Papa.parse<RawProductRow>(csvContent, {
+  const parsed = Papa.parse<Record<string, any>>(csvContent, {
     header: true,
     skipEmptyLines: 'greedy',
-    dynamicTyping: true,
-    transformHeader: (h) => h.trim().toLowerCase().replace(/[\s_-]+/g, '')
+    dynamicTyping: false
   });
 
   const products: Product[] = [];
   const errors: Array<{ row: number; reason: string }> = [];
   const categoriesCount: Record<string, number> = {};
 
-  parsed.data.forEach((row, idx) => {
+  parsed.data.forEach((rawRow, idx) => {
     try {
-      // Look for title or name or sku
-      const hasContent = Object.values(row).some(v => v !== null && v !== undefined && String(v).trim().length > 0);
-      if (!hasContent) return;
+      const normalizedRow: RawProductRow = {};
+      for (const [k, v] of Object.entries(rawRow || {})) {
+        const cleanKey = k.trim().toLowerCase().replace(/[\s_-]+/g, '');
+        if (cleanKey && v !== null && v !== undefined && String(v).trim() !== '') {
+          normalizedRow[cleanKey] = v;
+        }
+      }
 
-      const product = convertRowToProduct(row, idx);
+      const hasKeyContent = Boolean(normalizedRow.sku || normalizedRow.name || normalizedRow.productname || normalizedRow.title || normalizedRow.model);
+      if (!hasKeyContent) return;
+
+      const product = convertRowToProduct(normalizedRow, idx);
       products.push(product);
       categoriesCount[product.category] = (categoriesCount[product.category] || 0) + 1;
     } catch (err: any) {
@@ -283,36 +379,46 @@ export function parseCSVString(csvContent: string): { products: Product[]; stats
   return { products, stats };
 }
 
-// Parse Excel ArrayBuffer / binary (.xlsx or .xls)
+// Parse Excel ArrayBuffer / binary (.xlsx or .xls) across ALL sheets in the workbook
 export function parseExcelBuffer(buffer: ArrayBuffer): { products: Product[]; stats: BulkUploadStats } {
   const startTime = Date.now();
   const workbook = XLSX.read(buffer, { type: 'array' });
-  const firstSheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[firstSheetName];
-  const rawRows = XLSX.utils.sheet_to_json<RawProductRow>(worksheet, { defval: '' });
 
   const products: Product[] = [];
   const errors: Array<{ row: number; reason: string }> = [];
   const categoriesCount: Record<string, number> = {};
+  let totalRows = 0;
 
-  rawRows.forEach((row, idx) => {
-    try {
-      const normalizedRow: RawProductRow = {};
-      for (const [k, v] of Object.entries(row)) {
-        const cleanKey = k.trim().toLowerCase().replace(/[\s_-]+/g, '');
-        normalizedRow[cleanKey] = v;
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) continue;
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+    totalRows += rawRows.length;
+
+    rawRows.forEach((row, idx) => {
+      try {
+        const normalizedRow: RawProductRow = {};
+        for (const [k, v] of Object.entries(row || {})) {
+          const cleanKey = k.trim().toLowerCase().replace(/[\s_-]+/g, '');
+          if (cleanKey && v !== null && v !== undefined && String(v).trim() !== '') {
+            normalizedRow[cleanKey] = v;
+          }
+        }
+
+        const hasKeyContent = Boolean(normalizedRow.sku || normalizedRow.name || normalizedRow.productname || normalizedRow.title || normalizedRow.model);
+        if (!hasKeyContent) return;
+
+        const product = convertRowToProduct(normalizedRow, products.length, sheetName);
+        products.push(product);
+        categoriesCount[product.category] = (categoriesCount[product.category] || 0) + 1;
+      } catch (err: any) {
+        errors.push({ row: idx + 2, reason: err?.message || 'Failed to parse row' });
       }
-
-      const product = convertRowToProduct(normalizedRow, idx);
-      products.push(product);
-      categoriesCount[product.category] = (categoriesCount[product.category] || 0) + 1;
-    } catch (err: any) {
-      errors.push({ row: idx + 2, reason: err?.message || 'Failed to parse row' });
-    }
-  });
+    });
+  }
 
   const stats: BulkUploadStats = {
-    totalProcessed: rawRows.length,
+    totalProcessed: totalRows,
     successful: products.length,
     failed: errors.length,
     errors,
@@ -325,7 +431,8 @@ export function parseExcelBuffer(buffer: ArrayBuffer): { products: Product[]; st
 
 // Convenience wrapper to parse either CSV or Excel File object
 export async function parseProductsFile(file: File): Promise<Product[]> {
-  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+  const lower = file.name.toLowerCase();
+  const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls');
 
   if (isExcel) {
     const buffer = await file.arrayBuffer();
@@ -361,15 +468,14 @@ export function downloadSampleCSVFile(): void {
 // Generate sample downloadable CSV template
 export function generateSampleCSV(): string {
   const sampleRows = CATEGORIES.map((cat, i) => {
-    // Alternate to showcase products with price and products without price (Quote required)
     const hasPrice = i % 2 === 0;
-    const priceUSD = hasPrice ? (120 + i * 45).toFixed(2) : ''; // Empty means Quote / RFQ required
+    const priceUSD = hasPrice ? (120 + i * 45).toFixed(2) : '';
 
     return {
       sku: `SPN-${cat.slug.slice(0, 4).toUpperCase()}-${100 + i}`,
       name: `Spinel ${cat.subcategories[0]} Model ${2026 + i}`,
       description: `Enterprise-grade ${cat.subcategories[0]} for mission-critical industrial applications. Handled by Spinel Distribution.`,
-      priceUSD: priceUSD, // Leave blank or 0 for Quote Request (RFQ)
+      priceUSD: priceUSD,
       category: cat.name,
       subcategory: cat.subcategories[0],
       stock: 100,

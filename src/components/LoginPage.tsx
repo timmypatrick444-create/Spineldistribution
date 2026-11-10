@@ -16,7 +16,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [forgotModalOpen, setForgotModalOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +132,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
                 </label>
                 <button
                   type="button"
-                  onClick={() => setForgotModalOpen(true)}
+                  onClick={() => onNavigate('reset-password', email ? email.trim() : undefined)}
                   className="text-xs text-blue-700 hover:text-blue-900 hover:underline font-medium cursor-pointer"
                 >
                   Forgot password?
@@ -196,8 +195,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
           {/* Legal / Policy terms */}
           <p className="text-[11px] text-gray-500 mt-5 leading-relaxed text-center">
             By signing in, you agree to Spinel Distribution's{' '}
-            <span className="text-blue-700 hover:underline cursor-pointer">Conditions of Use</span> and{' '}
-            <span className="text-blue-700 hover:underline cursor-pointer">Privacy Notice</span>.
+            <button
+              type="button"
+              onClick={() => onNavigate('terms-of-use')}
+              className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+            >
+              Terms of Use
+            </button>{' '}
+            and{' '}
+            <button
+              type="button"
+              onClick={() => onNavigate('privacy-policy')}
+              className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+            >
+              Privacy Policy
+            </button>
+            .
           </p>
 
           {/* Clean Divider */}
@@ -235,43 +248,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
         </div>
       </main>
 
-      {/* Forgot Password Modal */}
-      {forgotModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-gray-200 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-blue-100 text-blue-800 rounded-lg shrink-0">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-gray-900">Password Assistance</h3>
-                <p className="text-xs text-gray-500">Official Spinel Security Protocol</p>
-              </div>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              For corporate enterprise accounts and authorized distributor security, password resets are processed through verification by our administrative technical desk.
-            </p>
-            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-xs space-y-1">
-              <div><strong>Email:</strong> admin@spineldistribution.com</div>
-              <div><strong>Technical Support:</strong> +234 816 963 2070</div>
-              <div><strong>Hours:</strong> Mon - Sat (8:00 AM - 6:00 PM WAT)</div>
-            </div>
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setForgotModalOpen(false)}
-                className="px-4 py-2 bg-amber-400 hover:bg-amber-300 font-bold text-xs rounded-lg cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Standalone Minimal Footer */}
       <footer className="w-full py-6 px-4 text-center border-t border-gray-200 bg-white/70 mt-8">
         <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-600 mb-2">
+          <button type="button" onClick={() => onNavigate('terms-of-use')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Terms of Use
+          </button>
+          <button type="button" onClick={() => onNavigate('privacy-policy')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Privacy Policy
+          </button>
           <button type="button" onClick={() => onNavigate('home')} className="hover:text-blue-700 hover:underline cursor-pointer">
             Storefront
           </button>

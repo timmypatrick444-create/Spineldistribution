@@ -69,9 +69,16 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         category: item.product.category
       }));
 
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           customerEmail: address.email,
           customerName: address.fullName,

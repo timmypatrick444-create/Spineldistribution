@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile } from '../types';
+import { fetchWithRetry } from '../utils/apiRetry';
 
 interface AuthContextType {
   user: UserProfile | null;
   isAdmin: boolean;
   adminToken: string | null;
   customerLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }>;
-  customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }>;
+  customerRegisterInitiate: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerVerifyOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerResendOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  requestPasswordResetOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  verifyPasswordResetOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }>;
+  completePasswordReset: (email: string, otp: string, newPassword: string, resetToken?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   customerLogout: () => void;
   adminLogin: (technicalEmail: string, accessKey: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
@@ -20,7 +24,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem('spinel_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (!parsed || typeof parsed !== 'object' || !parsed.email) return null;
+      return {
+        ...parsed,
+        email: String(parsed.email),
+        fullName: String(parsed.fullName || parsed.name || String(parsed.email).split('@')[0] || 'Customer'),
+      };
     } catch {
       return null;
     }
@@ -37,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check admin token validity on mount
   useEffect(() => {
     if (adminToken) {
-      fetch('/api/admin/verify', {
+      fetchWithRetry('/api/admin/verify', {
         headers: { Authorization: `Bearer ${adminToken}` }
       })
         .then(res => {
@@ -51,9 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [adminToken]);
 
-  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const customerLogin = async (email: string, password: string): Promise<{ success: boolean; error?: string; pendingVerification?: boolean; email?: string }> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetchWithRetry('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -96,9 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fullName: string,
     email: string,
     password: string
-  ): Promise<{ success: boolean; error?: string; devOtp?: string; message?: string }> => {
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/register-initiate', {
+      const res = await fetchWithRetry('/api/auth/register-initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullName, email, password })
@@ -114,8 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         success: true,
-        message: data.message,
-        devOtp: data.devOtp
+        message: data.message
       };
     } catch (err: any) {
       return {
@@ -130,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     otp: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await fetchWithRetry('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
@@ -171,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string
   ): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
-      const res = await fetch('/api/auth/resend-otp', {
+      const res = await fetchWithRetry('/api/auth/resend-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -194,6 +204,101 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const requestPasswordResetOtp = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetchWithRetry('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to request password reset code.'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during password reset request.'
+      };
+    }
+  };
+
+  const verifyPasswordResetOtp = async (
+    email: string,
+    otp: string
+  ): Promise<{ success: boolean; error?: string; resetToken?: string; message?: string }> => {
+    try {
+      const res = await fetchWithRetry('/api/auth/verify-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Invalid verification code.'
+        };
+      }
+
+      return {
+        success: true,
+        resetToken: data.resetToken,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error during OTP verification.'
+      };
+    }
+  };
+
+  const completePasswordReset = async (
+    email: string,
+    otp: string,
+    newPassword: string,
+    resetToken?: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetchWithRetry('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword, resetToken })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to update password.'
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Server connection error updating password.'
+      };
+    }
+  };
+
   const customerLogout = () => {
     setUser(null);
     localStorage.removeItem('spinel_user');
@@ -202,7 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const adminLogin = async (technicalEmail: string, accessKey: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetchWithRetry('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ technicalEmail, accessKey })
@@ -239,6 +344,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         customerRegisterInitiate,
         customerVerifyOtp,
         customerResendOtp,
+        requestPasswordResetOtp,
+        verifyPasswordResetOtp,
+        completePasswordReset,
         customerLogout,
         adminLogin,
         adminLogout

@@ -77,23 +77,37 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, onSelectCatego
               </div>
             </div>
 
-            {/* Desktop Hero Image with Professional Entrance Slide */}
-            <div className="hidden lg:flex lg:col-span-5 items-center justify-center relative">
+            {/* Desktop Hero Image with Professional Entrance Slide & Engraved Background Blend */}
+            <div className="hidden lg:flex lg:col-span-5 items-end justify-center relative self-end">
               <div 
                 className={`transition-all duration-1000 ease-out transform ${
                   slideIn 
                     ? 'translate-x-0 opacity-100 scale-100' 
                     : 'translate-x-20 opacity-0 scale-95'
-                }`}
+                } relative flex flex-col items-center justify-end w-full`}
               >
-                <div className="relative">
-                  <div className="absolute -inset-4 bg-gradient-to-tr from-amber-500/20 via-blue-500/10 to-amber-300/10 rounded-2xl filter blur-xl opacity-75 pointer-events-none"></div>
-                  <img
-                    src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792855297/Engr_Dotun.png"
-                    alt="Engr. Dotun - Spinel Distribution Ltd"
-                    className="relative max-h-[380px] w-auto object-contain rounded-xl drop-shadow-2xl"
-                    loading="eager"
-                  />
+                <div className="relative w-full flex items-end justify-center">
+                  {/* Subtle ambient backlight glow */}
+                  <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500/15 via-blue-500/10 to-transparent rounded-3xl filter blur-2xl opacity-60 pointer-events-none"></div>
+
+                  {/* Engraved hero image with transparent bottom fade */}
+                  <div 
+                    className="relative overflow-hidden flex items-end justify-center"
+                    style={{
+                      maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 98%)',
+                      WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 60%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 98%)'
+                    }}
+                  >
+                    <img
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792855297/Engr_Dotun.png"
+                      alt="Engr. Dotun - Spinel Distribution Ltd"
+                      className="relative h-[460px] lg:h-[500px] xl:h-[540px] w-auto max-w-full object-contain object-bottom drop-shadow-2xl"
+                      loading="eager"
+                    />
+
+                    {/* Gradient overlay ensuring seamless engraved blend into hero dark background */}
+                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1f2937] via-[#1f2937]/70 to-transparent pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>

@@ -32,17 +32,29 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage(null);
+
+    const contactPerson = formData.fullName.trim();
+    const email = formData.email.trim();
+    const phoneNumber = formData.phone.trim();
+    const message = formData.message.trim();
+
+    // Telephone Number is compulsory
+    if (!contactPerson || !email || !phoneNumber || !message) {
+      setErrorMessage('Please fill in all compulsory fields (Full Name, Corporate Email, Telephone Number, and Message).');
+      return;
+    }
+
+    setLoading(true);
 
     // Map strictly to Contact_Inquiry database columns
     const payload = {
-      Contact_Person: formData.fullName.trim(),
-      Email: formData.email.trim(),
+      Contact_Person: contactPerson,
+      Email: email,
       Company_Name: formData.company.trim() || undefined,
-      Phone_Number: formData.phone.trim() || undefined,
+      Phone_Number: phoneNumber,
       Subject: formData.subject.trim(),
-      Message: formData.message.trim()
+      Message: message
     };
 
     try {
@@ -233,6 +245,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                  {errorMessage && (
+                    <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700 font-medium">
+                      {errorMessage}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
@@ -243,7 +261,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                         required
                         value={formData.fullName}
                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        placeholder="e.g. Engr. David Adeleke"
+                        placeholder="Please Enter Your Name"
                         className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69] focus:border-transparent"
                       />
                     </div>
@@ -256,7 +274,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                         required
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder="d.adeleke@enterprise.com"
+                        placeholder="Please Enter Your Email"
                         className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69] focus:border-transparent"
                       />
                     </div>
@@ -271,19 +289,20 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                         type="text"
                         value={formData.company}
                         onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                        placeholder="e.g. Apex Oil & Gas Engineering"
+                        placeholder="Please Enter Your Company"
                         className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69] focus:border-transparent"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                        Telephone Number
+                        Telephone Number <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="tel"
+                        required
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+234 800 000 0000"
+                        placeholder="+234 812 345 6789"
                         className="w-full px-3.5 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#febd69] focus:border-transparent"
                       />
                     </div>
@@ -310,7 +329,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                      Message / Project Scope <span className="text-red-500">*</span>
+                      Message <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       required
