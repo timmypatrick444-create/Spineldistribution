@@ -12,11 +12,13 @@ DirectoryIndex dist/index.html client-build/index.html index.html index.php
 
 FileETag None
 
-# 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")
+# 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required" & proxy loops)
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
   RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteCond %{HTTP:X-Forwarded-SSL} !on
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 

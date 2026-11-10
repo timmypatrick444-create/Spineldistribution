@@ -307,7 +307,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
         </p>
       </footer>
 

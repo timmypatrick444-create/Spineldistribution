@@ -294,19 +294,6 @@ export const CATEGORIES: CategoryDefinition[] = [
   },
   {
     id: 16,
-    name: 'Renewable Energy',
-    slug: 'renewable-energy',
-    description: 'High-voltage smart hybrid inverters, deep-cycle Lithium LiFePO4 rack batteries, and Tier-1 industrial monocrystalline solar panels.',
-    iconName: 'BatteryCharging',
-    image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=600&q=80',
-    subcategories: [
-      'Smart Hybrid Inverters',
-      'Lithium LiFePO4 Batteries',
-      'Industrial Solar Panels'
-    ]
-  },
-  {
-    id: 17,
     name: 'Fiber Optic & Hybrid Cables',
     slug: 'fiber-optic-hybrid-cables',
     description: 'Armored outdoor fiber cables, single-mode and multi-mode loose-tube spools, and composite copper-fiber hybrid cables for long-range IP surveillance, telecom backhaul, and edge power delivery.',

@@ -335,14 +335,16 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
                     {otpDigits.map((digit, index) => (
                       <input
                         key={index}
-                        ref={(el) => (otpInputRefs.current[index] = el)}
+                        ref={(el) => {
+                          otpInputRefs.current[index] = el;
+                        }}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={1}
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e.target)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
                         className="w-11 h-12 sm:w-12 sm:h-13 text-center text-xl sm:text-2xl font-bold rounded-lg border border-gray-300 focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 outline-none transition-all bg-white"
                       />
                     ))}

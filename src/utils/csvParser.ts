@@ -44,7 +44,6 @@ const CATEGORY_IMAGE_MAP: Record<string, string> = {
   'Lighting & Visual Deterrence': 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
   'Telecommunication & Communication Equipment': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
   'Accessories & Replacement Parts': 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80',
-  'Renewable Energy': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
   'Fiber Optic & Hybrid Cables': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80'
 };
 
@@ -83,8 +82,6 @@ export function inferBrand(name: string, sku: string, category: string, subcateg
   if (text.includes('cyberpower')) return 'CyberPower Systems';
   if (text.includes('huawei')) return 'Huawei Enterprise';
 
-  // Domain-specific prestige branding based on category
-  if (category.includes('Solar') || category.includes('Renewable')) return 'Spinel Solar Energy Systems';
   if (category.includes('Power') || category.includes('Electrical')) return 'Spinel Power Dynamics';
   if (category.includes('Surveillance') || category.includes('Camera')) return 'Spinel Optical Security';
   if (category.includes('Access Control')) return 'Spinel Access Technologies';
@@ -95,7 +92,7 @@ export function inferBrand(name: string, sku: string, category: string, subcateg
   return 'Spinel Distribution';
 }
 
-// Normalize category name against predefined list of 16 categories
+// Normalize category name against predefined list of categories
 export function matchCategory(rawCat?: string, rawSub?: string, name?: string, sheetName?: string): { category: string; subcategory: string } {
   const candidates = [rawCat, sheetName, rawSub].filter(Boolean).map(s => String(s).trim());
 
@@ -134,7 +131,7 @@ export function matchCategory(rawCat?: string, rawSub?: string, name?: string, s
       return { category: 'Public Address (PAGA) System', subcategory: 'Public Address Systems' };
     }
     if (clean.includes('renewable') || clean.includes('solar') || clean.includes('inverter') || clean.includes('lifepo4')) {
-      return { category: 'Renewable Energy', subcategory: 'Smart Hybrid Inverters' };
+      return { category: 'Power & Electrical Systems', subcategory: 'UPS Systems' };
     }
     if (clean.includes('hybrid cable') || clean.includes('hybrid composite')) {
       return { category: 'Fiber Optic & Hybrid Cables', subcategory: 'Hybrid Composite Cables' };

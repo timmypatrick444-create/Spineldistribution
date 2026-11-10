@@ -35,7 +35,6 @@ const buildBalancedCatalogOrder = (products: Product[]): Product[] => {
   const priorityOrder = [
     'Enclosures & Housings',
     'Public Address (PAGA) System',
-    'Renewable Energy',
     'Fiber Optic & Hybrid Cables',
     'Video Management & Recording',
     'Security Sensors & Detection',

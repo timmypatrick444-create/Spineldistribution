@@ -331,7 +331,7 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
         </p>
       </footer>
 

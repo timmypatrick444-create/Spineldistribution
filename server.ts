@@ -1,5 +1,4 @@
 import express from 'express';
-import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -11,19 +10,14 @@ import { SEED_PRODUCTS } from './src/data/seedProducts';
 import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
-import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
-import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
 dotenv.config();
 
 // Prevent uncaught errors from crashing the shared hosting process
-process.on('uncaughtException', (err: any) => {
+process.on('uncaughtException', (err) => {
   console.error('[SPINEL] Uncaught Exception:', err);
-  if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
-    process.exit(1);
-  }
 });
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[SPINEL] Unhandled Rejection at:', promise, 'reason:', reason);
@@ -63,21 +57,12 @@ app.use('/images', express.static(path.join(process.cwd(), 'client-build', 'Imag
 app.use('/Images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 app.use('/images', express.static(path.join(process.cwd(), 'dist', 'Images'), { maxAge: '30d' }));
 
-// Health check & version endpoints for platform monitoring
-const serverBootTime = Date.now();
+// Health check endpoints for platform monitoring
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-app.get('/api/version', (req, res) => {
-  res.json({
-    status: 'ok',
-    version: '1.0.0',
-    serverBootTime,
-    buildTs: serverBootTime
-  });
 });
 
 // Environment variables configuration (All sensitive data parsed through server env)
@@ -102,8 +87,6 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
-  ...CUSTOM_UPLOADED_PRODUCTS,
-  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
   ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
@@ -514,7 +497,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
       <div style="background: #0f172a; padding: 24px; text-align: center;">
         <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
-        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Renewable Energy</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Telecom Infrastructure</p>
       </div>
       <div style="padding: 32px 28px;">
         <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
@@ -722,11 +705,11 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
         </div>
       </div>
       <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-        &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+        Sent automatically from ${senderEmail} &bull; &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
       </div>
     </div>
   `;
-  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes.`;
+  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes. Sent from noreply@spineldistribution.com.`;
   const logs: string[] = [];
 
   const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
@@ -1228,7 +1211,8 @@ app.post('/api/auth/register-initiate', async (req, res) => {
         ? `A 6-digit verification code has been sent to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
@@ -1380,7 +1364,8 @@ app.post('/api/auth/resend-otp', async (req, res) => {
       ? `A fresh 6-digit verification code has been sent to ${cleanEmail}.`
       : `New code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
     email: cleanEmail,
-    emailSent: emailResult.success
+    emailSent: emailResult.success,
+    devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? newOtp : undefined
   });
 });
 
@@ -1444,7 +1429,8 @@ app.post('/api/auth/login', async (req, res) => {
         error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
         pendingVerification: true,
         email: cleanEmail,
-        emailSent: emailResult.success
+        emailSent: emailResult.success,
+        devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
       });
     }
 
@@ -1531,10 +1517,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return res.json({
       success: true,
       message: emailResult.success
-        ? `A 6-digit verification code has been sent to ${cleanEmail}.`
+        ? `A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]', err);
@@ -2496,7 +2483,7 @@ app.delete('/api/quotes/:id', async (req, res) => {
     try {
       const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
       if (numericId) {
-        await pool.execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
+        await (pool as any).execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
       }
     } catch (err: any) {
       console.warn('[MySQL] Delete quote error:', err.message);
@@ -2515,7 +2502,7 @@ app.get('/api/db-status', async (req, res) => {
 
   if (pool && isDbConnected) {
     try {
-      const [rows]: any = await pool.query('SELECT COUNT(*) as count FROM `Request_Quote`');
+      const [rows]: any = await (pool as any).query('SELECT COUNT(*) as count FROM `Request_Quote`');
       const count = Array.isArray(rows) && rows[0]?.count !== undefined ? rows[0].count : 0;
       return res.json({
         connected: true,
@@ -2632,7 +2619,7 @@ app.post(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [result]: any = await pool.execute(
+        const [result]: any = await (pool as any).execute(
           'INSERT INTO `Contact_Inquiry` (`Contact_Person`, `Email`, `Company_Name`, `Phone_Number`, `Subject`, `Message`) VALUES (?, ?, ?, ?, ?, ?)',
           [finalContactPerson, finalEmail, finalCompanyName, finalPhoneNumber, finalSubject, finalMessage]
         );
@@ -2677,7 +2664,7 @@ app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [rows]: any = await pool.query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
+        const [rows]: any = await (pool as any).query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
         if (Array.isArray(rows) && rows.length > 0) {
           return res.json({ success: true, count: rows.length, inquiries: rows });
         }
@@ -2717,9 +2704,9 @@ app.get('/api/proxy-image', async (req, res) => {
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Content-Type', contentType);
+    res.header('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
   } catch (err: any) {
     console.warn('[Proxy Image Error]', err.message);
@@ -2824,12 +2811,14 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
-    res.setHeader('Surrogate-Control', 'no-store');
-    res.removeHeader('ETag');
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+    res.header('Surrogate-Control', 'no-store');
+    if (typeof (res as any).removeHeader === 'function') {
+      (res as any).removeHeader('ETag');
+    }
     return res.status(200).send(latest.content);
   }
   next();
@@ -2877,18 +2866,12 @@ async function startServer() {
     }
   });
 
-  // Create HTTP server instance for Express & Vite
-  const httpServer = http.createServer(app);
-
   // Mount live Vite middlewares when running in dev environment
   let viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer }
-      },
+      server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -2925,36 +2908,15 @@ async function startServer() {
     sendFreshSpaHtml(req, res, next);
   });
 
-  // Attach error handler to prevent unhandled EADDRINUSE crashes and zombie processes
-  httpServer.on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.error(`[SPINEL] Port or socket ${PORT} is already in use (EADDRINUSE). Exiting cleanly.`);
-      process.exit(1);
-    }
-    console.error('[SPINEL] Fatal HTTP server error:', err);
-    process.exit(1);
-  });
-
-  // Clean shutdown handlers for container restarts
-  const handleShutdown = () => {
-    console.log('[SPINEL] Termination signal received. Closing HTTP server...');
-    httpServer.close(() => {
-      process.exit(0);
-    });
-    setTimeout(() => process.exit(0), 1500).unref();
-  };
-  process.on('SIGTERM', handleShutdown);
-  process.on('SIGINT', handleShutdown);
-
   // Handle cPanel Phusion Passenger socket pipe or numeric port
   const isNamedPipeOrSocket = isNaN(Number(PORT));
   if (isNamedPipeOrSocket) {
-    httpServer.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on passenger socket: ${PORT}`);
     });
   } else {
     const portNumber = parseInt(String(PORT), 10);
-    httpServer.listen(portNumber, () => {
+    app.listen(portNumber, () => {
       console.log(`[SPINEL DISTRIBUTION] Server running on port ${portNumber}`);
       console.log(`[Admin Portal] Available at port ${portNumber}/admin`);
       console.log(`[Exchange Rate] 1 USD = ₦${USD_TO_NGN_EXCHANGE_RATE}`);

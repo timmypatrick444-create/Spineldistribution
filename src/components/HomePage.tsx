@@ -109,15 +109,6 @@ const HERO_SLIDES: HeroSlide[] = [
   },
   {
     id: 8,
-    title: 'Smart Hybrid Solar Inverters',
-    subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
-    ctaText: 'Shop Renewable Energy',
-    category: 'Renewable Energy',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1789723360/solar.png',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 9,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
@@ -258,16 +249,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 5. Filter Renewable Energy products (strictly from 'Renewable Energy' category)
-  const renewableEnergyProducts = useMemo(() => {
-    const renewable = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      return cat === 'renewable energy';
-    });
-    return renewable;
-  }, [safeProducts]);
-
-  // 6. Filter Public Address (PAGA) System products and randomize for display
+  // 5. Filter Public Address (PAGA) System products and randomize for display
   const pagaProducts = useMemo(() => {
     const paga = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
@@ -519,64 +501,64 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           </div>
 
-          {/* Box 2: Renewable Energy & Power */}
+          {/* Box 2: Fiber Optic & Hybrid Cables */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold text-gray-900 leading-snug">
-                  Renewable Energy Systems
+                  Fiber Optic &amp; Hybrid Cables
                 </h3>
-                <span className="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded">
                   NEW
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
                 <div 
-                  onClick={() => onSelectCategory('Renewable Energy', 'Smart Hybrid Inverters')}
+                  onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788634097/inverter-9.jpg" 
-                      alt="Hybrid Inverters"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793895919/SP-FOC-PR-29.webp" 
+                      alt="Fiber Outdoor Cables"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Hybrid Inverters
+                    Fiber Outdoor
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Renewable Energy', 'Lithium LiFePO4 Batteries')}
+                  onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/solar_battery.jpg" 
-                      alt="LiFePO4 Batteries"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793825243/SP-HC-JF-15.webp" 
+                      alt="Hybrid Composite Cables"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    LiFePO4 Batteries
+                    Hybrid Composite
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Renewable Energy', 'Industrial Solar Panels')}
+                  onClick={() => onSelectCategory('Enclosures & Housings')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/solar_panel.jpg" 
-                      alt="Tier-1 Solar Panels"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719299/SP-RA-EN-RI-WME-19.webp" 
+                      alt="Equipment Enclosures"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Tier-1 Solar Panels
+                    Enclosures &amp; Boxes
                   </span>
                 </div>
                 <div 
@@ -598,10 +580,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
             <button
-              onClick={() => onSelectCategory('Renewable Energy')}
+              onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables')}
               className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
             >
-              Shop Inverters &amp; Batteries
+              Explore Fiber &amp; Hybrid Cables
             </button>
           </div>
 
@@ -889,22 +871,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Video Management & Recording products currently loading or unavailable."
-      />
-
-      {/* 7. POWER YOUR PROJECTS WITH RELIABLE TECHNOLOGY - Renewable Energy */}
-      <ProductSliderSection
-        id="power-your-projects"
-        className="w-full px-[20px] mb-4 sm:mb-5"
-        title="Power Your Projects with Reliable Technology"
-        subtitle="Explore smart hybrid inverters, long-life LiFePO4 batteries & high-efficiency solar panels"
-        products={renewableEnergyProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Renewable Energy')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Renewable Energy products currently loading or unavailable."
       />
 
     </div>
