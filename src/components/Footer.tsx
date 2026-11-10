@@ -20,12 +20,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
     scrollToTop();
   };
 
-  const handleQuickHelp = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-    const phone = '2348169632070';
-    const message = encodeURIComponent('Hello Spinel Distribution Support, I need assistance with...');
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${message}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  const handleQuickHelp = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.open('/api/support/chat', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -237,11 +234,16 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
             >
               Privacy Policy
             </li>
-            <li 
-              onClick={handleQuickHelp}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Quick Help
+            <li>
+              <a
+                href="/api/support/chat"
+                onClick={handleQuickHelp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline cursor-pointer hover:text-white transition-colors block"
+              >
+                Quick Help
+              </a>
             </li>
           </ul>
         </div>

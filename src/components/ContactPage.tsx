@@ -32,29 +32,17 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
-
-    const contactPerson = formData.fullName.trim();
-    const email = formData.email.trim();
-    const phoneNumber = formData.phone.trim();
-    const message = formData.message.trim();
-
-    // Telephone Number is compulsory
-    if (!contactPerson || !email || !phoneNumber || !message) {
-      setErrorMessage('Please fill in all compulsory fields (Full Name, Corporate Email, Telephone Number, and Message).');
-      return;
-    }
-
     setLoading(true);
+    setErrorMessage(null);
 
     // Map strictly to Contact_Inquiry database columns
     const payload = {
-      Contact_Person: contactPerson,
-      Email: email,
+      Contact_Person: formData.fullName.trim(),
+      Email: formData.email.trim(),
       Company_Name: formData.company.trim() || undefined,
-      Phone_Number: phoneNumber,
+      Phone_Number: formData.phone.trim() || undefined,
       Subject: formData.subject.trim(),
-      Message: message
+      Message: formData.message.trim()
     };
 
     try {
@@ -245,12 +233,6 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-                  {errorMessage && (
-                    <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700 font-medium">
-                      {errorMessage}
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
@@ -295,11 +277,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                        Telephone Number <span className="text-red-500">*</span>
+                        Telephone Number
                       </label>
                       <input
                         type="tel"
-                        required
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         placeholder="+234 800 000 0000"
