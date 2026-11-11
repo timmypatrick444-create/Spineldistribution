@@ -7,9 +7,11 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { SEED_PRODUCTS } from './src/data/seedProducts';
-import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
+import { UPLOADED_CATALOG_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
+import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
+import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
@@ -87,9 +89,11 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
+  ...CUSTOM_UPLOADED_PRODUCTS,
+  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
-  ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
+  ...UPLOADED_CATALOG_PRODUCTS,
   ...SEED_PRODUCTS.map((p, index) => ({
     ...p,
     id: p.id || `prod-${p.sku || index}`
@@ -2816,8 +2820,11 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.header('Pragma', 'no-cache');
     res.header('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.header('Surrogate-Control', 'no-store');
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-App-Build-Time', String(latest.mtime));
     if (typeof (res as any).removeHeader === 'function') {
       (res as any).removeHeader('ETag');
+      (res as any).removeHeader('Last-Modified');
     }
     return res.status(200).send(latest.content);
   }
@@ -2881,7 +2888,7 @@ async function startServer() {
     console.log('[Storefront] Running standalone production bundle.');
   }
 
-  // Static immutable assets for hashed JS and CSS bundles
+  // Static assets for hashed JS and CSS bundles with intelligent cache headers
   const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
@@ -2891,17 +2898,36 @@ async function startServer() {
   for (const aPath of assetPaths) {
     if (fs.existsSync(aPath)) {
       app.use('/assets', express.static(aPath, {
-        maxAge: '1y',
-        immutable: true
+        setHeaders: (res, filePath) => {
+          // If the file is content-hashed (e.g. index-CfICkxu0.js or vendor-*.js)
+          if (/-[A-Za-z0-9_-]{8,}\./.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else {
+            // Unhashed assets (like index.js, index.css) must always revalidate
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate, max-age=0');
+          }
+        }
       }));
     }
   }
 
   // Handle root and SPA fallback
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
+    if (
+      req.path.startsWith('/api/') || 
+      req.path.startsWith('/uploads/') || 
+      req.path.startsWith('/Images/') || 
+      req.path.startsWith('/images/')
+    ) {
       return next();
     }
+
+    // Never return index.html for missing static files under /assets/ to prevent script MIME errors
+    if (req.path.startsWith('/assets/')) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(404).send('Asset not found');
+    }
+
     if (viteMounted) {
       return next();
     }

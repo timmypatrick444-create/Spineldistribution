@@ -2,8 +2,8 @@
 # Spinel Distribution - cPanel Production Web Server Configuration
 # =====================================================================
 
-# 0. Prioritize compiled production index.html over any stale root index.html
-DirectoryIndex dist/index.html client-build/index.html index.html index.php
+# 0. Serve compiled production index.html
+DirectoryIndex index.html dist/index.html client-build/index.html index.php
 
 # Disable LiteSpeed Cache completely so any new file uploaded in cPanel File Manager reflects immediately
 <IfModule LiteSpeed>

@@ -16,8 +16,6 @@
     <meta http-equiv="Expires" content="0" />
     <!-- Paystack Inline JS for seamless live payment -->
     <script src="https://js.paystack.co/v1/inline.js" defer></script>
-    <!-- Production stylesheet fallback for live cPanel deployments -->
-    <link rel="stylesheet" crossorigin href="/assets/index.css" />
   </head>
   <body class="bg-[#eaeded] text-[#0F1111] antialiased" style="background-color: #eaeded; color: #0F1111; margin: 0; padding: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <div id="root">
@@ -46,24 +44,6 @@
               }
             }).catch(function () {});
           } catch (e) {}
-        }
-
-        // Live production safeguard for cPanel Apache / LiteSpeed hosting:
-        // When running in production (no Vite dev server present), ensure compiled bundle loads
-        var isViteDev = !!document.querySelector('script[src*="@vite/client"]') || 
-                        !!document.querySelector('script[src*="/@vite/client"]') ||
-                        (window.location.port === '3000' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
-        if (!isViteDev) {
-          setTimeout(function() {
-            if (!window.__SPINEL_MOUNTED__) {
-              var bust = Date.now();
-              var js = document.createElement('script');
-              js.type = 'module';
-              js.crossOrigin = 'anonymous';
-              js.src = '/assets/index.js?v=' + bust;
-              document.body.appendChild(js);
-            }
-          }, 40);
         }
       })();
     </script>
