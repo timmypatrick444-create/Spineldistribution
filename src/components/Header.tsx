@@ -371,14 +371,11 @@ export const Header: React.FC<HeaderProps> = ({
             title="SPINEL DISTRIBUTION - Homepage"
           >
             <img 
-              src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
+              src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
               alt="SPINEL DISTRIBUTION"
-              className="h-11 w-auto min-w-[48px] object-contain rounded bg-white p-1 shadow-md"
+              className="h-10 xl:h-11 w-auto object-contain shrink-0"
               referrerPolicy="no-referrer"
             />
-            <span className="font-extrabold tracking-tight text-white text-base xl:text-lg leading-tight uppercase font-sans whitespace-nowrap">
-              SPINEL DISTRIBUTION
-            </span>
           </div>
 
           {/* Search bar in center */}
@@ -400,15 +397,11 @@ export const Header: React.FC<HeaderProps> = ({
               title="SPINEL DISTRIBUTION - Homepage"
             >
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
                 alt="SPINEL DISTRIBUTION"
-                className="h-8.5 sm:h-9 w-auto min-w-[34px] sm:min-w-[36px] object-contain rounded bg-white p-0.5 sm:p-1 shadow-md"
+                className="h-6.5 sm:h-8 md:h-9 w-auto max-w-[155px] sm:max-w-[210px] md:max-w-[250px] object-contain shrink-0"
                 referrerPolicy="no-referrer"
               />
-              {/* Text logo shown on tablet (sm & md) but hidden on mobile (< sm) */}
-              <span className="hidden sm:inline-block font-extrabold tracking-tight text-white text-sm md:text-base leading-tight uppercase font-sans whitespace-nowrap">
-                SPINEL DISTRIBUTION
-              </span>
             </div>
 
             {/* Action buttons on mobile/tablet */}

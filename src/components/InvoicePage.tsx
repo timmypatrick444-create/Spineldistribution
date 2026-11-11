@@ -260,7 +260,7 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
           <div className="border-b border-gray-200 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png" 
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Black_Long_Logo_With_Smile.png" 
                 alt="SPINEL DISTRIBUTION"
                 className="h-12 sm:h-14 w-auto object-contain"
                 referrerPolicy="no-referrer"

@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { Order, SubmittedQuote } from '../types';
 
-const SPINEL_LOGO_URL = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png';
+const SPINEL_LOGO_URL = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png';
 
 export interface LoadedImageInfo {
   dataUrl: string;
