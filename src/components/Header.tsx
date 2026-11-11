@@ -440,6 +440,22 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           type="button"
+          onClick={() => onNavigate('category', 'Hybrid Composite Cables')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1"
+        >
+          <span>Hybrid Composite Cables</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('category', 'Fiber Outdoor Cables')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
+        >
+          Fiber Outdoor Cables
+        </button>
+
+        <button
+          type="button"
           onClick={() => onNavigate('category', 'Public Address (PAGA) System')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
@@ -468,30 +484,6 @@ export const Header: React.FC<HeaderProps> = ({
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
           Access Control
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Networking & Connectivity')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
-        >
-          Networking &amp; PoE
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Hybrid Composite Cables')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1"
-        >
-          <span>Hybrid Composite Cables</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Fiber Outdoor Cables')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
-        >
-          Fiber Outdoor Cables
         </button>
 
       </div>

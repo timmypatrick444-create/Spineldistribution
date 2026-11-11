@@ -113,6 +113,15 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
     setCurrentPage(1);
   }, [selectedCategory, selectedSubcategory, searchQuery, selectedBrand, minPrice, maxPrice, minRating, inStockOnly, sortBy]);
 
+  // Generate stable random weights once per page mount/refresh so default ordering is random
+  const randomWeights = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of safeProducts) {
+      map.set(p.id, Math.random());
+    }
+    return map;
+  }, [safeProducts]);
+
   // Derive unique brands
   const brands = useMemo(() => {
     const list = Array.from(new Set(safeProducts.map(p => p.brand).filter(Boolean)));
@@ -121,7 +130,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
   // Filtered & Sorted Products
   const filteredProducts = useMemo(() => {
-    const baseList = (!selectedCategory || selectedCategory === 'All') ? balancedProducts : safeProducts;
+    const baseList = safeProducts;
 
     return baseList.filter(p => {
       // Category Matching
@@ -172,17 +181,10 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
       if (sortBy === 'price_desc') return b.priceUSD - a.priceUSD;
       if (sortBy === 'rating') return b.rating - a.rating;
       if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      if (selectedCategory && selectedCategory.toLowerCase().trim() === 'enclosures & housings') {
-        const aMatch = (a.sku || '').match(/-(\d+)$/);
-        const bMatch = (b.sku || '').match(/-(\d+)$/);
-        const aNum = aMatch ? parseInt(aMatch[1], 10) : 0;
-        const bNum = bMatch ? parseInt(bMatch[1], 10) : 0;
-        const aIsNew = aNum >= 11 && aNum <= 40 ? 0 : 1;
-        const bIsNew = bNum >= 11 && bNum <= 40 ? 0 : 1;
-        if (aIsNew !== bIsNew) return aIsNew - bIsNew;
-        return aNum - bNum;
-      }
-      return 0;
+      // Default: randomized order per page visit/refresh
+      const weightA = randomWeights.get(a.id) ?? 0;
+      const weightB = randomWeights.get(b.id) ?? 0;
+      return weightA - weightB;
     });
   }, [
     balancedProducts,
