@@ -294,6 +294,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const customerLogout = () => {
+    const token = localStorage.getItem('spinel_user_token');
+    if (token) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
+    }
     setUser(null);
     localStorage.removeItem('spinel_user');
     localStorage.removeItem('spinel_user_token');

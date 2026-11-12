@@ -170,22 +170,15 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         handler.openIframe();
         return;
       } catch (err) {
-        console.warn('[Paystack Popup Error, falling back to simulated verification]', err);
+        console.warn('[Paystack Popup Error]', err);
+        // Popup could not be opened: submit as unpaid pending order
+        processOrderSubmission('', 'unpaid');
+        return;
       }
     }
 
-    // Direct fallback payment simulation when popup is restricted by sandbox
-    const confirmFallback = window.confirm(
-      `Paystack Live Gateway Authorization:\n\nAmount: ₦${totalNGN.toLocaleString()} ($${totalUSD.toFixed(2)} USD)\nRecipient: SPINEL DISTRIBUTION\n\n• Click OK for SUCCESSFUL payment (Invoice Status: Completed)\n• Click Cancel to CANCEL payment (Directly navigates to Pending Invoice)`
-    );
-
-    if (confirmFallback) {
-      const generatedRef = `PSTK_LIVE_REF_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      processOrderSubmission(generatedRef, 'paid');
-    } else {
-      // Paystack operation canceled: directly navigate to invoice page and display pending message
-      processOrderSubmission('', 'unpaid');
-    }
+    // Paystack Pop not ready: submit as pending unpaid order so stock is held and customer can pay on Invoice page
+    processOrderSubmission('', 'unpaid');
   };
 
   // SUCCESS SCREEN

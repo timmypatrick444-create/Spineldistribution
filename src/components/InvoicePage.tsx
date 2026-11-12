@@ -58,31 +58,30 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
             ]
           },
           callback: async function (response: any) {
-            const ref = response.reference || `pstk_ref_${Date.now()}`;
-            await markOrderAsPaid(ref);
+            if (response && response.reference) {
+              await markOrderAsPaid(response.reference);
+            } else {
+              setIsProcessingPayment(false);
+              alert('Paystack payment was not authorized. Order remains pending.');
+            }
           },
           onClose: function () {
             setIsProcessingPayment(false);
+            console.log('[Paystack] Modal closed by user. Order remains pending.');
           }
         });
         handler.openIframe();
         return;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Paystack inline retry error', err);
+        setIsProcessingPayment(false);
+        alert('Could not open Paystack payment modal: ' + (err.message || 'Please check your connection.'));
+        return;
       }
     }
 
-    // Direct confirmation fallback if sandbox restricts popups
-    const confirmPayment = window.confirm(
-      `Paystack Live Gateway Authorization:\n\nOrder: ${currentOrder.orderNumber}\nAmount: ₦${currentOrder.totalNGN.toLocaleString()} ($${currentOrder.totalUSD.toFixed(2)} USD)\n\nProceed to mark transaction as completed?`
-    );
-
-    if (confirmPayment) {
-      const generatedRef = `PSTK_LIVE_CONFIRMED_${Date.now()}`;
-      markOrderAsPaid(generatedRef);
-    } else {
-      setIsProcessingPayment(false);
-    }
+    setIsProcessingPayment(false);
+    alert('Paystack payment gateway is initializing or unavailable. Please refresh and try again.');
   };
 
   const markOrderAsPaid = async (ref: string) => {
@@ -105,25 +104,11 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
         setCurrentOrder(updated);
         if (onOrderUpdated) onOrderUpdated(updated);
       } else {
-        // Local state update
-        const updated: Order = {
-          ...currentOrder,
-          paymentStatus: 'paid',
-          status: 'completed',
-          paymentReference: ref
-        };
-        setCurrentOrder(updated);
-        if (onOrderUpdated) onOrderUpdated(updated);
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Paystack payment could not be verified by the server. Order remains pending.');
       }
-    } catch {
-      const updated: Order = {
-        ...currentOrder,
-        paymentStatus: 'paid',
-        status: 'completed',
-        paymentReference: ref
-      };
-      setCurrentOrder(updated);
-      if (onOrderUpdated) onOrderUpdated(updated);
+    } catch (err: any) {
+      alert('Network error communicating with verification server. Order remains pending.');
     } finally {
       setIsProcessingPayment(false);
     }

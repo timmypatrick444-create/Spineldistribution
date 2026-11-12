@@ -36,6 +36,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchOrder, setSearchOrder] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -48,7 +49,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
         setLoading(false);
         return;
       }
-      const emailQuery = user ? `?email=${encodeURIComponent(user.email)}` : '';
+      const emailQuery = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
       const res = await fetch(`/api/orders${emailQuery}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
@@ -80,97 +81,158 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
       const userToken = localStorage.getItem('spinel_user_token');
       const adminToken = localStorage.getItem('spinel_admin_token');
       const token = userToken || adminToken;
+      const emailQuery = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
 
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${orderId}${emailQuery}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       if (res.ok) {
         setOrders(prev => prev.filter(o => o.id !== orderId && o.orderNumber !== orderId));
+        setNoticeMessage({
+          type: 'info',
+          text: `Order #${orderNumber} has been removed from your account.`
+        });
       } else {
-        // Fallback local removal
-        setOrders(prev => prev.filter(o => o.id !== orderId && o.orderNumber !== orderId));
+        const data = await res.json().catch(() => ({}));
+        setNoticeMessage({
+          type: 'error',
+          text: data.error || 'Failed to delete order. You can only delete your own orders.'
+        });
       }
-    } catch (err) {
-      setOrders(prev => prev.filter(o => o.id !== orderId && o.orderNumber !== orderId));
+    } catch (err: any) {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Network error deleting order: ' + (err.message || 'Please try again.')
+      });
     } finally {
       setActionLoading(null);
     }
   };
 
+  // Dynamically ensure Paystack inline script is loaded
+  const ensurePaystackLoaded = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).PaystackPop) {
+        return resolve(true);
+      }
+      const existing = document.querySelector('script[src*="paystack.co"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(Boolean((window as any).PaystackPop)));
+        setTimeout(() => resolve(Boolean((window as any).PaystackPop)), 3000);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      script.onload = () => resolve(Boolean((window as any).PaystackPop));
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   // Handle completing payment for Pending/Unpaid order via Paystack
-  const handlePayForOrder = (order: Order) => {
+  const handlePayForOrder = async (order: Order) => {
+    setNoticeMessage(null);
     const paystackKey = serverConfig?.paystackPublicKey || 'pk_test_sample_spinel_public_key';
     const totalUSD = order.subtotalUSD ?? order.totalUSD;
     const totalNGN = order.totalNGN || Math.round(totalUSD * exchangeRate);
     const amountInKobo = Math.round(totalNGN * 100);
 
+    const isLoaded = await ensurePaystackLoaded();
     const PaystackPop = (window as any).PaystackPop;
-    if (PaystackPop && typeof PaystackPop.setup === 'function') {
-      try {
-        const handler = PaystackPop.setup({
-          key: paystackKey,
-          email: order.customerEmail,
-          amount: amountInKobo,
-          currency: 'NGN',
-          ref: `SPN_PAY_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          metadata: {
-            custom_fields: [
-              { display_name: 'Customer Name', variable_name: 'customer_name', value: order.customerName },
-              { display_name: 'Order Number', variable_name: 'order_number', value: order.orderNumber }
-            ]
-          },
-          callback: async function (response: any) {
-            await finalizePayment(order.id, response.reference || `pstk_${Date.now()}`);
-          },
-          onClose: function () {
-            console.log('[Paystack] Payment modal closed.');
-          }
-        });
-        handler.openIframe();
-        return;
-      } catch (err) {
-        console.warn('Paystack popup error:', err);
-      }
+
+    if (!isLoaded || !PaystackPop || typeof PaystackPop.setup !== 'function') {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Unable to connect to Paystack payment gateway. Please verify your internet connection and try again.'
+      });
+      return;
     }
 
-    // Direct fallback modal
-    const confirmPayment = window.confirm(
-      `Paystack Live Gateway Authorization:\n\nOrder: #${order.orderNumber}\nAmount: ₦${totalNGN.toLocaleString()} ($${totalUSD.toFixed(2)} USD)\nRecipient: SPINEL DISTRIBUTION\n\nClick OK to authorize successful payment and complete this order.`
-    );
-    if (confirmPayment) {
-      finalizePayment(order.id, `PSTK_LIVE_REF_${Date.now()}`);
+    try {
+      let paymentWasAuthorized = false;
+      const handler = PaystackPop.setup({
+        key: paystackKey,
+        email: order.customerEmail,
+        amount: amountInKobo,
+        currency: 'NGN',
+        ref: `SPN_PAY_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: order.customerName },
+            { display_name: 'Order Number', variable_name: 'order_number', value: order.orderNumber }
+          ]
+        },
+        callback: async function (response: any) {
+          paymentWasAuthorized = true;
+          if (response && response.reference) {
+            await finalizePayment(order.id, response.reference, order.customerEmail);
+          } else {
+            setNoticeMessage({
+              type: 'error',
+              text: 'Paystack payment authorization response incomplete. Order remains pending.'
+            });
+          }
+        },
+        onClose: function () {
+          if (!paymentWasAuthorized) {
+            setNoticeMessage({
+              type: 'info',
+              text: `Payment window closed. Order #${order.orderNumber} remains pending until payment is completed via Paystack.`
+            });
+          }
+        }
+      });
+      handler.openIframe();
+    } catch (err: any) {
+      console.warn('Paystack popup error:', err);
+      setNoticeMessage({
+        type: 'error',
+        text: 'Could not open Paystack checkout window: ' + (err.message || 'Please try again.')
+      });
     }
   };
 
-  const finalizePayment = async (orderId: string, reference: string) => {
+  const finalizePayment = async (orderId: string, reference: string, customerEmail?: string) => {
     try {
       setActionLoading(orderId);
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+
       const res = await fetch(`/api/orders/${orderId}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentReference: reference })
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          paymentReference: reference,
+          customerEmail: customerEmail || user?.email 
+        })
       });
 
       if (res.ok) {
         const updated: Order = await res.json();
         setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
+        setNoticeMessage({
+          type: 'success',
+          text: `Payment authorized via Paystack! Order #${updated.orderNumber} is now marked as Completed.`
+        });
       } else {
-        setOrders(prev => prev.map(o => {
-          if (o.id === orderId) {
-            return { ...o, paymentStatus: 'paid', status: 'completed', paymentReference: reference };
-          }
-          return o;
-        }));
+        const errData = await res.json().catch(() => ({}));
+        setNoticeMessage({
+          type: 'error',
+          text: errData.error || 'Paystack payment could not be verified. Order remains pending.'
+        });
       }
-    } catch {
-      setOrders(prev => prev.map(o => {
-        if (o.id === orderId) {
-          return { ...o, paymentStatus: 'paid', status: 'completed', paymentReference: reference };
-        }
-        return o;
-      }));
+    } catch (err: any) {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Network error verifying payment with server. Order remains pending.'
+      });
     } finally {
       setActionLoading(null);
     }
@@ -258,6 +320,28 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
           </select>
         </div>
       </div>
+
+      {noticeMessage && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center justify-between gap-3 text-sm font-semibold border ${
+          noticeMessage.type === 'error'
+            ? 'bg-rose-50 text-rose-800 border-rose-300'
+            : noticeMessage.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-amber-50 text-amber-900 border-amber-300'
+        }`}>
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{noticeMessage.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNoticeMessage(null)}
+            className="text-xs font-bold underline cursor-pointer hover:opacity-80 shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="py-24 text-center text-lg sm:text-xl text-gray-500 font-semibold">

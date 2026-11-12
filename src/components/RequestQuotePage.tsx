@@ -105,19 +105,28 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
     }
   }, [user]);
 
+  // User-scoped storage key so one user never sees another user's quotes
+  const getStorageKey = () => user?.email ? `spinel_submitted_quotes_${user.email.toLowerCase()}` : 'spinel_submitted_quotes_guest';
+
   // Load quotes from server & localStorage
   const loadQuotes = async () => {
     try {
+      const storageKey = getStorageKey();
       let localQuotes: SubmittedQuote[] = [];
-      const stored = localStorage.getItem('spinel_submitted_quotes');
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         localQuotes = JSON.parse(stored);
       }
 
-      // If user is logged in, also fetch quotes from backend
+      // If user is logged in, fetch strictly this user's quotes from backend
       if (user?.email) {
         try {
-          const res = await fetch('/api/quotes');
+          const userToken = localStorage.getItem('spinel_user_token');
+          const adminToken = localStorage.getItem('spinel_admin_token');
+          const token = userToken || adminToken;
+          const res = await fetch(`/api/quotes?email=${encodeURIComponent(user.email)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
           if (res.ok) {
             const data = await res.json();
             const serverQuotes: SubmittedQuote[] = data.quotes || [];
@@ -129,7 +138,7 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
             }
             const merged = Array.from(mergedMap.values());
             setRecentQuotes(merged);
-            localStorage.setItem('spinel_submitted_quotes', JSON.stringify(merged));
+            localStorage.setItem(storageKey, JSON.stringify(merged));
             return;
           }
         } catch {}
@@ -150,13 +159,20 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
     if (!confirmed) return;
 
     try {
-      await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+      const emailQuery = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
+      await fetch(`/api/quotes/${quoteId}${emailQuery}`, { 
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
     } catch {}
 
     const updated = recentQuotes.filter(q => q.quoteId !== quoteId && String(q.id) !== quoteId);
     setRecentQuotes(updated);
     try {
-      localStorage.setItem('spinel_submitted_quotes', JSON.stringify(updated));
+      localStorage.setItem(getStorageKey(), JSON.stringify(updated));
     } catch {}
 
     if (selectedViewQuote?.quoteId === quoteId) {
@@ -258,7 +274,7 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
       const updated = [newQuote, ...recentQuotes];
       setRecentQuotes(updated);
       try {
-        localStorage.setItem('spinel_submitted_quotes', JSON.stringify(updated));
+        localStorage.setItem(getStorageKey(), JSON.stringify(updated));
       } catch {}
 
       setSubmittedQuote(newQuote);

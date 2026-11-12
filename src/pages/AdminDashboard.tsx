@@ -266,10 +266,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const fetchData = async () => {
     try {
       setLoading(true);
+      const token = adminToken || localStorage.getItem('spinel_admin_token') || '';
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const [prodRes, orderRes, quoteRes] = await Promise.all([
-        fetch('/api/products?limit=10000'),
-        fetch('/api/orders'),
-        fetch('/api/quotes')
+        fetch('/api/products?limit=10000', { headers }),
+        fetch('/api/orders?admin=true', { headers }),
+        fetch('/api/quotes?admin=true', { headers })
       ]);
 
       if (prodRes.ok) {
