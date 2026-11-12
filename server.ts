@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
+import dns from 'dns';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
@@ -668,6 +669,49 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     logs.push(`Failed on local_relay: ${relayErr.message}`);
   }
 
+  // Tier 4: Direct-to-MX Delivery directly to recipient's mail servers (Gmail, Outlook, Yahoo, Corporate Domains)
+  try {
+    const domain = toEmail.split('@')[1];
+    if (domain) {
+      logs.push(`Looking up DNS MX records for @${domain}...`);
+      const mxRecords = await dns.promises.resolveMx(domain).catch(() => []);
+      if (Array.isArray(mxRecords) && mxRecords.length > 0) {
+        // Sort MX records by priority ascending
+        mxRecords.sort((a, b) => a.priority - b.priority);
+        for (const mx of mxRecords.slice(0, 3)) {
+          try {
+            logs.push(`Attempting Direct MX delivery to ${mx.exchange}:25...`);
+            const mxTransporter = nodemailer.createTransport({
+              host: mx.exchange,
+              port: 25,
+              secure: false,
+              tls: { rejectUnauthorized: false },
+              name: 'spineldistribution.com',
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000
+            });
+            await mxTransporter.sendMail({
+              from: fromHeader,
+              to: toEmail,
+              envelope: { from: senderEmail, to: toEmail },
+              subject,
+              text: textBody,
+              html: htmlBody
+            });
+            console.log(`[Email OTP Service] Delivered via Direct MX (${mx.exchange}:25) to ${toEmail}`);
+            logs.push(`SUCCESS via direct_mx (${mx.exchange})`);
+            return { success: true, method: `direct_mx:${mx.exchange}`, details: logs };
+          } catch (mxErr: any) {
+            logs.push(`Failed on direct_mx (${mx.exchange}): ${mxErr.message}`);
+          }
+        }
+      }
+    }
+  } catch (directErr: any) {
+    logs.push(`Direct MX resolution notice: ${directErr.message}`);
+  }
+
   return {
     success: false,
     method: 'none',
@@ -817,6 +861,48 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
     return { success: true, method: 'local_relay', details: logs };
   } catch (relayErr: any) {
     logs.push(`Failed on local_relay: ${relayErr.message}`);
+  }
+
+  // Tier 4: Direct-to-MX Delivery directly to recipient's mail servers (Gmail, Outlook, Yahoo, Corporate Domains)
+  try {
+    const domain = toEmail.split('@')[1];
+    if (domain) {
+      logs.push(`Looking up DNS MX records for @${domain}...`);
+      const mxRecords = await dns.promises.resolveMx(domain).catch(() => []);
+      if (Array.isArray(mxRecords) && mxRecords.length > 0) {
+        mxRecords.sort((a, b) => a.priority - b.priority);
+        for (const mx of mxRecords.slice(0, 3)) {
+          try {
+            logs.push(`Attempting Direct MX delivery to ${mx.exchange}:25...`);
+            const mxTransporter = nodemailer.createTransport({
+              host: mx.exchange,
+              port: 25,
+              secure: false,
+              tls: { rejectUnauthorized: false },
+              name: 'spineldistribution.com',
+              connectionTimeout: 5000,
+              greetingTimeout: 5000,
+              socketTimeout: 8000
+            });
+            await mxTransporter.sendMail({
+              from: fromHeader,
+              to: toEmail,
+              envelope: { from: senderEmail, to: toEmail },
+              subject,
+              text: textBody,
+              html: htmlBody
+            });
+            console.log(`[Email Password Reset Service] Delivered via Direct MX (${mx.exchange}:25) to ${toEmail}`);
+            logs.push(`SUCCESS via direct_mx (${mx.exchange})`);
+            return { success: true, method: `direct_mx:${mx.exchange}`, details: logs };
+          } catch (mxErr: any) {
+            logs.push(`Failed on direct_mx (${mx.exchange}): ${mxErr.message}`);
+          }
+        }
+      }
+    }
+  } catch (directErr: any) {
+    logs.push(`Direct MX resolution notice: ${directErr.message}`);
   }
 
   return {
@@ -2112,6 +2198,20 @@ app.patch('/api/orders/:id/status', requireAdmin, (req, res) => {
   }
   order.status = status;
   res.json(order);
+});
+
+// Delete an order
+app.delete('/api/orders/:id', (req, res) => {
+  const targetId = req.params.id;
+  const initialLength = ordersStore.length;
+  ordersStore = ordersStore.filter(o => o.id !== targetId && o.orderNumber !== targetId);
+  if (ordersStore.length === initialLength) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  if (supabaseClient) {
+    supabaseClient.from('orders').delete().eq('id', targetId).then(() => {}).catch(() => {});
+  }
+  res.json({ success: true, message: 'Order removed successfully' });
 });
 
 // Paystack payment initialize proxy

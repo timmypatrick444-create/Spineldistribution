@@ -30,17 +30,29 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const { formatPrice, currency, exchangeRate, serverConfig } = useCurrency();
   const { user } = useAuth();
 
-  const [address, setAddress] = useState<ShippingAddress>({
-    fullName: '',
-    companyName: '',
-    email: '',
+  const [address, setAddress] = useState<ShippingAddress>(() => ({
+    fullName: user?.fullName || '',
+    companyName: user?.company || '',
+    email: user?.email || '',
     phone: '',
     streetAddress: '',
     city: '',
     state: '',
     postalCode: '',
     country: 'Nigeria'
-  });
+  }));
+
+  // Update address fields when signed in user profile loads
+  React.useEffect(() => {
+    if (user) {
+      setAddress(prev => ({
+        ...prev,
+        fullName: prev.fullName || user.fullName || '',
+        companyName: prev.companyName || user.company || '',
+        email: user.email || prev.email || ''
+      }));
+    }
+  }, [user]);
 
   const [processing, setProcessing] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
