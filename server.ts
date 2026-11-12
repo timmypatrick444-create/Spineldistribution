@@ -2166,8 +2166,10 @@ app.post('/api/products/clear', requireAdmin, (req, res) => {
 // Create New Order
 app.post('/api/orders', (req, res) => {
   const { customerEmail, customerName, shippingAddress, items, currency, paymentMethod, paymentReference } = req.body;
+  const auth = getRequesterAuth(req);
+  const resolvedEmail = (auth.email || customerEmail || '').trim().toLowerCase();
 
-  if (!items || !items.length || !customerEmail) {
+  if (!items || !items.length || !resolvedEmail) {
     return res.status(400).json({ error: 'Invalid order data: items and customer email are required' });
   }
 
@@ -2192,7 +2194,7 @@ app.post('/api/orders', (req, res) => {
   const newOrder: Order = {
     id: `ord-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
     orderNumber,
-    customerEmail,
+    customerEmail: resolvedEmail,
     customerName: customerName || shippingAddress.fullName || 'Valued Customer',
     shippingAddress,
     items,

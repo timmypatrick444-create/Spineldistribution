@@ -5,7 +5,6 @@ import {
   Printer, 
   Download, 
   ArrowLeft, 
-  ShieldCheck, 
   CreditCard, 
   Truck, 
   Building, 
@@ -414,25 +413,9 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
           </div>
 
           {/* Financial Totals & Summary */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-2">
-            {/* Payment / Bank Notes (Especially when Pending) */}
-            <div className="max-w-sm space-y-2 text-xs text-gray-500">
-              <span className="font-bold text-gray-800 uppercase tracking-wider text-[11px] block">
-                Direct Corporate Settlement
-              </span>
-              <p className="leading-relaxed">
-                For corporate direct bank wires, settle into our official institutional account citing Invoice #{currentOrder.orderNumber}:
-              </p>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 font-mono text-[11px] text-gray-700">
-                <div>Bank: <strong>Standard Chartered / Zenith Bank</strong></div>
-                <div>Account Name: <strong>SPINEL DISTRIBUTION LTD</strong></div>
-                <div>Account Number (NGN): <strong>0048192841</strong></div>
-                <div>Account Number (USD): <strong>5070291844</strong></div>
-              </div>
-            </div>
-
+          <div className="flex justify-end pt-2">
             {/* Calculations Box */}
-            <div className="w-full sm:w-72 space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs">
+            <div className="w-full sm:w-80 space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal (USD):</span>
                 <span className="font-semibold">${currentOrder.subtotalUSD.toFixed(2)}</span>
@@ -449,20 +432,6 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
                 Total in Naira: ₦{Math.round(currentOrder.subtotalUSD * (currentOrder.exchangeRateUsed || 1580)).toLocaleString()}
               </div>
             </div>
-          </div>
-
-          {/* Warranty & Terms Footer */}
-          <div className="border-t border-gray-200 pt-6 text-[11px] text-gray-500 space-y-2">
-            <div className="flex items-center gap-2 text-gray-700 font-bold">
-              <ShieldCheck size={16} className="text-emerald-600" />
-              <span>Official Spinel Distribution Commercial Guarantee</span>
-            </div>
-            <p className="leading-relaxed">
-              All enterprise hardware supplied carries official OEM factory warranty (1 to 3 years depending on manufacturer tier). Equipment returns are accepted within 30 days of shipment in original sealed packaging.
-            </p>
-            <p className="text-gray-400">
-              For technical inquiries, firmware licenses, or RMA assistance, email sales@spineldistribution.com or call +234 (0) 1 800-SPINEL.
-            </p>
           </div>
 
         </div>

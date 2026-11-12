@@ -92,7 +92,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          customerEmail: address.email,
+          customerEmail: (user?.email || address.email).trim().toLowerCase(),
           customerName: address.fullName,
           shippingAddress: address,
           items: itemsPayload,
@@ -119,7 +119,28 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     }
   };
 
-  const handlePaystackPayment = () => {
+  // Dynamically ensure Paystack inline script is loaded
+  const ensurePaystackLoaded = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).PaystackPop) {
+        return resolve(true);
+      }
+      const existing = document.querySelector('script[src*="paystack.co"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(Boolean((window as any).PaystackPop)));
+        setTimeout(() => resolve(Boolean((window as any).PaystackPop)), 3000);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      script.onload = () => resolve(Boolean((window as any).PaystackPop));
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePaystackPayment = async () => {
     if (!address.fullName || !address.email || !address.streetAddress || !address.phone) {
       alert('Please fill out all required shipping and contact details.');
       return;
@@ -128,57 +149,58 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     const paystackKey = serverConfig?.paystackPublicKey || 'pk_test_sample_spinel_public_key';
     const amountInKobo = Math.round(totalNGN * 100);
 
-    // Check if PaystackPop inline SDK is available in window
+    const isLoaded = await ensurePaystackLoaded();
     const PaystackPop = (window as any).PaystackPop;
 
-    if (PaystackPop && typeof PaystackPop.setup === 'function') {
-      try {
-        let paymentCompleted = false;
-        const handler = PaystackPop.setup({
-          key: paystackKey,
-          email: address.email,
-          amount: amountInKobo,
-          currency: 'NGN',
-          ref: `SPN_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          metadata: {
-            custom_fields: [
-              {
-                display_name: 'Customer Name',
-                variable_name: 'customer_name',
-                value: address.fullName
-              },
-              {
-                display_name: 'Total USD',
-                variable_name: 'total_usd',
-                value: totalUSD.toString()
-              }
-            ]
-          },
-          callback: function (response: any) {
-            console.log('[Paystack Success]', response);
-            paymentCompleted = true;
-            processOrderSubmission(response.reference || `pstk_ref_${Date.now()}`, 'paid');
-          },
-          onClose: function () {
-            if (!paymentCompleted) {
-              console.log('[Paystack] Payment canceled / closed by user. Directly navigating to pending invoice page.');
-              processOrderSubmission('', 'unpaid');
-            }
-          }
-        });
-
-        handler.openIframe();
-        return;
-      } catch (err) {
-        console.warn('[Paystack Popup Error]', err);
-        // Popup could not be opened: submit as unpaid pending order
-        processOrderSubmission('', 'unpaid');
-        return;
-      }
+    if (!isLoaded || !PaystackPop || typeof PaystackPop.setup !== 'function') {
+      alert('Unable to load Paystack payment gateway. Please check your internet connection and try again.');
+      return;
     }
 
-    // Paystack Pop not ready: submit as pending unpaid order so stock is held and customer can pay on Invoice page
-    processOrderSubmission('', 'unpaid');
+    try {
+      let paymentCompleted = false;
+      const handler = PaystackPop.setup({
+        key: paystackKey,
+        email: address.email,
+        amount: amountInKobo,
+        currency: 'NGN',
+        ref: `SPN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+        metadata: {
+          custom_fields: [
+            {
+              display_name: 'Customer Name',
+              variable_name: 'customer_name',
+              value: address.fullName
+            },
+            {
+              display_name: 'Total USD',
+              variable_name: 'total_usd',
+              value: totalUSD.toString()
+            }
+          ]
+        },
+        callback: function (response: any) {
+          console.log('[Paystack Success]', response);
+          paymentCompleted = true;
+          if (response && response.reference) {
+            processOrderSubmission(response.reference, 'paid');
+          } else {
+            alert('Paystack payment verification was incomplete. No order was placed.');
+          }
+        },
+        onClose: function () {
+          if (!paymentCompleted) {
+            console.log('[Paystack] Payment canceled / closed by user. No order placed.');
+            alert('Payment window closed. Your transaction was not completed and no order was placed.');
+          }
+        }
+      });
+
+      handler.openIframe();
+    } catch (err: any) {
+      console.warn('[Paystack Popup Error]', err);
+      alert('Failed to launch Paystack checkout: ' + (err.message || 'Please try again.'));
+    }
   };
 
   // SUCCESS SCREEN
@@ -458,23 +480,6 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             <span>
               {processing ? 'Processing Order...' : `Pay ₦${totalNGN.toLocaleString()} with Paystack`}
             </span>
-          </button>
-
-          {/* Alternative: Order with Pending Invoice */}
-          <button
-            type="button"
-            onClick={() => {
-              if (!address.fullName || !address.email || !address.streetAddress || !address.phone) {
-                alert('Please fill out all required shipping and contact details first.');
-                return;
-              }
-              processOrderSubmission('', 'unpaid');
-            }}
-            disabled={processing}
-            className="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-4 rounded-full border border-gray-300 hover:border-gray-400 shadow-2xs cursor-pointer transition-colors text-xs flex items-center justify-center gap-1.5"
-          >
-            <Clock size={14} className="text-amber-600" />
-            <span>Checkout with Pending Invoice (Pay on Invoice)</span>
           </button>
 
           <p className="text-[10px] text-gray-500 text-center">

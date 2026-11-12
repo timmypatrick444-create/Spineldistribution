@@ -472,14 +472,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           type="button"
-          onClick={() => onNavigate('category', 'Video Management & Recording')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
-        >
-          NVR &amp; AI Analytics
-        </button>
-
-        <button
-          type="button"
           onClick={() => onNavigate('category', 'Access Control & Door Security')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
