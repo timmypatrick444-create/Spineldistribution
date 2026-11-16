@@ -3,16 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
-import dns from 'dns';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { SEED_PRODUCTS } from './src/data/seedProducts';
-import { UPLOADED_CATALOG_PRODUCTS } from './src/data/uploadedProducts';
+import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './src/data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './src/data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './src/data/uploadedEnclosureProducts';
-import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
-import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
 
@@ -90,11 +87,9 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
 
 // In-Memory resilient primary database state (Holds thousands of products reliably)
 let productCatalog: Product[] = [
-  ...CUSTOM_UPLOADED_PRODUCTS,
-  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
-  ...UPLOADED_CATALOG_PRODUCTS,
+  ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
   ...SEED_PRODUCTS.map((p, index) => ({
     ...p,
     id: p.id || `prod-${p.sku || index}`
@@ -488,7 +483,7 @@ interface PendingPasswordReset {
 const pendingPasswordResets = new Map<string, PendingPasswordReset>();
 
 // Multi-tiered Email Delivery Engine for cPanel & Production
-async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const fromAddress = process.env.SMTP_FROM || process.env.MAIL_FROM || '"Spinel Distribution" <noreply@spineldistribution.com>';
   const subject = `Your Verification Code: ${otp} - Spinel Distribution`;
@@ -502,7 +497,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
       <div style="background: #0f172a; padding: 24px; text-align: center;">
         <h1 style="color: #f8fafc; font-size: 18px; margin: 0; font-weight: 700;">SPINEL DISTRIBUTION</h1>
-        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Telecom Infrastructure</p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">Security • Networking • Renewable Energy</p>
       </div>
       <div style="padding: 32px 28px;">
         <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">Hello ${fullName || 'Valued Customer'},</div>
@@ -669,49 +664,6 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
     logs.push(`Failed on local_relay: ${relayErr.message}`);
   }
 
-  // Tier 4: Direct-to-MX Delivery directly to recipient's mail servers (Gmail, Outlook, Yahoo, Corporate Domains)
-  try {
-    const domain = toEmail.split('@')[1];
-    if (domain) {
-      logs.push(`Looking up DNS MX records for @${domain}...`);
-      const mxRecords = await dns.promises.resolveMx(domain).catch(() => []);
-      if (Array.isArray(mxRecords) && mxRecords.length > 0) {
-        // Sort MX records by priority ascending
-        mxRecords.sort((a, b) => a.priority - b.priority);
-        for (const mx of mxRecords.slice(0, 3)) {
-          try {
-            logs.push(`Attempting Direct MX delivery to ${mx.exchange}:25...`);
-            const mxTransporter = nodemailer.createTransport({
-              host: mx.exchange,
-              port: 25,
-              secure: false,
-              tls: { rejectUnauthorized: false },
-              name: 'spineldistribution.com',
-              connectionTimeout: 5000,
-              greetingTimeout: 5000,
-              socketTimeout: 8000
-            });
-            await mxTransporter.sendMail({
-              from: fromHeader,
-              to: toEmail,
-              envelope: { from: senderEmail, to: toEmail },
-              subject,
-              text: textBody,
-              html: htmlBody
-            });
-            console.log(`[Email OTP Service] Delivered via Direct MX (${mx.exchange}:25) to ${toEmail}`);
-            logs.push(`SUCCESS via direct_mx (${mx.exchange})`);
-            return { success: true, method: `direct_mx:${mx.exchange}`, details: logs };
-          } catch (mxErr: any) {
-            logs.push(`Failed on direct_mx (${mx.exchange}): ${mxErr.message}`);
-          }
-        }
-      }
-    }
-  } catch (directErr: any) {
-    logs.push(`Direct MX resolution notice: ${directErr.message}`);
-  }
-
   return {
     success: false,
     method: 'none',
@@ -721,7 +673,7 @@ async function sendOtpEmail(toEmail: string, fullName: string, otp: string): Pro
 }
 
 // Multi-tiered Password Reset OTP Delivery from noreply@spineldistribution.com
-async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string; details?: string[] }> {
+async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp: string): Promise<{ success: boolean; method: string; error?: string }> {
   loadAllPossibleEnvFiles();
   const subject = `Password Reset Verification Code: ${otp} - Spinel Distribution`;
   const senderEmail = 'noreply@spineldistribution.com';
@@ -753,11 +705,11 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
         </div>
       </div>
       <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-        Sent automatically from ${senderEmail} &bull; &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+        &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
       </div>
     </div>
   `;
-  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes. Sent from noreply@spineldistribution.com.`;
+  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes.`;
   const logs: string[] = [];
 
   const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
@@ -861,48 +813,6 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
     return { success: true, method: 'local_relay', details: logs };
   } catch (relayErr: any) {
     logs.push(`Failed on local_relay: ${relayErr.message}`);
-  }
-
-  // Tier 4: Direct-to-MX Delivery directly to recipient's mail servers (Gmail, Outlook, Yahoo, Corporate Domains)
-  try {
-    const domain = toEmail.split('@')[1];
-    if (domain) {
-      logs.push(`Looking up DNS MX records for @${domain}...`);
-      const mxRecords = await dns.promises.resolveMx(domain).catch(() => []);
-      if (Array.isArray(mxRecords) && mxRecords.length > 0) {
-        mxRecords.sort((a, b) => a.priority - b.priority);
-        for (const mx of mxRecords.slice(0, 3)) {
-          try {
-            logs.push(`Attempting Direct MX delivery to ${mx.exchange}:25...`);
-            const mxTransporter = nodemailer.createTransport({
-              host: mx.exchange,
-              port: 25,
-              secure: false,
-              tls: { rejectUnauthorized: false },
-              name: 'spineldistribution.com',
-              connectionTimeout: 5000,
-              greetingTimeout: 5000,
-              socketTimeout: 8000
-            });
-            await mxTransporter.sendMail({
-              from: fromHeader,
-              to: toEmail,
-              envelope: { from: senderEmail, to: toEmail },
-              subject,
-              text: textBody,
-              html: htmlBody
-            });
-            console.log(`[Email Password Reset Service] Delivered via Direct MX (${mx.exchange}:25) to ${toEmail}`);
-            logs.push(`SUCCESS via direct_mx (${mx.exchange})`);
-            return { success: true, method: `direct_mx:${mx.exchange}`, details: logs };
-          } catch (mxErr: any) {
-            logs.push(`Failed on direct_mx (${mx.exchange}): ${mxErr.message}`);
-          }
-        }
-      }
-    }
-  } catch (directErr: any) {
-    logs.push(`Direct MX resolution notice: ${directErr.message}`);
   }
 
   return {
@@ -1107,42 +1017,6 @@ async function markUserAsVerified(email: string): Promise<boolean> {
 // Active admin session tokens in memory
 const activeAdminTokens = new Set<string>();
 
-// Active customer user session tokens mapped to user details for RBAC & privacy
-interface UserSession {
-  email: string;
-  fullName: string;
-  id: string;
-  createdAt: number;
-}
-const activeUserSessions = new Map<string, UserSession>();
-
-// Helper to determine requester identity and authorization
-function getRequesterAuth(req: express.Request): { isAdmin: boolean; email: string | null } {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-  const isAdmin = Boolean(
-    (token && activeAdminTokens.has(token)) ||
-    (req.query.admin === 'true' && token && activeAdminTokens.has(token))
-  );
-
-  let email: string | null = null;
-  if (token && activeUserSessions.has(token)) {
-    email = activeUserSessions.get(token)!.email.toLowerCase();
-  }
-
-  // Also inspect query or body parameter
-  const qEmail = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : null;
-  const bEmail = typeof req.body?.customerEmail === 'string'
-    ? req.body.customerEmail.trim().toLowerCase()
-    : (typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : null);
-
-  if (!email) {
-    email = qEmail || bEmail;
-  }
-
-  return { isAdmin, email };
-}
-
 // Middleware to verify admin token
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
@@ -1278,8 +1152,8 @@ app.get('/api/products/:id', (req, res) => {
 // CUSTOMER AUTHENTICATION & EMAIL OTP VERIFICATION
 // -------------------------------------------------------------
 
-// Step 1: Initiate signup, record user with OTP in Users table, send 6-digit OTP to user email
-const handleRegisterInitiate = async (req: express.Request, res: express.Response) => {
+// Step 1: Initiate signup, record user with OTP in Users table, send 6-digit OTP
+app.post('/api/auth/register-initiate', async (req, res) => {
   const { fullName, email, password } = req.body;
   const cleanFullName = (fullName || '').trim();
   const cleanEmail = (email || '').trim().toLowerCase();
@@ -1337,16 +1211,13 @@ const handleRegisterInitiate = async (req: express.Request, res: express.Respons
         ? `A 6-digit verification code has been sent to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success,
-      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
+      emailSent: emailResult.success
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
     return res.status(500).json({ error: 'Server error processing registration. Please try again.' });
   }
-};
-app.post('/api/auth/register-initiate', handleRegisterInitiate);
-app.post('/api/auth/register', handleRegisterInitiate);
+});
 
 // Step 2: Verify 6-digit OTP and update user to 'Verified' in Users table
 app.post('/api/auth/verify-otp', async (req, res) => {
@@ -1371,12 +1242,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   // If already verified, allow login directly
   if (dbUser && dbUser.verificationStatus === 'Verified') {
     const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    activeUserSessions.set(token, {
-      email: cleanEmail,
-      fullName: dbUser.fullName,
-      id: String(dbUser.id),
-      createdAt: Date.now()
-    });
     return res.status(200).json({
       success: true,
       message: 'Account is already verified. Signing you in...',
@@ -1431,12 +1296,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
 
     const verifiedUser = await findUserByEmail(cleanEmail);
     const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    activeUserSessions.set(token, {
-      email: cleanEmail,
-      fullName: verifiedUser?.fullName || pending?.fullName || 'Valued Customer',
-      id: String(verifiedUser?.id || `usr_${Date.now()}`),
-      createdAt: Date.now()
-    });
 
     return res.status(200).json({
       success: true,
@@ -1504,8 +1363,7 @@ app.post('/api/auth/resend-otp', async (req, res) => {
       ? `A fresh 6-digit verification code has been sent to ${cleanEmail}.`
       : `New code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
     email: cleanEmail,
-    emailSent: emailResult.success,
-    devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? newOtp : undefined
+    emailSent: emailResult.success
   });
 });
 
@@ -1569,19 +1427,11 @@ app.post('/api/auth/login', async (req, res) => {
         error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
         pendingVerification: true,
         email: cleanEmail,
-        emailSent: emailResult.success,
-        devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
+        emailSent: emailResult.success
       });
     }
 
     const token = `usr_token_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    activeUserSessions.set(token, {
-      email: user.email.toLowerCase(),
-      fullName: user.fullName,
-      id: String(user.id),
-      createdAt: Date.now()
-    });
-
     return res.json({
       success: true,
       message: 'Signed in successfully.',
@@ -1597,17 +1447,6 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('[Login Error]', err);
     return res.status(500).json({ error: 'Server error during authentication. Please try again.' });
   }
-});
-
-// Logout endpoint to invalidate active session tokens
-app.post('/api/auth/logout', (req, res) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-  if (token) {
-    activeUserSessions.delete(token);
-    activeAdminTokens.delete(token);
-  }
-  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Step 5: Forgot Password - Send OTP from noreply@spineldistribution.com
@@ -1675,11 +1514,10 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return res.json({
       success: true,
       message: emailResult.success
-        ? `A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`
+        ? `A 6-digit verification code has been sent to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success,
-      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
+      emailSent: emailResult.success
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]', err);
@@ -2166,10 +2004,8 @@ app.post('/api/products/clear', requireAdmin, (req, res) => {
 // Create New Order
 app.post('/api/orders', (req, res) => {
   const { customerEmail, customerName, shippingAddress, items, currency, paymentMethod, paymentReference } = req.body;
-  const auth = getRequesterAuth(req);
-  const resolvedEmail = (auth.email || customerEmail || '').trim().toLowerCase();
 
-  if (!items || !items.length || !resolvedEmail) {
+  if (!items || !items.length || !customerEmail) {
     return res.status(400).json({ error: 'Invalid order data: items and customer email are required' });
   }
 
@@ -2194,7 +2030,7 @@ app.post('/api/orders', (req, res) => {
   const newOrder: Order = {
     id: `ord-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
     orderNumber,
-    customerEmail: resolvedEmail,
+    customerEmail,
     customerName: customerName || shippingAddress.fullName || 'Valued Customer',
     shippingAddress,
     items,
@@ -2224,112 +2060,38 @@ app.post('/api/orders', (req, res) => {
   res.status(201).json(newOrder);
 });
 
-// Mark order as paid with STRICT Paystack verification
-app.post('/api/orders/:id/pay', async (req, res) => {
-  const { paymentReference, customerEmail } = req.body;
+// Mark order as paid (e.g. after completing Paystack payment on Invoice page)
+app.post('/api/orders/:id/pay', (req, res) => {
+  const { paymentReference } = req.body;
   const order = ordersStore.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
   if (!order) {
     return res.status(404).json({ error: 'Order not found' });
   }
-
-  // Enforce access control: only the customer who placed the order or an admin can pay/complete it
-  const auth = getRequesterAuth(req);
-  const requesterEmail = (customerEmail || auth.email || '').toLowerCase();
-  if (!auth.isAdmin) {
-    if (!requesterEmail || order.customerEmail.toLowerCase() !== requesterEmail) {
-      return res.status(403).json({ error: 'Access denied: You do not have permission to pay for this order.' });
-    }
-  }
-
-  // Payment reference from Paystack is mandatory
-  if (!paymentReference || typeof paymentReference !== 'string' || !paymentReference.trim()) {
-    return res.status(400).json({ error: 'Payment reference from Paystack is required to complete the order.' });
-  }
-
-  const cleanRef = paymentReference.trim();
-
-  // Reject simulated bypass references
-  if (cleanRef.startsWith('PSTK_LIVE_CONFIRMED_') || cleanRef.startsWith('PSTK_LIVE_REF_')) {
-    return res.status(400).json({
-      error: 'Invalid payment reference. Order must be completed and verified through Paystack checkout.'
-    });
-  }
-
-  // Strict Paystack Verification via Paystack API
-  if (PAYSTACK_SECRET_KEY) {
-    try {
-      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(cleanRef)}`, {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`
-        }
-      });
-      const verifyData: any = await verifyRes.json();
-      if (!verifyRes.ok || !verifyData.status || verifyData.data?.status !== 'success') {
-        console.warn(`[Paystack Verification Rejected] Ref: ${cleanRef}`, verifyData);
-        return res.status(400).json({
-          error: `Paystack payment could not be verified (${verifyData.message || 'Transaction incomplete'}). Order remains pending.`
-        });
-      }
-      console.log(`[Paystack Live Verified] Ref: ${cleanRef} confirmed for Order #${order.orderNumber}`);
-    } catch (verErr: any) {
-      console.error('[Paystack API Error]', verErr);
-      return res.status(500).json({
-        error: 'Paystack payment verification server unreachable. The order remains pending until verified.'
-      });
-    }
-  }
-
-  // Update order to paid and completed
   order.paymentStatus = 'paid';
   order.status = 'completed';
-  order.paymentReference = cleanRef;
-
-  // Sync to Supabase if configured
-  if (supabaseClient) {
-    supabaseClient.from('orders').update({
-      paymentStatus: 'paid',
-      status: 'completed',
-      paymentReference: cleanRef
-    }).eq('id', order.id).then(() => {}).catch(() => {});
-  }
-
-  console.log(`[Order Paid & Completed] Order #${order.orderNumber} for ${order.customerEmail} successfully marked completed. Ref: ${cleanRef}`);
+  order.paymentReference = paymentReference || `pstk_${Date.now()}`;
   res.json(order);
 });
 
-// Get orders (Strictly isolated: customers only see their own orders; admin sees all)
+// Get orders (by user email or all if admin)
 app.get('/api/orders', (req, res) => {
-  const auth = getRequesterAuth(req);
-
-  // Admin access
-  if (auth.isAdmin) {
+  const { email, admin } = req.query;
+  if (admin === 'true') {
     return res.json(ordersStore);
   }
-
-  // Customer access: strictly filter by verified customer email
-  if (auth.email) {
-    const userOrders = ordersStore.filter(o => o.customerEmail.toLowerCase() === auth.email);
+  if (email) {
+    const userOrders = ordersStore.filter(o => o.customerEmail.toLowerCase() === String(email).toLowerCase());
     return res.json(userOrders);
   }
-
-  // Non-authenticated / no email: return empty array. NEVER leak other customers' orders!
-  res.json([]);
+  res.json(ordersStore.slice(0, 20));
 });
 
-// Get single order (Strictly isolated)
+// Get single order
 app.get('/api/orders/:id', (req, res) => {
   const order = ordersStore.find(o => o.id === req.params.id || o.orderNumber === req.params.id);
   if (!order) {
     return res.status(404).json({ error: 'Order not found' });
   }
-
-  const auth = getRequesterAuth(req);
-  if (!auth.isAdmin) {
-    if (!auth.email || order.customerEmail.toLowerCase() !== auth.email) {
-      return res.status(403).json({ error: 'Access denied: You do not have permission to view this order.' });
-    }
-  }
-
   res.json(order);
 });
 
@@ -2342,28 +2104,6 @@ app.patch('/api/orders/:id/status', requireAdmin, (req, res) => {
   }
   order.status = status;
   res.json(order);
-});
-
-// Delete an order (Strictly isolated: customer can delete only their own orders)
-app.delete('/api/orders/:id', (req, res) => {
-  const targetId = req.params.id;
-  const order = ordersStore.find(o => o.id === targetId || o.orderNumber === targetId);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  const auth = getRequesterAuth(req);
-  if (!auth.isAdmin) {
-    if (!auth.email || order.customerEmail.toLowerCase() !== auth.email) {
-      return res.status(403).json({ error: 'Access denied: You can only delete your own orders.' });
-    }
-  }
-
-  ordersStore = ordersStore.filter(o => o.id !== targetId && o.orderNumber !== targetId);
-  if (supabaseClient) {
-    supabaseClient.from('orders').delete().eq('id', targetId).then(() => {}).catch(() => {});
-  }
-  res.json({ success: true, message: 'Order removed successfully' });
 });
 
 // Paystack payment initialize proxy
@@ -2454,30 +2194,15 @@ app.get('/api/db-status', async (req, res) => {
   }
 });
 
-// Get quotes (Admin sees all; signed-in customers strictly see only their own submitted quotes)
+// Get all quotes (for Admin Dashboard)
 app.get('/api/quotes', async (req, res) => {
-  const auth = getRequesterAuth(req);
-
-  // If not admin and no email identified, return empty list to protect customer privacy
-  if (!auth.isAdmin && !auth.email) {
-    return res.json({ quotes: [] });
-  }
-
   const pool = await getOrInitDbPool();
   if (pool) {
     try {
-      let query = 'SELECT * FROM `Request_Quote` ORDER BY `ID` DESC LIMIT 500';
-      let params: any[] = [];
+      // Query solely the Request_Quote table
+      const [rows]: any = await pool.query('SELECT * FROM `Request_Quote` ORDER BY `ID` DESC LIMIT 500');
 
-      // Filter by customer email when not admin
-      if (!auth.isAdmin && auth.email) {
-        query = 'SELECT * FROM `Request_Quote` WHERE LOWER(`Email`) = ? ORDER BY `ID` DESC LIMIT 500';
-        params = [auth.email];
-      }
-
-      const [rows]: any = await pool.query(query, params);
-
-      if (Array.isArray(rows)) {
+      if (Array.isArray(rows) && rows.length > 0) {
         const dbQuotes = rows.map((r: any) => ({
           id: r.ID,
           quoteId: `RFQ-2026-${r.ID}`,
@@ -2497,26 +2222,17 @@ app.get('/api/quotes', async (req, res) => {
             name: r.Product_Name || r.product_name || 'Hardware Equipment',
             brand: 'Enterprise Grade',
             category: 'Procurement',
-            image: r.Image || r.image || ''
+            image: r.Image || r.image || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=400'
           }
         }));
-
-        if (auth.isAdmin) {
-          quotesStore = dbQuotes;
-        }
+        quotesStore = dbQuotes;
         return res.json({ quotes: dbQuotes });
       }
     } catch (err: any) {
       console.warn('[MySQL] Error querying Request_Quote table:', err.message);
     }
   }
-
-  if (auth.isAdmin) {
-    return res.json({ quotes: quotesStore });
-  }
-
-  const userQuotes = quotesStore.filter(q => (q.email || '').toLowerCase() === auth.email);
-  return res.json({ quotes: userQuotes });
+  res.json({ quotes: quotesStore });
 });
 
 // Helper to save uploaded quote picture files physically on cPanel disk
@@ -2750,35 +2466,20 @@ app.patch('/api/quotes/:id/status', async (req, res) => {
   res.json({ success: true, quote });
 });
 
-// Delete RFQ (Admin can delete any; customer can delete only their own quotes)
+// Delete RFQ (Admin only)
 app.delete('/api/quotes/:id', async (req, res) => {
-  const auth = getRequesterAuth(req);
-  const targetId = req.params.id;
-
-  // Enforce customer ownership check if not admin
-  const targetQuote = quotesStore.find(q => q.quoteId === targetId || q.id === targetId || String(q.id) === String(targetId));
-  if (!auth.isAdmin) {
-    if (!auth.email) {
-      return res.status(401).json({ error: 'Authentication required to delete quotation requests.' });
-    }
-    if (targetQuote && (targetQuote.email || '').toLowerCase() !== auth.email) {
-      return res.status(403).json({ error: 'Access denied: You can only delete your own quotation requests.' });
-    }
+  const initialLen = quotesStore.length;
+  quotesStore = quotesStore.filter(q => q.quoteId !== req.params.id && q.id !== req.params.id && String(q.id) !== String(req.params.id));
+  if (quotesStore.length === initialLen) {
+    return res.status(404).json({ error: 'Quote not found' });
   }
 
-  const initialLen = quotesStore.length;
-  quotesStore = quotesStore.filter(q => q.quoteId !== targetId && q.id !== targetId && String(q.id) !== String(targetId));
-
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
   if (pool) {
     try {
-      const numericId = parseInt(targetId.replace(/\D/g, ''), 10);
+      const numericId = parseInt(req.params.id.replace(/\D/g, ''), 10);
       if (numericId) {
-        if (auth.isAdmin) {
-          await (pool as any).execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
-        } else if (auth.email) {
-          await (pool as any).execute('DELETE FROM `Request_Quote` WHERE `ID` = ? AND LOWER(`Email`) = ?', [numericId, auth.email]);
-        }
+        await pool.execute('DELETE FROM `Request_Quote` WHERE `ID` = ?', [numericId]);
       }
     } catch (err: any) {
       console.warn('[MySQL] Delete quote error:', err.message);
@@ -2793,11 +2494,11 @@ app.get('/api/db-status', async (req, res) => {
   const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
   const database = process.env.DB_NAME || process.env.MYSQL_DATABASE || '(not configured)';
   const user = process.env.DB_USER || process.env.MYSQL_USER || '(not configured)';
-  const pool = await getOrInitDbPool();
+  const pool = getDbPool();
 
   if (pool && isDbConnected) {
     try {
-      const [rows]: any = await (pool as any).query('SELECT COUNT(*) as count FROM `Request_Quote`');
+      const [rows]: any = await pool.query('SELECT COUNT(*) as count FROM `Request_Quote`');
       const count = Array.isArray(rows) && rows[0]?.count !== undefined ? rows[0].count : 0;
       return res.json({
         connected: true,
@@ -2914,7 +2615,7 @@ app.post(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [result]: any = await (pool as any).execute(
+        const [result]: any = await pool.execute(
           'INSERT INTO `Contact_Inquiry` (`Contact_Person`, `Email`, `Company_Name`, `Phone_Number`, `Subject`, `Message`) VALUES (?, ?, ?, ?, ?, ?)',
           [finalContactPerson, finalEmail, finalCompanyName, finalPhoneNumber, finalSubject, finalMessage]
         );
@@ -2959,7 +2660,7 @@ app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
     if (pool) {
       try {
         await ensureContactInquiryTableExists(pool);
-        const [rows]: any = await (pool as any).query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
+        const [rows]: any = await pool.query('SELECT * FROM `Contact_Inquiry` ORDER BY `ID` DESC LIMIT 200');
         if (Array.isArray(rows) && rows.length > 0) {
           return res.json({ success: true, count: rows.length, inquiries: rows });
         }
@@ -2999,9 +2700,9 @@ app.get('/api/proxy-image', async (req, res) => {
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Content-Type', contentType);
-    res.header('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
   } catch (err: any) {
     console.warn('[Proxy Image Error]', err.message);
@@ -3022,40 +2723,75 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
+let viteMounted = false;
+
+const MONITORED_FILES = [
+  path.join(process.cwd(), 'app.js'),
+  path.join(__dirname, 'app.js'),
+  path.join(process.cwd(), 'server.cjs'),
+  path.join(process.cwd(), 'tmp', 'restart.txt'),
+  path.join(process.cwd(), 'client-build', 'index.html'),
+  path.join(process.cwd(), 'dist', 'index.html'),
+  path.join(process.cwd(), 'index.html'),
+  path.join(process.cwd(), 'package.json')
+];
+
+// Record file modification timestamps at boot time
+const initialFileMtimes = new Map<string, number>();
+for (const f of MONITORED_FILES) {
+  if (fs.existsSync(f)) {
+    try {
+      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
+    } catch {}
+  }
+}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
-  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
+  if (viteMounted) {
+    return;
+  }
+
+  const isProductionOrCpanel = Boolean(
+    process.env.PASSENGER_APP_ENV ||
+    process.env.CPANEL_ENV ||
+    process.env.IN_PASSENGER ||
+    process.env.NODE_ENV === 'production' ||
+    isNaN(Number(PORT))
+  );
+
+  if (!isProductionOrCpanel) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
+  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
   lastRestartCheck = now;
 
-  const appFiles = [
-    path.join(process.cwd(), 'app.js'),
-    path.join(__dirname, 'app.js'),
-    path.join(process.cwd(), 'server.cjs'),
-    path.join(process.cwd(), 'tmp', 'restart.txt')
-  ];
-
-  for (const f of appFiles) {
+  for (const f of MONITORED_FILES) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        // If file modified after the current process booted (+5s buffer for startup)
-        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
-          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
+        const recorded = initialFileMtimes.get(f);
+        
+        // If file was replaced or modified after the process booted
+        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
+          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
+          initialFileMtimes.set(f, stats.mtimeMs);
+          
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-          setTimeout(() => process.exit(0), 100);
+
+          setTimeout(() => {
+            process.exit(0);
+          }, 100);
           break;
+        } else if (recorded === undefined) {
+          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -3106,17 +2842,13 @@ function getLatestCompiledIndexHtml(): { filePath: string; content: string; mtim
 function sendFreshSpaHtml(req: express.Request, res: express.Response, next: express.NextFunction) {
   const latest = getLatestCompiledIndexHtml();
   if (latest) {
-    res.header('Content-Type', 'text/html; charset=utf-8');
-    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
-    res.header('Pragma', 'no-cache');
-    res.header('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
-    res.header('Surrogate-Control', 'no-store');
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-App-Build-Time', String(latest.mtime));
-    if (typeof (res as any).removeHeader === 'function') {
-      (res as any).removeHeader('ETag');
-      (res as any).removeHeader('Last-Modified');
-    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, post-check=0, pre-check=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
+    res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
   next();
@@ -3156,7 +2888,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
+    if (!viteMounted) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -3165,7 +2897,7 @@ async function startServer() {
   });
 
   // Mount live Vite middlewares when running in dev environment
-  let viteMounted = false;
+  viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -3179,7 +2911,7 @@ async function startServer() {
     console.log('[Storefront] Running standalone production bundle.');
   }
 
-  // Static assets for hashed JS and CSS bundles with intelligent cache headers
+  // Static immutable assets for hashed JS and CSS bundles
   const assetPaths = [
     path.join(process.cwd(), 'dist', 'assets'),
     path.join(process.cwd(), 'client-build', 'assets'),
@@ -3189,36 +2921,17 @@ async function startServer() {
   for (const aPath of assetPaths) {
     if (fs.existsSync(aPath)) {
       app.use('/assets', express.static(aPath, {
-        setHeaders: (res, filePath) => {
-          // If the file is content-hashed (e.g. index-CfICkxu0.js or vendor-*.js)
-          if (/-[A-Za-z0-9_-]{8,}\./.test(filePath)) {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-          } else {
-            // Unhashed assets (like index.js, index.css) must always revalidate
-            res.setHeader('Cache-Control', 'no-cache, must-revalidate, max-age=0');
-          }
-        }
+        maxAge: '1y',
+        immutable: true
       }));
     }
   }
 
   // Handle root and SPA fallback
   app.get('*', (req, res, next) => {
-    if (
-      req.path.startsWith('/api/') || 
-      req.path.startsWith('/uploads/') || 
-      req.path.startsWith('/Images/') || 
-      req.path.startsWith('/images/')
-    ) {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/Images/')) {
       return next();
     }
-
-    // Never return index.html for missing static files under /assets/ to prevent script MIME errors
-    if (req.path.startsWith('/assets/')) {
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(404).send('Asset not found');
-    }
-
     if (viteMounted) {
       return next();
     }

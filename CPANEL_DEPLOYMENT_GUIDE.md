@@ -118,33 +118,17 @@ If your browser displays **"Upgrade Required"**:
 
 ## 4. Files to Upload to cPanel (0 Installs Required)
 
-### Recommended Method: Single-Zip Deployment (`cpanel-deploy.zip`)
-1. Download **`cpanel-deploy.zip`** (available at `/cpanel-deploy.zip` or from the root directory).
-2. Upload `cpanel-deploy.zip` into your cPanel application root (e.g. `public_html/`).
-3. Click **Extract** in cPanel File Manager (or let the background auto-deployer unpack it automatically).
-4. `cpanel-deploy.zip` automatically overwrites:
-   - **`index.html`** (Fresh compiled production HTML with cache-busting timestamp `?v=...`)
-   - **`dist/`** & **`client-build/`** (Frontend production builds)
-   - **`assets/`** (Deterministic `assets/index.js` and `assets/index.css`)
-   - **`app.js`** & **`server.cjs`** (Standalone Node.js backend with all 60 fiber products & APIs)
-   - **`.htaccess`** (DirectoryIndex prioritizing `dist/index.html`, LiteSpeed `CacheLookup off`, zero-cache headers)
-   - **`tmp/restart.txt`** (Forces Phusion Passenger to boot the new worker immediately)
-
-### Alternative Method: Uploading Files Individually
-If you choose to upload files individually instead of using `cpanel-deploy.zip`:
+Upload these files directly into your domain root (e.g. `public_html/`):
 
 | File / Folder | Purpose |
 |---|---|
-| **`dist/index.html`** &rarr; **`index.html`** | **CRITICAL**: Copy or upload `dist/index.html` to your root `index.html`. Do NOT upload raw dev `index.html` referencing `/src/main.tsx`. |
 | **`app.js`** | Standalone production server (Express + MySQL2 + API routes bundled). |
 | **`server.cjs`** | Identical backup server bundle. |
-| **`dist/`** and **`client-build/`** | Pre-compiled React frontend (storefront, admin portal, CSS, images). |
-| **`assets/`** | Production JS and CSS bundles (`assets/index.js`, `assets/index.css`). |
+| **`client-build/`** *(or `dist/`)* | Pre-compiled React frontend (storefront, admin portal, CSS, images). |
 | **`Images/Request_Quotes/`** | Directory in app root where quote picture attachments are saved. |
-| **`.htaccess`** | HTTPS redirection, DirectoryIndex, LiteSpeed cache disable & zero-cache headers. |
+| **`.htaccess`** | HTTPS redirection & Passenger config. |
 | **`package.json`** | Metadata required by cPanel "Setup Node.js App". |
-| **`tmp/restart.txt`** | Timestamp file that signals Passenger to restart. |
-| **`.env`** / **`db_config.json`** *(Optional)* | Database & environment variables. |
+| **`.env`** *(Optional)* | Database & environment variables. |
 
 *(Do **not** upload `node_modules/` or `src/` to cPanel).*
 
@@ -152,7 +136,7 @@ If you choose to upload files individually instead of using `cpanel-deploy.zip`:
 
 ## 5. Quick Setup Summary
 
-1. Upload `cpanel-deploy.zip` to `public_html/` and click **Extract**.
+1. Upload `app.js`, `client-build/` (or `dist/`), `.htaccess`, and `package.json` to `public_html` (or extract `cpanel-deploy.zip` directly into `public_html`).
 2. In cPanel **Setup Node.js App**:
    - **Node.js version**: `20.x` (or `18.x` / `22.x`)
    - **Application mode**: `Production`
@@ -165,28 +149,17 @@ If you choose to upload files individually instead of using `cpanel-deploy.zip`:
 
 ## 6. How Live Updates Reflect Immediately on cPanel
 
-Whenever any file is uploaded or updated in cPanel File Manager, the live website updates automatically through five built-in real-time mechanisms:
+If you upload updated files and the live site still shows older content, here is why that happened and how it is solved:
 
-1. **Pre-Compiled Root `index.html` in `cpanel-deploy.zip`**:
-   - `cpanel-deploy.zip` contains the compiled `dist/index.html` as the root `index.html`.
-   - Extracting the zip immediately overwrites any stale `index.html` in `public_html/`.
-
-2. **Apache DirectoryIndex & LiteSpeed Cache Disable (`.htaccess`)**:
-   - `DirectoryIndex dist/index.html client-build/index.html index.html index.php` prioritizes the fresh compiled build.
-   - `CacheLookup off` disables LiteSpeed Server-level page caching, ensuring LiteSpeed never serves stale cached HTML.
-   - Strict zero-cache headers (`Cache-Control: no-store, no-cache, must-revalidate, max-age=0`) force every browser to fetch fresh assets.
-
-3. **Active Real-Time File Watcher (Continuous Background Monitoring)**:
-   - The production server (`app.js` / `server.cjs`) monitors file modification timestamps every 1.2 seconds in addition to kernel-level `fs.watch` and request-level checks.
-   - As soon as files are uploaded or modified in cPanel File Manager, the server automatically updates `tmp/restart.txt` and exits cleanly so Phusion Passenger immediately boots the new worker.
-
-4. **Automatic `cpanel-deploy.zip` Extraction**:
-   - If you upload `cpanel-deploy.zip` into your application folder using cPanel File Manager without manually clicking extract, the server automatically detects the new archive, extracts all contents directly into the application directory, updates `tmp/restart.txt`, and reloads Passenger.
-
-5. **Client-Side Live Version Sync**:
-   - The React storefront continuously checks `/api/version`. If a new deployment timestamp is detected or when returning to the tab, the browser automatically refreshes to display the updated website seamlessly.
-
-6. **Instant Manual Reload**:
-   - Click **"Restart"** in cPanel &rarr; **Setup Node.js App**.
-   - Or visit `https://yourdomain.com/api/system/restart` in your browser.
+1. **Pre-Compiled Bundles (`app.js` & `client-build/`)**:
+   - Because cPanel runs without build tools, the GitHub repository contains pre-compiled bundles (`app.js` and `client-build/`).
+   - Every time code changes are made, the production bundles are freshly compiled so that downloading or syncing from GitHub delivers the latest version.
+2. **Automatic Process Reload (Phusion Passenger)**:
+   - When you upload or replace files on cPanel, Phusion Passenger keeps the old Node process in server memory until it is reloaded.
+   - The server includes an auto-reload watcher: when it detects that `app.js`, `client-build/index.html`, or `tmp/restart.txt` has been modified, it automatically reloads the worker process with zero downtime.
+   - You can also instantly trigger a reload by:
+     - Clicking **"Restart"** in cPanel &rarr; **Setup Node.js App**.
+     - Or visiting `https://yourdomain.com/api/system/restart` in your browser.
+3. **Cache-Control & LiteSpeed Bypass**:
+   - `.htaccess` and `index.html` include `X-LiteSpeed-Cache-Control: no-cache` and strict `Cache-Control: no-store, no-cache, must-revalidate` headers. This prevents browsers and cPanel LiteSpeed server caches from serving stale cached HTML.
 

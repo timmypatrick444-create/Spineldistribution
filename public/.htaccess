@@ -1,0 +1,46 @@
+# =====================================================================
+# Spinel Distribution - cPanel Production Web Server Configuration
+# =====================================================================
+
+# 1. Force HTTPS Redirection (Eliminates HTTP 426 "Upgrade Required")
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 2. Prevent Caching of HTML & Service Workers (Ensures live domain always shows newest version immediately)
+<IfModule mod_headers.c>
+  # Bypass LiteSpeed server-side cache for HTML and dynamic views
+  Header set X-LiteSpeed-Cache-Control "no-cache"
+
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"
+    Header set Pragma "no-cache"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    Header unset ETag
+    Header unset Last-Modified
+  </FilesMatch>
+  <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|webp)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# 3. Phusion Passenger Configuration (for cPanel Node.js App)
+<IfModule mod_passenger.c>
+  PassengerAppType node
+  PassengerStartupFile app.js
+  PassengerEnabled on
+  PassengerRestartDir tmp
+</IfModule>
+
+# 4. Fallback Single Page Application (SPA) Routing for Apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

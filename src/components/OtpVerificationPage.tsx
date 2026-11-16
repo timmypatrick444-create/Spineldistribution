@@ -161,12 +161,12 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
             }}
           />
         </button>
@@ -331,7 +331,7 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
         </p>
       </footer>
 

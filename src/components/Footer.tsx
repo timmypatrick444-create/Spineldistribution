@@ -50,11 +50,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
               title="Spinel Distribution - Return to Homepage"
             >
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
                 alt="Spinel Distribution Logo"
-                className="h-8.5 sm:h-9.5 w-auto object-contain shrink-0"
+                className="h-8.5 sm:h-9 w-auto object-contain bg-white p-0.5 rounded shadow-sm shrink-0"
                 referrerPolicy="no-referrer"
               />
+              <span className="font-extrabold tracking-tight text-white text-sm sm:text-base leading-tight uppercase font-sans whitespace-nowrap">
+                SPINEL DISTRIBUTION
+              </span>
             </div>
 
             <p className="text-xs sm:text-sm text-gray-300 leading-relaxed mb-4 max-w-sm">
@@ -248,34 +251,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
       <div className="bg-[#131921] px-4 sm:px-6 lg:px-8 py-6 text-center text-xs sm:text-sm text-gray-400 border-t border-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap justify-center gap-6 mb-2">
-            <span 
-              onClick={() => { onNavigate('terms-of-use'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Terms of Use
-            </span>
-            <span 
-              onClick={() => { onNavigate('privacy-policy'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Privacy Policy
-            </span>
-            <span 
-              onClick={() => { onNavigate('about'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              About Us
-            </span>
-            <span 
-              onClick={() => { onNavigate('contact'); scrollToTop(); }}
-              className="hover:underline cursor-pointer hover:text-white transition-colors"
-            >
-              Contact &amp; Support
-            </span>
+           © 2026 SPINEL DISTRIBUTION Limited. All Rights Reserved.
           </div>
-          <p className="text-xs text-gray-500">
-            © 2026, SPINEL DISTRIBUTION Ltd. All hardware specs, certifications, and brand names belong to their respective manufacturers.
-          </p>
         </div>
       </div>
     </footer>

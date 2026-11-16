@@ -41,36 +41,6 @@ interface HeroSlide {
 const HERO_SLIDES: HeroSlide[] = [
   {
     id: 1,
-    title: 'Fiber Optic Cables',
-    subtitle: 'Data transmission, reliable connectivity & fibre networking',
-    ctaText: 'Explore Fiber Optic Cables',
-    category: 'Fiber Optic & Hybrid Cables',
-    subcategory: 'Fiber Outdoor Cables',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226019/Fiber_Optic_Cables.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 2,
-    title: 'Hybrid Composite Cables',
-    subtitle: 'Integrated power and fibre transmission connectivity',
-    ctaText: 'Explore Hybrid Cables',
-    category: 'Fiber Optic & Hybrid Cables',
-    subcategory: 'Hybrid Composite Cables',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/Hybrid_Composite_Cables.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 3,
-    title: 'Enclosures',
-    subtitle: 'Durable equipment protection for industrial and electrical installations',
-    ctaText: 'Explore Enclosures',
-    category: 'Enclosures & Housings',
-    subcategory: 'Equipment Enclosures',
-    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794226020/enclosure.webp',
-    accentColor: 'from-amber-900/90'
-  },
-  {
-    id: 4,
     title: 'Ex Junction Boxes',
     subtitle: 'Hazardous-area protection, robust enclosures & secure electrical connections',
     ctaText: 'Explore Ex Junction Boxes',
@@ -80,7 +50,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 5,
+    id: 2,
     title: 'IT Racks & Enclosures',
     subtitle: 'Secure equipment housing, optimized cable management & efficient airflow',
     ctaText: 'Explore IT Racks',
@@ -90,7 +60,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 6,
+    id: 3,
     title: 'Explosion-Proof Telephone Systems',
     subtitle: 'Reliable voice communication, hazardous-area protection & rugged industrial performance',
     ctaText: 'Explore PAGA Systems',
@@ -99,7 +69,7 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 7,
+    id: 4,
     title: 'Intelligent Video Surveillance',
     subtitle: 'Ultra low-light Starlight sensors, vehicle classification & facial recognition',
     ctaText: 'Explore Cameras & NVRs',
@@ -108,7 +78,16 @@ const HERO_SLIDES: HeroSlide[] = [
     accentColor: 'from-amber-900/90'
   },
   {
-    id: 8,
+    id: 5,
+    title: 'Smart Hybrid Solar Inverters',
+    subtitle: '10kW 3-Phase Pure Sine Wave Inverters with 5.12kWh 6,000-Cycle Lithium Batteries',
+    ctaText: 'Shop Renewable Energy',
+    category: 'Renewable Energy',
+    image: 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1789723360/solar.png',
+    accentColor: 'from-amber-900/90'
+  },
+  {
+    id: 6,
     title: 'Network Video Recorders (NVRs)',
     subtitle: 'Reliable video recording, intelligent surveillance & centralized security management',
     ctaText: 'View NVR Range',
@@ -142,17 +121,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     }, 1500);
   };
 
-  // Helper to shuffle an array uniformly (Fisher-Yates) on every page refresh/render
-  const shuffleArray = <T,>(arr: T[]): T[] => {
-    const copy = [...arr];
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  };
-
-  // 1. Filter Access Credentials products and display in random order on each refresh
+  // 1. Filter Access Credentials products and randomize for display
   const accessCredentialProducts = useMemo(() => {
     const creds = safeProducts.filter(p => {
       const sub = (p.subcategory || '').toLowerCase().trim();
@@ -179,10 +148,10 @@ export const HomePage: React.FC<HomePageProps> = ({
     });
 
     const pool = creds.length >= 6 ? creds : safeProducts.filter(p => (p.category || '').toLowerCase().includes('access'));
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 2. Filter Video Surveillance & Cameras products and display in random order on each refresh
+  // 2. Filter Video Surveillance & Cameras products and randomize for display
   const videoSurveillanceProducts = useMemo(() => {
     const vids = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
@@ -202,10 +171,10 @@ export const HomePage: React.FC<HomePageProps> = ({
       (p.category || '').toLowerCase().includes('surveillance') || 
       (p.category || '').toLowerCase().includes('camera')
     );
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 3. Filter Access Control Readers products and display in random order on each refresh
+  // 3. Filter Access Control Readers products and randomize for display
   const accessControlReaderProducts = useMemo(() => {
     const readers = safeProducts.filter(p => {
       const sub = (p.subcategory || '').toLowerCase().trim();
@@ -227,10 +196,10 @@ export const HomePage: React.FC<HomePageProps> = ({
     });
 
     const pool = readers.length >= 6 ? readers : safeProducts.filter(p => (p.name || '').toLowerCase().includes('reader'));
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 4. Filter Video Management & Recording products and display in random order on each refresh
+  // 4. Filter Video Management & Recording products and randomize for display
   const videoManagementProducts = useMemo(() => {
     const vmr = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
@@ -256,10 +225,36 @@ export const HomePage: React.FC<HomePageProps> = ({
     });
 
     const pool = vmr.length >= 6 ? vmr : safeProducts.filter(p => (p.category || '').toLowerCase().includes('surveillance'));
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 5. Filter Public Address (PAGA) System products and display in random order on each refresh
+  // 5. Filter Renewable Energy products and randomize for display
+  const renewableEnergyProducts = useMemo(() => {
+    const renewable = safeProducts.filter(p => {
+      const cat = (p.category || '').toLowerCase().trim();
+      const sub = (p.subcategory || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      return (
+        cat === 'renewable energy' ||
+        cat.includes('renewable') ||
+        cat.includes('solar') ||
+        cat.includes('energy') ||
+        sub.includes('inverter') ||
+        sub.includes('battery') ||
+        sub.includes('solar') ||
+        name.includes('inverter') ||
+        name.includes('battery') ||
+        name.includes('solar') ||
+        name.includes('hybrid') ||
+        name.includes('lifepo4')
+      );
+    });
+
+    const pool = renewable.length >= 4 ? renewable : safeProducts.filter(p => (p.category || '').toLowerCase().includes('power'));
+    return [...pool].sort(() => 0.5 - Math.random());
+  }, [safeProducts]);
+
+  // 6. Filter Public Address (PAGA) System products and randomize for display
   const pagaProducts = useMemo(() => {
     const paga = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
@@ -286,46 +281,17 @@ export const HomePage: React.FC<HomePageProps> = ({
     });
 
     const pool = paga.length >= 4 ? paga : safeProducts.filter(p => (p.category || '').toLowerCase().includes('public address'));
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
-  // 7. Filter Enclosures & Housings products and display in random order on each refresh
+  // 7. Filter strictly ONLY Enclosures & Housings products and randomize for display
   const enclosureProducts = useMemo(() => {
     const pool = safeProducts.filter(p => {
       const cat = (p.category || '').toLowerCase().trim();
       return cat === 'enclosures & housings';
     });
-    return shuffleArray(pool);
-  }, [safeProducts]);
 
-  // 8. Filter Hybrid Composite Cables products and display in random order on each refresh
-  const hybridCompositeProducts = useMemo(() => {
-    const pool = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'hybrid composite cables' ||
-        cat === 'hybrid composite cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('hybrid')) ||
-        (p.sku || '').startsWith('SP-HC-')
-      );
-    });
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 9. Filter Fiber Outdoor Cables products and display in random order on each refresh
-  const fiberOutdoorProducts = useMemo(() => {
-    const pool = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
-        sub === 'fiber outdoor cables' ||
-        cat === 'fiber outdoor cables' ||
-        (cat === 'fiber optic & hybrid cables' && sub.includes('outdoor')) ||
-        (p.sku || '').startsWith('SP-FOC-')
-      );
-    });
-    return shuffleArray(pool);
+    return [...pool].sort(() => 0.5 - Math.random());
   }, [safeProducts]);
 
   // Eagerly preload all hero slide images into browser cache immediately
@@ -501,61 +467,64 @@ export const HomePage: React.FC<HomePageProps> = ({
             </button>
           </div>
 
-          {/* Box 2: Fiber Optic & Hybrid Cables */}
+          {/* Box 2: Renewable Energy & Power */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold text-gray-900 leading-snug">
-                  Fiber Optic &amp; Hybrid Cables
+                  Renewable Energy Systems
                 </h3>
+                <span className="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  NEW
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
                 <div 
-                  onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
+                  onClick={() => onSelectCategory('Renewable Energy', 'Smart Hybrid Inverters')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793895919/SP-FOC-PR-29.webp" 
-                      alt="Fiber Outdoor Cables"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788634097/inverter-9.jpg" 
+                      alt="Hybrid Inverters"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Fiber Outdoor
+                    Hybrid Inverters
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
+                  onClick={() => onSelectCategory('Renewable Energy', 'Lithium LiFePO4 Batteries')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793825243/SP-HC-JF-15.webp" 
-                      alt="Hybrid Composite Cables"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/solar_battery.jpg" 
+                      alt="LiFePO4 Batteries"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Hybrid Composite
+                    LiFePO4 Batteries
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Enclosures & Housings')}
+                  onClick={() => onSelectCategory('Renewable Energy', 'Industrial Solar Panels')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719299/SP-RA-EN-RI-WME-19.webp" 
-                      alt="Equipment Enclosures"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/solar_panel.jpg" 
+                      alt="Tier-1 Solar Panels"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Enclosures &amp; Boxes
+                    Tier-1 Solar Panels
                   </span>
                 </div>
                 <div 
@@ -577,14 +546,14 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
             <button
-              onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables')}
+              onClick={() => onSelectCategory('Renewable Energy')}
               className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
             >
-              Explore Fiber &amp; Hybrid Cables
+              Shop Inverters &amp; Batteries
             </button>
           </div>
 
-          {/* Box 3: Networking & Connectivity */}
+          {/* Box 3: Networking & Industrial PoE */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
@@ -592,67 +561,67 @@ export const HomePage: React.FC<HomePageProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
                 <div 
-                  onClick={() => onSelectCategory('Enclosures & Housings', 'IT Racks')}
+                  onClick={() => onSelectCategory('Networking & Connectivity', 'PoE Switches')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674795/SP-RA-EN-FHF-037.png" 
-                      alt="IT Racks"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/poe_switch.jpg" 
+                      alt="PoE Switches"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    IT Racks
+                    PoE Switches
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Enclosures & Housings', 'Equipment Enclosures')}
+                  onClick={() => onSelectCategory('Networking & Connectivity', 'Industrial Switches')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792589887/SP-EN-FHF-016.png" 
-                      alt="Equipment Enclosures"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789729780/motorola.jpg" 
+                      alt="DIN-Rail Industrial"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Equipment Enclosures
+                    DIN-Rail Industrial
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Enclosures & Housings', 'Mounting Enclosures')}
+                  onClick={() => onSelectCategory('Networking & Connectivity', 'Wireless Access Points')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674799/SP-EN-FHF-034.png" 
-                      alt="Mounting Enclosures"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789729938/Network_Adapter.jpg" 
+                      alt="Wi-Fi 6 APs"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Mounting Enclosures
+                    Wi-Fi 6 APs
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Enclosures & Housings', 'Explosion-Proof Enclosures')}
+                  onClick={() => onSelectCategory('Telecommunication & Communication Equipment', 'Microwave Radio')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792411705/SP-EX-EN-FHF-006.png" 
-                      alt="Explosion-Proof Enclosures"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789730104/Industrial_Switch.jpg" 
+                      alt="Wireless Bridges"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Explosion-Proof Enclosures
+                    Wireless Bridges
                   </span>
                 </div>
               </div>
@@ -673,35 +642,19 @@ export const HomePage: React.FC<HomePageProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
                 <div 
-                  onClick={() => onSelectCategory('Access Control & Door Security', 'Access Control Readers')}
+                  onClick={() => onSelectCategory('Access Control & Door Security', 'Biometric Readers')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SC_MTMSK15_HO_071620.jpg" 
-                      alt="Access Control Readers"
+                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/AC-HID-READER-SIGNO-40NKS-00-000000_071620.jpg" 
+                      alt="Facial Terminals"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Access Control Readers
-                  </span>
-                </div>
-                <div 
-                  onClick={() => onSelectCategory('Access Control & Door Security', 'Access Credentials')}
-                  className="cursor-pointer group flex flex-col"
-                >
-                  <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
-                    <img 
-                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/AC-HID-MOB-MID-SUB-T100_071820.jpg" 
-                      alt="Access Credentials"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Access Credentials
+                    Facial Terminals
                   </span>
                 </div>
                 <div 
@@ -710,30 +663,46 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/SALTO/AC-SALTO-BLUENET-BLACK-GATEWAYB3CUS-03242021.jpg" 
-                      alt="Electronic Locks"
+                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/csr35_1200x1200_071520.jpg" 
+                      alt="Magnetic Locks"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Electronic Locks
+                    Magnetic Locks
                   </span>
                 </div>
                 <div 
-                  onClick={() => onSelectCategory('Access Control & Door Security', 'Wireless Locks')}
+                  onClick={() => onSelectCategory('Intercom & IP Communication', 'Door Stations')}
                   className="cursor-pointer group flex flex-col"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SCH_PIM400-TD2_SR_071620.jpg" 
-                      alt="Wireless Locks"
+                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/STid-READER-ARC-B-063022.jpg" 
+                      alt="Video Intercoms"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
                   </div>
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
-                    Wireless Locks
+                    Video Intercoms
+                  </span>
+                </div>
+                <div 
+                  onClick={() => onSelectCategory('Security Software & Licenses', 'Access Control Software')}
+                  className="cursor-pointer group flex flex-col"
+                >
+                  <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
+                    <img 
+                      src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SC_MTK15_HO_071620.jpg" 
+                      alt="Software Licenses"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
+                    Software Licenses
                   </span>
                 </div>
               </div>
@@ -749,21 +718,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
       </div>
-
-      {/* 2.4 POWER & CONNECTIVITY IN ONE CABLE - Hybrid Composite Cables */}
-      <ProductSliderSection
-        id="power-connectivity-in-one-cable"
-        title="Power & Connectivity in One Cable"
-        subtitle="Shop high-quality hybrid composite cables combining power and fibre-optic transmission for efficient installations, reliable connectivity, and streamlined infrastructure deployment."
-        products={hybridCompositeProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Hybrid Composite Cables currently loading or unavailable."
-      />
 
       {/* 2.5 COMMUNICATE SAFELY. RESPOND INSTANTLY - Public Address (PAGA) System */}
       <ProductSliderSection
@@ -793,21 +747,6 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Enclosures & Housings products currently loading or unavailable."
-      />
-
-      {/* 2.9 BUILT FOR RELIABLE OUTDOOR CONNECTIVITY - Fiber Outdoor Cables */}
-      <ProductSliderSection
-        id="built-for-reliable-outdoor-connectivity"
-        title="Built for Reliable Outdoor Connectivity"
-        subtitle="Discover durable outdoor fibre-optic cables designed for high-speed data transmission, long-distance connectivity, and dependable performance in demanding environments."
-        products={fiberOutdoorProducts}
-        onSelectProduct={onSelectProduct}
-        onSeeAll={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
-        onAddToCart={handleAddToCart}
-        onRequestQuote={onRequestQuote}
-        onNavigateQuote={() => onNavigate('quote')}
-        addedMap={addedMap}
-        emptyMessage="Fiber Outdoor Cables currently loading or unavailable."
       />
 
       {/* 3. SMARTER ACCESS STARTS HERE - Access Credentials */}
@@ -868,6 +807,22 @@ export const HomePage: React.FC<HomePageProps> = ({
         onNavigateQuote={() => onNavigate('quote')}
         addedMap={addedMap}
         emptyMessage="Video Management & Recording products currently loading or unavailable."
+      />
+
+      {/* 7. POWER YOUR PROJECTS WITH RELIABLE TECHNOLOGY - Renewable Energy */}
+      <ProductSliderSection
+        id="power-your-projects"
+        className="w-full px-[20px] mb-4 sm:mb-5"
+        title="Power Your Projects with Reliable Technology"
+        subtitle="Explore smart hybrid inverters, long-life LiFePO4 batteries & high-efficiency solar panels"
+        products={renewableEnergyProducts}
+        onSelectProduct={onSelectProduct}
+        onSeeAll={() => onSelectCategory('Renewable Energy')}
+        onAddToCart={handleAddToCart}
+        onRequestQuote={onRequestQuote}
+        onNavigateQuote={() => onNavigate('quote')}
+        addedMap={addedMap}
+        emptyMessage="Renewable Energy products currently loading or unavailable."
       />
 
     </div>

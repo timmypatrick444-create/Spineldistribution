@@ -371,11 +371,14 @@ export const Header: React.FC<HeaderProps> = ({
             title="SPINEL DISTRIBUTION - Homepage"
           >
             <img 
-              src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+              src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
               alt="SPINEL DISTRIBUTION"
-              className="h-10 xl:h-11 w-auto object-contain shrink-0"
+              className="h-11 w-auto min-w-[48px] object-contain rounded bg-white p-1 shadow-md"
               referrerPolicy="no-referrer"
             />
+            <span className="font-extrabold tracking-tight text-white text-base xl:text-lg leading-tight uppercase font-sans whitespace-nowrap">
+              SPINEL DISTRIBUTION
+            </span>
           </div>
 
           {/* Search bar in center */}
@@ -397,11 +400,15 @@ export const Header: React.FC<HeaderProps> = ({
               title="SPINEL DISTRIBUTION - Homepage"
             >
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
                 alt="SPINEL DISTRIBUTION"
-                className="h-6.5 sm:h-8 md:h-9 w-auto max-w-[155px] sm:max-w-[210px] md:max-w-[250px] object-contain shrink-0"
+                className="h-8.5 sm:h-9 w-auto min-w-[34px] sm:min-w-[36px] object-contain rounded bg-white p-0.5 sm:p-1 shadow-md"
                 referrerPolicy="no-referrer"
               />
+              {/* Text logo shown on tablet (sm & md) but hidden on mobile (< sm) */}
+              <span className="hidden sm:inline-block font-extrabold tracking-tight text-white text-sm md:text-base leading-tight uppercase font-sans whitespace-nowrap">
+                SPINEL DISTRIBUTION
+              </span>
             </div>
 
             {/* Action buttons on mobile/tablet */}
@@ -432,38 +439,6 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Direct category shortcuts */}
         <button
           type="button"
-          onClick={() => onNavigate('category', 'Enclosures & Housings')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white"
-        >
-          Enclosures &amp; Housings
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Hybrid Composite Cables')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1"
-        >
-          <span>Hybrid Composite Cables</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Fiber Outdoor Cables')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
-        >
-          Fiber Outdoor Cables
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('category', 'Public Address (PAGA) System')}
-          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
-        >
-          Public Address (PAGA)
-        </button>
-
-        <button
-          type="button"
           onClick={() => onNavigate('category', 'Video Surveillance & Cameras')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
@@ -472,10 +447,42 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           type="button"
+          onClick={() => onNavigate('category', 'Video Management & Recording')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
+        >
+          NVR &amp; AI Analytics
+        </button>
+
+        <button
+          type="button"
           onClick={() => onNavigate('category', 'Access Control & Door Security')}
           className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
         >
           Access Control
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('category', 'Networking & Connectivity')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
+        >
+          Networking &amp; PoE
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('category', 'Renewable Energy')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-[#febd69] font-bold hover:text-white flex items-center gap-1"
+        >
+          <span>Renewable Solar &amp; Inverters</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('category', 'Storage & Data Infrastructure')}
+          className="py-1 px-2 hover:outline hover:outline-1 hover:outline-white rounded cursor-pointer text-gray-200 hover:text-white"
+        >
+          Surveillance Hard Drives
         </button>
 
       </div>

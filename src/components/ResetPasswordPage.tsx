@@ -215,12 +215,12 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
             }}
           />
         </button>
@@ -335,16 +335,14 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
                     {otpDigits.map((digit, index) => (
                       <input
                         key={index}
-                        ref={(el) => {
-                          otpInputRefs.current[index] = el;
-                        }}
+                        ref={(el) => (otpInputRefs.current[index] = el)}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={1}
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e.target)}
                         className="w-11 h-12 sm:w-12 sm:h-13 text-center text-xl sm:text-2xl font-bold rounded-lg border border-gray-300 focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 outline-none transition-all bg-white"
                       />
                     ))}
