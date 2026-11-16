@@ -65,6 +65,7 @@ function MainApp() {
 
   const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
   const [pendingAuthName, setPendingAuthName] = useState<string>('');
+  const [pendingAuthOtp, setPendingAuthOtp] = useState<string | undefined>();
   const [resetPasswordEmail, setResetPasswordEmail] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/product/')) {
@@ -470,9 +471,10 @@ function MainApp() {
               <SignupPage
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
-                onNavigateToOtp={(email, fullName) => {
+                onNavigateToOtp={(email, fullName, devOtp) => {
                   setPendingAuthEmail(email);
                   setPendingAuthName(fullName);
+                  setPendingAuthOtp(devOtp);
                   setCurrentView('otp-verify');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
@@ -483,6 +485,7 @@ function MainApp() {
               <OtpVerificationPage
                 email={pendingAuthEmail}
                 fullName={pendingAuthName}
+                devOtp={pendingAuthOtp}
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
                 onBackToSignup={() => {

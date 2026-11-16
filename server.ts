@@ -705,11 +705,11 @@ async function sendPasswordResetOtpEmail(toEmail: string, fullName: string, otp:
         </div>
       </div>
       <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8;">
-        &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
+        Sent automatically from ${senderEmail} &bull; &copy; ${new Date().getFullYear()} Spinel Distribution Global. All rights reserved.
       </div>
     </div>
   `;
-  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes.`;
+  const textBody = `Your Spinel Distribution password reset verification code is: ${otp}. Valid for 15 minutes. Sent from noreply@spineldistribution.com.`;
   const logs: string[] = [];
 
   const rawUser = (process.env.SMTP_USER || process.env.MAIL_USERNAME || '').trim();
@@ -1211,7 +1211,8 @@ app.post('/api/auth/register-initiate', async (req, res) => {
         ? `A 6-digit verification code has been sent to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Auth Error] Failed to initiate registration:', err);
@@ -1363,7 +1364,8 @@ app.post('/api/auth/resend-otp', async (req, res) => {
       ? `A fresh 6-digit verification code has been sent to ${cleanEmail}.`
       : `New code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
     email: cleanEmail,
-    emailSent: emailResult.success
+    emailSent: emailResult.success,
+    devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? newOtp : undefined
   });
 });
 
@@ -1427,7 +1429,8 @@ app.post('/api/auth/login', async (req, res) => {
         error: 'Your account is pending email verification. A fresh 6-digit verification code has been sent to your email.',
         pendingVerification: true,
         email: cleanEmail,
-        emailSent: emailResult.success
+        emailSent: emailResult.success,
+        devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production') ? otp : undefined
       });
     }
 
@@ -1514,10 +1517,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return res.json({
       success: true,
       message: emailResult.success
-        ? `A 6-digit verification code has been sent to ${cleanEmail}.`
+        ? `A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`
         : `Verification code generated for ${cleanEmail}. Check spam folder or cPanel mail logs.`,
       email: cleanEmail,
-      emailSent: emailResult.success
+      emailSent: emailResult.success,
+      devOtp: (!emailResult.success || process.env.NODE_ENV !== 'production' || !process.env.PASSENGER_APP_ENV) ? otp : undefined
     });
   } catch (err: any) {
     console.error('[Forgot Password Error]', err);
@@ -2723,75 +2727,40 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // -------------------------------------------------------------
 const SERVER_BOOT_TIME = Date.now();
 let lastRestartCheck = 0;
-let viteMounted = false;
-
-const MONITORED_FILES = [
-  path.join(process.cwd(), 'app.js'),
-  path.join(__dirname, 'app.js'),
-  path.join(process.cwd(), 'server.cjs'),
-  path.join(process.cwd(), 'tmp', 'restart.txt'),
-  path.join(process.cwd(), 'client-build', 'index.html'),
-  path.join(process.cwd(), 'dist', 'index.html'),
-  path.join(process.cwd(), 'index.html'),
-  path.join(process.cwd(), 'package.json')
-];
-
-// Record file modification timestamps at boot time
-const initialFileMtimes = new Map<string, number>();
-for (const f of MONITORED_FILES) {
-  if (fs.existsSync(f)) {
-    try {
-      initialFileMtimes.set(f, fs.statSync(f).mtimeMs);
-    } catch {}
-  }
-}
 
 // Automatically detect when new application files are uploaded to cPanel
 function checkAutoReloadOnNewUpload() {
+  // ONLY run auto-reload on cPanel production where Phusion Passenger will supervise and restart the process.
   // Never exit the process in development or preview environments!
-  if (viteMounted) {
-    return;
-  }
-
-  const isProductionOrCpanel = Boolean(
-    process.env.PASSENGER_APP_ENV ||
-    process.env.CPANEL_ENV ||
-    process.env.IN_PASSENGER ||
-    process.env.NODE_ENV === 'production' ||
-    isNaN(Number(PORT))
-  );
-
-  if (!isProductionOrCpanel) {
+  if (!process.env.PASSENGER_APP_ENV && !process.env.CPANEL_ENV) {
     return;
   }
 
   const now = Date.now();
-  if (now - lastRestartCheck < 2000) return; // Throttled to at most once per 2s
+  if (now - lastRestartCheck < 3000) return; // Throttled to at most once per 3s
   lastRestartCheck = now;
 
-  for (const f of MONITORED_FILES) {
+  const appFiles = [
+    path.join(process.cwd(), 'app.js'),
+    path.join(__dirname, 'app.js'),
+    path.join(process.cwd(), 'server.cjs'),
+    path.join(process.cwd(), 'tmp', 'restart.txt')
+  ];
+
+  for (const f of appFiles) {
     if (fs.existsSync(f)) {
       try {
         const stats = fs.statSync(f);
-        const recorded = initialFileMtimes.get(f);
-        
-        // If file was replaced or modified after the process booted
-        if (recorded !== undefined && Math.abs(stats.mtimeMs - recorded) > 500) {
-          console.log(`[cPanel Auto-Reload] File change detected on: ${path.basename(f)}. Reloading worker process...`);
-          initialFileMtimes.set(f, stats.mtimeMs);
-          
+        // If file modified after the current process booted (+5s buffer for startup)
+        if (stats.mtimeMs > SERVER_BOOT_TIME + 5000) {
+          console.log(`[Passenger Auto-Reload] Detected newer uploaded file (${path.basename(f)}). Reloading process...`);
           try {
             const restartPath = path.join(process.cwd(), 'tmp', 'restart.txt');
             fs.mkdirSync(path.join(process.cwd(), 'tmp'), { recursive: true });
             fs.writeFileSync(restartPath, String(Date.now()));
           } catch {}
-
-          setTimeout(() => {
-            process.exit(0);
-          }, 100);
+          setTimeout(() => process.exit(0), 100);
           break;
-        } else if (recorded === undefined) {
-          initialFileMtimes.set(f, stats.mtimeMs);
         }
       } catch {}
     }
@@ -2847,7 +2816,6 @@ function sendFreshSpaHtml(req: express.Request, res: express.Response, next: exp
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.setHeader('X-LiteSpeed-Cache-Control', 'no-cache');
     res.removeHeader('ETag');
     return res.status(200).send(latest.content);
   }
@@ -2888,7 +2856,7 @@ async function startServer() {
       message: 'Server process is reloading with the latest uploaded files. Please refresh in 2 seconds.'
     });
 
-    if (!viteMounted) {
+    if (process.env.PASSENGER_APP_ENV || process.env.CPANEL_ENV) {
       setTimeout(() => {
         console.log('[System] Manual restart triggered via /api/system/restart. Reloading Passenger process...');
         process.exit(0);
@@ -2897,7 +2865,7 @@ async function startServer() {
   });
 
   // Mount live Vite middlewares when running in dev environment
-  viteMounted = false;
+  let viteMounted = false;
   try {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
