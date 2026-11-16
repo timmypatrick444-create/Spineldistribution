@@ -794,7 +794,7 @@ export const UPLOADED_ENCLOSURE_PRODUCTS: Product[] = [
     "subcategory": "Equipment Enclosures",
     "brand": "Eaton B-Line",
     "rating": 4.8,
-    "reviewCount:": 19,
+    "reviewCount": 19,
     "stock": 293,
     "images": [
       "https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674800/SP-EN-FHF-024.png"

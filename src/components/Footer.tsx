@@ -50,14 +50,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSelectCategory, no
               title="Spinel Distribution - Return to Homepage"
             >
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg"
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
                 alt="Spinel Distribution Logo"
-                className="h-8.5 sm:h-9 w-auto object-contain bg-white p-0.5 rounded shadow-sm shrink-0"
+                className="h-8.5 sm:h-9.5 w-auto object-contain shrink-0"
                 referrerPolicy="no-referrer"
               />
-              <span className="font-extrabold tracking-tight text-white text-sm sm:text-base leading-tight uppercase font-sans whitespace-nowrap">
-                SPINEL DISTRIBUTION
-              </span>
             </div>
 
             <p className="text-xs sm:text-sm text-gray-300 leading-relaxed mb-4 max-w-sm">

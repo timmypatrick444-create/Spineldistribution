@@ -42,7 +42,6 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
   const [error, setError] = useState<string>('');
   const [successNotice, setSuccessNotice] = useState<string>('');
   const [resendCooldown, setResendCooldown] = useState<number>(0);
-  const [devOtpNotice, setDevOtpNotice] = useState<string | undefined>();
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -91,8 +90,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
         return;
       }
 
-      setDevOtpNotice(res.devOtp);
-      setSuccessNotice(`A 6-digit verification code has been sent from noreply@spineldistribution.com to ${cleanEmail}.`);
+      setSuccessNotice(`A 6-digit verification code has been sent to ${cleanEmail}.`);
       setResendCooldown(25);
       setStep('verify_otp');
     } catch (err: any) {
@@ -217,12 +215,12 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
             }}
           />
         </button>
@@ -245,7 +243,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
               </div>
 
               <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
-                Enter your account email address. We will verify your email by sending a 6-digit OTP code directly from <span className="font-semibold text-gray-800">noreply@spineldistribution.com</span>.
+                Enter your account email address
               </p>
 
               {error && (
@@ -316,17 +314,8 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
               </div>
 
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 mb-5 leading-relaxed">
-                A 6-digit verification code was dispatched from <span className="font-bold">noreply@spineldistribution.com</span> to <span className="font-bold underline">{email}</span>.
+                A 6-digit verification code has been sent to your email address <span className="font-bold underline">{email}</span>. Please check your inbox or spam folder.
               </div>
-
-              {devOtpNotice && (
-                <div className="mb-4 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center justify-between">
-                  <span>Development Verification Code:</span>
-                  <span className="font-mono font-bold tracking-widest text-sm bg-white px-2 py-0.5 rounded border border-blue-300">
-                    {devOtpNotice}
-                  </span>
-                </div>
-              )}
 
               {error && (
                 <div className="bg-red-50 border-l-4 border-red-500 text-red-800 p-3.5 rounded-md text-xs sm:text-sm mb-5 flex items-start gap-2 shadow-2xs">
@@ -346,14 +335,16 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
                     {otpDigits.map((digit, index) => (
                       <input
                         key={index}
-                        ref={(el) => (otpInputRefs.current[index] = el)}
+                        ref={(el) => {
+                          otpInputRefs.current[index] = el;
+                        }}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={1}
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e.target)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
                         className="w-11 h-12 sm:w-12 sm:h-13 text-center text-xl sm:text-2xl font-bold rounded-lg border border-gray-300 focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 outline-none transition-all bg-white"
                       />
                     ))}

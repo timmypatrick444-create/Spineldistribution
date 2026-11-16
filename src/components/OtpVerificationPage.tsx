@@ -5,7 +5,6 @@ import { MailCheck, ArrowLeft, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck
 interface OtpVerificationPageProps {
   email: string;
   fullName?: string;
-  devOtp?: string;
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
   onBackToSignup: () => void;
@@ -14,17 +13,12 @@ interface OtpVerificationPageProps {
 export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
   email,
   fullName,
-  devOtp,
   onSuccess,
   onNavigate,
   onBackToSignup
 }) => {
   const { customerVerifyOtp, customerResendOtp } = useAuth();
-  const [digits, setDigits] = useState<string[]>(() => {
-    if (devOtp && devOtp.length === 6) return devOtp.split('');
-    return ['', '', '', '', '', ''];
-  });
-  const [activeDevOtp, setActiveDevOtp] = useState<string | undefined>(devOtp);
+  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [error, setError] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -142,12 +136,7 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
       const res = await customerResendOtp(email);
       if (res.success) {
         setSuccessMsg(res.message || 'A new 6-digit verification code has been sent to your email.');
-        if (res.devOtp) {
-          setActiveDevOtp(res.devOtp);
-          setDigits(res.devOtp.split(''));
-        } else {
-          setDigits(['', '', '', '', '', '']);
-        }
+        setDigits(['', '', '', '', '', '']);
         setCountdown(20);
         inputRefs.current[0]?.focus();
       } else {
@@ -172,12 +161,12 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
             }}
           />
         </button>
@@ -223,23 +212,6 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
             <div className="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 p-3.5 rounded-md text-xs sm:text-sm mb-5 flex items-start gap-2 shadow-xs">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
               <div className="font-medium leading-relaxed">{successMsg}</div>
-            </div>
-          )}
-
-          {/* Verification Code helper if provided */}
-          {activeDevOtp && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 mb-5 flex items-center justify-between shadow-xs">
-              <div>
-                <span className="font-semibold text-gray-700">Verification Code: </span>
-                <span className="font-mono text-sm tracking-widest font-bold ml-1 text-amber-950">{activeDevOtp}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDigits(activeDevOtp.split(''))}
-                className="bg-amber-200 hover:bg-amber-300 text-amber-900 px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer transition"
-              >
-                Auto-fill
-              </button>
             </div>
           )}
 
@@ -359,7 +331,7 @@ export const OtpVerificationPage: React.FC<OtpVerificationPageProps> = ({
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
         </p>
       </footer>
 

@@ -85,7 +85,7 @@ export const CartPage: React.FC<CartPageProps> = ({
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-gray-800">Your Spinel Cart is empty</h3>
               <p className="text-xs sm:text-sm text-gray-600 max-w-md mx-auto leading-relaxed">
-                Explore our catalog of 4K IP cameras, enterprise NVRs, biometric access systems, and renewable solar power systems.
+                Explore our catalog of 4K IP cameras, enterprise NVRs, biometric access systems, and fiber optic cabling.
               </p>
               <button
                 type="button"
@@ -319,7 +319,7 @@ export const CartPage: React.FC<CartPageProps> = ({
               Frequently Added with Items in Your Cart
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Top rated enterprise equipment commonly bundled for security and renewable energy deployments
+              Top rated enterprise equipment commonly bundled for security and network infrastructure deployments
             </p>
           </div>
 

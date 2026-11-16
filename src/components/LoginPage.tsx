@@ -67,13 +67,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              // Fallback to secondary asset if primary logo unavailable
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
             }}
           />
         </button>
@@ -195,8 +194,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
           {/* Legal / Policy terms */}
           <p className="text-[11px] text-gray-500 mt-5 leading-relaxed text-center">
             By signing in, you agree to Spinel Distribution's{' '}
-            <span className="text-blue-700 hover:underline cursor-pointer">Conditions of Use</span> and{' '}
-            <span className="text-blue-700 hover:underline cursor-pointer">Privacy Notice</span>.
+            <button
+              type="button"
+              onClick={() => onNavigate('terms-of-use')}
+              className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+            >
+              Terms of Use
+            </button>{' '}
+            and{' '}
+            <button
+              type="button"
+              onClick={() => onNavigate('privacy-policy')}
+              className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+            >
+              Privacy Policy
+            </button>
+            .
           </p>
 
           {/* Clean Divider */}
@@ -237,6 +250,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
       {/* Standalone Minimal Footer */}
       <footer className="w-full py-6 px-4 text-center border-t border-gray-200 bg-white/70 mt-8">
         <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-600 mb-2">
+          <button type="button" onClick={() => onNavigate('terms-of-use')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Terms of Use
+          </button>
+          <button type="button" onClick={() => onNavigate('privacy-policy')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Privacy Policy
+          </button>
           <button type="button" onClick={() => onNavigate('home')} className="hover:text-blue-700 hover:underline cursor-pointer">
             Storefront
           </button>
@@ -251,7 +270,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigate, onN
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
         </p>
       </footer>
 

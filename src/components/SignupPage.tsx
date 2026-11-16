@@ -5,7 +5,7 @@ import { UserPlus, Eye, EyeOff, ArrowLeft, ShieldCheck, Mail, KeyRound, User, Ch
 interface SignupPageProps {
   onSuccess: () => void;
   onNavigate: (view: string, param?: string) => void;
-  onNavigateToOtp: (email: string, fullName: string, devOtp?: string) => void;
+  onNavigateToOtp: (email: string, fullName: string) => void;
 }
 
 export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, onNavigateToOtp }) => {
@@ -60,7 +60,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
       }
 
       // Immediately navigate user to the OTP page
-      onNavigateToOtp(cleanEmail, cleanFullName, res.devOtp);
+      onNavigateToOtp(cleanEmail, cleanFullName);
     } catch (err: any) {
       setError(err?.message || 'Failed to initiate account registration. Please try again.');
     } finally {
@@ -80,12 +80,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
           title="Return to Spinel Distribution Home"
         >
           <img 
-            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png"
+            src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png"
             alt="SPINEL DISTRIBUTION"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1788619290/Spinel_Distribution.jpg';
+              (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Orange_Long_Logo_Without_Smile.png';
             }}
           />
         </button>
@@ -212,7 +212,23 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
                   className="rounded text-[#e77600] focus:ring-[#e77600] w-4 h-4 mt-0.5 cursor-pointer"
                 />
                 <span>
-                  I agree to Spinel Distribution's Conditions of Use, B2B wholesale transaction terms, and Privacy Notice.
+                  I agree to Spinel Distribution's{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('terms-of-use')}
+                    className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+                  >
+                    Terms of Use
+                  </button>
+                  , B2B wholesale transaction terms, and{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('privacy-policy')}
+                    className="text-blue-700 hover:underline cursor-pointer font-medium p-0 inline"
+                  >
+                    Privacy Policy
+                  </button>
+                  .
                 </span>
               </label>
             </div>
@@ -271,6 +287,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
       {/* Standalone Minimal Footer */}
       <footer className="w-full py-6 px-4 text-center border-t border-gray-200 bg-white/70 mt-8">
         <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-600 mb-2">
+          <button type="button" onClick={() => onNavigate('terms-of-use')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Terms of Use
+          </button>
+          <button type="button" onClick={() => onNavigate('privacy-policy')} className="hover:text-blue-700 hover:underline cursor-pointer">
+            Privacy Policy
+          </button>
           <button type="button" onClick={() => onNavigate('home')} className="hover:text-blue-700 hover:underline cursor-pointer">
             Storefront
           </button>
@@ -285,7 +307,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigate, o
           </a>
         </div>
         <p className="text-[11px] text-gray-500">
-          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Renewable Energy.
+          &copy; {new Date().getFullYear()} Spinel Distribution Global. Enterprise Security, Networking &amp; Telecom Infrastructure.
         </p>
       </footer>
 

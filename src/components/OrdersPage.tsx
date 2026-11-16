@@ -8,7 +8,10 @@ import {
   Truck, 
   ExternalLink,
   ChevronRight,
-  Search
+  Search,
+  Trash2,
+  CreditCard,
+  AlertCircle
 } from 'lucide-react';
 import { Order } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -27,23 +30,38 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
   onViewInvoice
 }) => {
   const { user } = useAuth();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, exchangeRate, serverConfig } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchOrder, setSearchOrder] = useState<string>('');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const emailQuery = user ? `?email=${encodeURIComponent(user.email)}` : '';
-      const res = await fetch(`/api/orders${emailQuery}`);
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+      if (!token && !user) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+      const emailQuery = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
+      const res = await fetch(`/api/orders${emailQuery}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const data: Order[] = await res.json();
         setOrders(data);
+      } else {
+        setOrders([]);
       }
     } catch (err) {
       console.warn('Failed to load orders', err);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -53,8 +71,182 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
     fetchOrders();
   }, [user]);
 
+  // Handle customer deleting an order
+  const handleDeleteOrder = async (orderId: string, orderNumber: string) => {
+    const confirmed = window.confirm(`Are you sure you want to delete Order #${orderNumber}? This will remove it from your records.`);
+    if (!confirmed) return;
+
+    try {
+      setActionLoading(orderId);
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+      const emailQuery = user?.email ? `?email=${encodeURIComponent(user.email)}` : '';
+
+      const res = await fetch(`/api/orders/${orderId}${emailQuery}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (res.ok) {
+        setOrders(prev => prev.filter(o => o.id !== orderId && o.orderNumber !== orderId));
+        setNoticeMessage({
+          type: 'info',
+          text: `Order #${orderNumber} has been removed from your account.`
+        });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setNoticeMessage({
+          type: 'error',
+          text: data.error || 'Failed to delete order. You can only delete your own orders.'
+        });
+      }
+    } catch (err: any) {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Network error deleting order: ' + (err.message || 'Please try again.')
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Dynamically ensure Paystack inline script is loaded
+  const ensurePaystackLoaded = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).PaystackPop) {
+        return resolve(true);
+      }
+      const existing = document.querySelector('script[src*="paystack.co"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(Boolean((window as any).PaystackPop)));
+        setTimeout(() => resolve(Boolean((window as any).PaystackPop)), 3000);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      script.onload = () => resolve(Boolean((window as any).PaystackPop));
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Handle completing payment for Pending/Unpaid order via Paystack
+  const handlePayForOrder = async (order: Order) => {
+    setNoticeMessage(null);
+    const paystackKey = serverConfig?.paystackPublicKey || 'pk_test_sample_spinel_public_key';
+    const totalUSD = order.subtotalUSD ?? order.totalUSD;
+    const totalNGN = order.totalNGN || Math.round(totalUSD * exchangeRate);
+    const amountInKobo = Math.round(totalNGN * 100);
+
+    const isLoaded = await ensurePaystackLoaded();
+    const PaystackPop = (window as any).PaystackPop;
+
+    if (!isLoaded || !PaystackPop || typeof PaystackPop.setup !== 'function') {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Unable to connect to Paystack payment gateway. Please verify your internet connection and try again.'
+      });
+      return;
+    }
+
+    try {
+      let paymentWasAuthorized = false;
+      const handler = PaystackPop.setup({
+        key: paystackKey,
+        email: order.customerEmail,
+        amount: amountInKobo,
+        currency: 'NGN',
+        ref: `SPN_PAY_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Customer Name', variable_name: 'customer_name', value: order.customerName },
+            { display_name: 'Order Number', variable_name: 'order_number', value: order.orderNumber }
+          ]
+        },
+        callback: async function (response: any) {
+          paymentWasAuthorized = true;
+          if (response && response.reference) {
+            await finalizePayment(order.id, response.reference, order.customerEmail);
+          } else {
+            setNoticeMessage({
+              type: 'error',
+              text: 'Paystack payment authorization response incomplete. Order remains pending.'
+            });
+          }
+        },
+        onClose: function () {
+          if (!paymentWasAuthorized) {
+            setNoticeMessage({
+              type: 'info',
+              text: `Payment window closed. Order #${order.orderNumber} remains pending until payment is completed via Paystack.`
+            });
+          }
+        }
+      });
+      handler.openIframe();
+    } catch (err: any) {
+      console.warn('Paystack popup error:', err);
+      setNoticeMessage({
+        type: 'error',
+        text: 'Could not open Paystack checkout window: ' + (err.message || 'Please try again.')
+      });
+    }
+  };
+
+  const finalizePayment = async (orderId: string, reference: string, customerEmail?: string) => {
+    try {
+      setActionLoading(orderId);
+      const userToken = localStorage.getItem('spinel_user_token');
+      const adminToken = localStorage.getItem('spinel_admin_token');
+      const token = userToken || adminToken;
+
+      const res = await fetch(`/api/orders/${orderId}/pay`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          paymentReference: reference,
+          customerEmail: customerEmail || user?.email 
+        })
+      });
+
+      if (res.ok) {
+        const updated: Order = await res.json();
+        setOrders(prev => prev.map(o => (o.id === orderId ? updated : o)));
+        setNoticeMessage({
+          type: 'success',
+          text: `Payment authorized via Paystack! Order #${updated.orderNumber} is now marked as Completed.`
+        });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setNoticeMessage({
+          type: 'error',
+          text: errData.error || 'Paystack payment could not be verified. Order remains pending.'
+        });
+      }
+    } catch (err: any) {
+      setNoticeMessage({
+        type: 'error',
+        text: 'Network error verifying payment with server. Order remains pending.'
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredOrders = orders.filter(order => {
-    if (filterStatus !== 'all' && order.status !== filterStatus) return false;
+    if (filterStatus === 'completed') {
+      if (order.status !== 'completed' && order.paymentStatus !== 'paid') return false;
+    } else if (filterStatus === 'pending') {
+      if (order.status === 'completed' && order.paymentStatus === 'paid') return false;
+    } else if (filterStatus !== 'all' && order.status !== filterStatus) {
+      return false;
+    }
+
     if (searchOrder) {
       const q = searchOrder.toLowerCase();
       const matchNum = order.orderNumber.toLowerCase().includes(q);
@@ -64,17 +256,34 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
     return true;
   });
 
-  const getStatusBadge = (status: Order['status']) => {
-    switch (status) {
-      case 'delivered':
-        return <span className="bg-green-100 text-green-800 text-sm font-bold px-3 py-1 rounded-md flex items-center gap-1.5"><CheckCircle size={15} /> Delivered</span>;
-      case 'shipped':
-        return <span className="bg-blue-100 text-blue-800 text-sm font-bold px-3 py-1 rounded-md flex items-center gap-1.5"><Truck size={15} /> Shipped / In Transit</span>;
-      case 'processing':
-        return <span className="bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-md flex items-center gap-1.5"><Clock size={15} /> Processing</span>;
-      default:
-        return <span className="bg-gray-100 text-gray-800 text-sm font-bold px-3 py-1 rounded-md flex items-center gap-1.5"><Clock size={15} /> Pending</span>;
+  const getStatusBadge = (order: Order) => {
+    const isCompleted = order.status === 'completed' || order.paymentStatus === 'paid';
+    if (isCompleted) {
+      return (
+        <span className="bg-emerald-100 text-emerald-800 text-xs sm:text-sm font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-300">
+          <CheckCircle size={15} className="text-emerald-600" /> Completed
+        </span>
+      );
     }
+    if (order.status === 'shipped') {
+      return (
+        <span className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-blue-300">
+          <Truck size={15} /> Shipped / In Transit
+        </span>
+      );
+    }
+    if (order.status === 'processing') {
+      return (
+        <span className="bg-sky-100 text-sky-800 text-xs sm:text-sm font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-sky-300">
+          <Clock size={15} /> Processing
+        </span>
+      );
+    }
+    return (
+      <span className="bg-amber-100 text-amber-900 text-xs sm:text-sm font-bold px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-300">
+        <Clock size={15} className="text-amber-700" /> Pending Payment
+      </span>
+    );
   };
 
   return (
@@ -83,7 +292,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">Your Orders &amp; Tax Invoices</h1>
           <p className="text-base sm:text-lg text-gray-600 mt-2">
-            Track hardware dispatches, view shipment stages, and download official PDF tax invoices.
+            Track hardware dispatches, complete pending orders via Paystack, download invoices, or manage your order list.
           </p>
         </div>
 
@@ -105,14 +314,34 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
             onChange={(e) => setFilterStatus(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-2.5 text-base text-gray-800 outline-none focus:border-[#e77600] focus:ring-2 focus:ring-[#e77600]/30 bg-white cursor-pointer shadow-xs font-semibold"
           >
-            <option value="all">All Orders</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
+            <option value="all">All Orders ({orders.length})</option>
+            <option value="completed">Completed Orders</option>
+            <option value="pending">Pending Orders</option>
           </select>
         </div>
       </div>
+
+      {noticeMessage && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center justify-between gap-3 text-sm font-semibold border ${
+          noticeMessage.type === 'error'
+            ? 'bg-rose-50 text-rose-800 border-rose-300'
+            : noticeMessage.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-amber-50 text-amber-900 border-amber-300'
+        }`}>
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="shrink-0" />
+            <span>{noticeMessage.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNoticeMessage(null)}
+            className="text-xs font-bold underline cursor-pointer hover:opacity-80 shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="py-24 text-center text-lg sm:text-xl text-gray-500 font-semibold">
@@ -137,123 +366,163 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
         </div>
       ) : (
         <div className="space-y-10">
-          {filteredOrders.map((order, idx) => (
-            <div 
-              key={order.id || order.orderNumber || `order-card-${idx}`}
-              className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden text-base sm:text-lg"
-            >
-              {/* Order Header Bar */}
-              <div className="bg-gray-100/90 p-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-6 text-gray-700">
-                <div className="flex flex-wrap items-center gap-8 sm:gap-14">
-                  <div>
-                    <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Order Placed</span>
-                    <span className="font-bold text-gray-900 text-base sm:text-lg">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </span>
+          {filteredOrders.map((order, idx) => {
+            const isCompleted = order.status === 'completed' || order.paymentStatus === 'paid';
+            const isDeleting = actionLoading === order.id;
+
+            return (
+              <div 
+                key={order.id || order.orderNumber || `order-card-${idx}`}
+                className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden text-base sm:text-lg transition-all"
+              >
+                {/* Order Header Bar */}
+                <div className="bg-gray-100/90 p-6 border-b border-gray-200 flex flex-wrap items-center justify-between gap-6 text-gray-700">
+                  <div className="flex flex-wrap items-center gap-8 sm:gap-14">
+                    <div>
+                      <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Order Placed</span>
+                      <span className="font-bold text-gray-900 text-base sm:text-lg">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Total (Free Shipping)</span>
+                      <span className="font-extrabold text-gray-900 text-lg sm:text-2xl">
+                        {formatPrice(order.subtotalUSD ?? order.totalUSD)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Ship To</span>
+                      <span className="font-bold text-gray-900 text-base sm:text-lg">
+                        {order.shippingAddress.fullName}
+                      </span>
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Total (Free Shipping)</span>
-                    <span className="font-extrabold text-gray-900 text-lg sm:text-2xl">
-                      {formatPrice(order.subtotalUSD ?? order.totalUSD)}
-                    </span>
-                  </div>
+                  {/* Right Header: Order # & Action buttons */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="text-right">
+                      <span className="block text-sm sm:text-base font-bold text-gray-900">Order # {order.orderNumber}</span>
+                      <span className="text-xs sm:text-sm text-gray-500 font-mono">Ref: {order.paymentReference || 'Unpaid'}</span>
+                    </div>
 
-                  <div>
-                    <span className="block text-xs sm:text-sm uppercase tracking-wider text-gray-500 font-bold mb-1">Ship To</span>
-                    <span className="font-bold text-gray-900 text-base sm:text-lg">
-                      {order.shippingAddress.fullName}
-                    </span>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Pay with Paystack button if order is Pending / Unpaid */}
+                      {!isCompleted && (
+                        <button
+                          type="button"
+                          onClick={() => handlePayForOrder(order)}
+                          disabled={isDeleting}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-xs flex items-center gap-2 cursor-pointer text-sm sm:text-base transition-colors"
+                          title="Pay via Paystack to complete order"
+                        >
+                          <CreditCard size={17} />
+                          <span>Pay Now</span>
+                        </button>
+                      )}
 
-                {/* Right Header: Order # & Download PDF */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="text-right">
-                    <span className="block text-sm sm:text-base font-bold text-gray-900">Order # {order.orderNumber}</span>
-                    <span className="text-xs sm:text-sm text-gray-500 font-mono">Ref: {order.paymentReference || 'N/A'}</span>
-                  </div>
+                      {/* View Invoice */}
+                      {onViewInvoice && (
+                        <button
+                          type="button"
+                          onClick={() => onViewInvoice(order)}
+                          className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold py-2.5 px-4 rounded-xl border border-amber-500 shadow-xs flex items-center gap-2 cursor-pointer text-sm sm:text-base transition-colors"
+                        >
+                          <FileText size={17} />
+                          <span>View Invoice</span>
+                        </button>
+                      )}
 
-                  {/* PDF Download and View Invoice Buttons */}
-                  <div className="flex items-center gap-3">
-                    {onViewInvoice && (
+                      {/* Download PDF */}
                       <button
                         type="button"
-                        onClick={() => onViewInvoice(order)}
-                        className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold py-2.5 px-4 rounded-xl border border-amber-500 shadow-xs flex items-center gap-2 cursor-pointer text-sm sm:text-base transition-colors"
+                        onClick={() => downloadInvoicePDF(order)}
+                        className="bg-white hover:bg-gray-50 text-gray-800 font-bold py-2.5 px-4 rounded-xl border border-gray-300 shadow-xs flex items-center gap-2 cursor-pointer text-sm sm:text-base transition-colors"
                       >
-                        <FileText size={17} />
-                        <span>View Invoice</span>
+                        <Download size={17} className="text-[#c45500]" />
+                        <span>PDF</span>
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => downloadInvoicePDF(order)}
-                      className="bg-white hover:bg-gray-50 text-gray-800 font-bold py-2.5 px-4 rounded-xl border border-gray-300 shadow-xs flex items-center gap-2 cursor-pointer text-sm sm:text-base transition-colors"
-                    >
-                      <Download size={17} className="text-[#c45500]" />
-                      <span>Download PDF</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              {/* Order Body */}
-              <div className="p-7 space-y-6">
-                
-                {/* Status line */}
-                <div className="flex items-center justify-between pb-5 border-b border-gray-100 flex-wrap gap-3 text-base sm:text-lg">
-                  <div className="flex items-center gap-3.5">
-                    {getStatusBadge(order.status)}
-                    <span className="text-gray-700">
-                      Estimated Delivery:{' '}
-                      <strong className="text-gray-900 font-bold">
-                        {new Date(order.estimatedDelivery).toLocaleDateString()}
-                      </strong>
-                    </span>
-                  </div>
-
-                  <div className="text-sm sm:text-base text-gray-600">
-                    Payment: <strong className="text-green-700 capitalize font-bold">{order.paymentStatus}</strong> via {order.paymentMethod}
-                  </div>
-                </div>
-
-                {/* Products list */}
-                <div className="divide-y divide-gray-100">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="py-5 flex items-center justify-between gap-6">
-                      <div className="flex items-center gap-5 sm:gap-6">
-                        <img 
-                          src={item.image} 
-                          alt={item.name} 
-                          className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-xl border border-gray-200 p-2 shrink-0 bg-gray-50" 
-                        />
-                        <div>
-                          <h4 
-                            onClick={() => onSelectProductById(item.productId)}
-                            className="font-bold text-gray-900 hover:text-[#c45500] cursor-pointer line-clamp-1 text-lg sm:text-xl"
-                          >
-                            {item.name}
-                          </h4>
-                          <p className="text-gray-500 text-sm sm:text-base mt-1.5">
-                            SKU: <span className="font-mono text-gray-700">{item.sku}</span> | Qty: <strong className="text-gray-900 font-bold">{item.quantity}</strong>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="font-black text-gray-900 text-lg sm:text-2xl">
-                          {formatPrice(item.priceUSD * item.quantity)}
-                        </div>
-                      </div>
+                      {/* Delete Order Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrder(order.id, order.orderNumber)}
+                        disabled={isDeleting}
+                        className="p-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors cursor-pointer"
+                        title="Delete this order"
+                      >
+                        <Trash2 size={17} />
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                </div>
+
+                {/* Order Body */}
+                <div className="p-7 space-y-6">
+                  
+                  {/* Status line */}
+                  <div className="flex items-center justify-between pb-5 border-b border-gray-100 flex-wrap gap-3 text-base sm:text-lg">
+                    <div className="flex items-center gap-3.5">
+                      {getStatusBadge(order)}
+                      <span className="text-gray-700">
+                        Estimated Delivery:{' '}
+                        <strong className="text-gray-900 font-bold">
+                          {new Date(order.estimatedDelivery).toLocaleDateString()}
+                        </strong>
+                      </span>
+                    </div>
+
+                    <div className="text-sm sm:text-base text-gray-600 flex items-center gap-2">
+                      <span>Status:</span>
+                      <strong className={`capitalize font-bold ${isCompleted ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {isCompleted ? 'Completed' : 'Pending Payment'}
+                      </strong>
+                      <span className="text-gray-400">|</span>
+                      <span>Payment:</span>
+                      <strong className={`capitalize font-bold ${isCompleted ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {order.paymentStatus || (isCompleted ? 'paid' : 'unpaid')}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Products list */}
+                  <div className="divide-y divide-gray-100">
+                    {order.items.map((item, iIdx) => (
+                      <div key={iIdx} className="py-5 flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-5 sm:gap-6">
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-xl border border-gray-200 p-2 shrink-0 bg-gray-50" 
+                          />
+                          <div>
+                            <h4 
+                              onClick={() => onSelectProductById(item.productId)}
+                              className="font-bold text-gray-900 hover:text-[#c45500] cursor-pointer line-clamp-1 text-lg sm:text-xl"
+                            >
+                              {item.name}
+                            </h4>
+                            <p className="text-gray-500 text-sm sm:text-base mt-1.5">
+                              SKU: <span className="font-mono text-gray-700">{item.sku}</span> | Qty: <strong className="text-gray-900 font-bold">{item.quantity}</strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className="font-black text-gray-900 text-lg sm:text-2xl">
+                            {formatPrice(item.priceUSD * item.quantity)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                 </div>
 
               </div>
-
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

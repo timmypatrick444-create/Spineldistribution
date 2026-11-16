@@ -24,15 +24,21 @@ import { ResetPasswordPage } from './components/ResetPasswordPage';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Product, Order } from './types';
+import { CATEGORIES } from './data/categories';
 import { SEED_PRODUCTS } from './data/seedProducts';
-import { UPLOADED_RENEWABLE_ENERGY_PRODUCTS } from './data/uploadedProducts';
+import { UPLOADED_CATALOG_PRODUCTS } from './data/uploadedProducts';
 import { UPLOADED_PAGA_PRODUCTS } from './data/uploadedPagaProducts';
 import { UPLOADED_ENCLOSURE_PRODUCTS } from './data/uploadedEnclosureProducts';
+import { UPLOADED_FIBER_CABLE_PRODUCTS } from './data/uploadedFiberCables';
+import { CUSTOM_UPLOADED_PRODUCTS } from './data/customUploadedProducts';
+import { fetchWithRetry } from './utils/apiRetry';
 
 const INITIAL_SEEDED_PRODUCTS: Product[] = [
+  ...CUSTOM_UPLOADED_PRODUCTS,
+  ...UPLOADED_FIBER_CABLE_PRODUCTS,
   ...UPLOADED_ENCLOSURE_PRODUCTS,
   ...UPLOADED_PAGA_PRODUCTS,
-  ...UPLOADED_RENEWABLE_ENERGY_PRODUCTS,
+  ...UPLOADED_CATALOG_PRODUCTS,
   ...SEED_PRODUCTS
 ];
 
@@ -65,7 +71,6 @@ function MainApp() {
 
   const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
   const [pendingAuthName, setPendingAuthName] = useState<string>('');
-  const [pendingAuthOtp, setPendingAuthOtp] = useState<string | undefined>();
   const [resetPasswordEmail, setResetPasswordEmail] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/product/')) {
@@ -90,12 +95,11 @@ function MainApp() {
 
   // Global Products State - initialized immediately for ultra-fast, smooth 0ms loading
   const [products, setProducts] = useState<Product[]>(INITIAL_SEEDED_PRODUCTS);
-  const [catalogLoading, setCatalogLoading] = useState<boolean>(false);
 
   // Fetch products from server to sync updates seamlessly in the background
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/products?limit=5000');
+      const res = await fetchWithRetry('/api/products?limit=5000');
       if (res.ok) {
         const data = await res.json();
         const productList: Product[] = Array.isArray(data)
@@ -104,10 +108,46 @@ function MainApp() {
           ? data.products
           : [];
         if (productList.length > 0) {
-          setProducts(productList);
+          // Merge server products while guaranteeing NO products are ever deducted or removed
+          const seenIds = new Set<string>();
+          const seenSkus = new Set<string>();
+          const validFiberSkus = new Set(UPLOADED_FIBER_CABLE_PRODUCTS.map(p => (p.sku || '').toLowerCase()));
+          const merged: Product[] = [];
+
+          // 1. Add products received from server (excluding any obsolete/legacy fiber products)
+          for (const p of productList) {
+            if (!p) continue;
+            const cat = (p.category || '').toLowerCase().trim();
+            if (cat === 'fiber optic & hybrid cables' || cat.includes('fiber optic')) {
+              // Only allow the 60 official products from the uploaded catalog
+              if (!validFiberSkus.has((p.sku || '').toLowerCase())) {
+                continue;
+              }
+            }
+            const idKey = (p.id || '').toLowerCase().trim();
+            const skuKey = (p.sku || '').toLowerCase().trim();
+            if (idKey && seenIds.has(idKey)) continue;
+            if (skuKey && seenSkus.has(skuKey)) continue;
+            if (idKey) seenIds.add(idKey);
+            if (skuKey) seenSkus.add(skuKey);
+            merged.push(p);
+          }
+
+          // 2. Guarantee every initial seeded product is preserved, never dropped or reduced
+          for (const p of INITIAL_SEEDED_PRODUCTS) {
+            if (!p) continue;
+            const idKey = (p.id || '').toLowerCase().trim();
+            const skuKey = (p.sku || '').toLowerCase().trim();
+            if ((idKey && seenIds.has(idKey)) || (skuKey && seenSkus.has(skuKey))) continue;
+            if (idKey) seenIds.add(idKey);
+            if (skuKey) seenSkus.add(skuKey);
+            merged.push(p);
+          }
+
+          setProducts(merged);
           if (window.location.pathname.startsWith('/product/')) {
             const prodId = decodeURIComponent(window.location.pathname.replace('/product/', '')).trim();
-            const found = productList.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
+            const found = merged.find(p => p.id === prodId || p.sku.toLowerCase() === prodId.toLowerCase());
             if (found) {
               setSelectedProduct(found);
             }
@@ -116,13 +156,55 @@ function MainApp() {
       }
     } catch (err) {
       console.warn('Background sync: using local catalog', err);
-    } finally {
-      setCatalogLoading(false);
     }
   };
 
   useEffect(() => {
     loadProducts();
+  }, []);
+
+  // Clean up any stale ?_v=... query parameters from address bar without reloading
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('_v=')) {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete('_v');
+      const cleanSearch = searchParams.toString();
+      const cleanUrl = window.location.pathname + (cleanSearch ? `?${cleanSearch}` : '') + window.location.hash;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+  }, []);
+
+  // Background catalog data sync: refreshes data in memory without any page reload or URL mutation
+  useEffect(() => {
+    let initialBootTime: number | null = null;
+    let initialBuildTs: number | null = null;
+
+    const checkLiveVersion = async () => {
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.serverBootTime) {
+          if (initialBootTime === null) {
+            initialBootTime = data.serverBootTime;
+            initialBuildTs = data.buildTs;
+          } else if (
+            (data.serverBootTime !== initialBootTime && Math.abs(data.serverBootTime - initialBootTime) > 2000) ||
+            (initialBuildTs !== null && data.buildTs && Math.abs(data.buildTs - initialBuildTs) > 2000)
+          ) {
+            // Silently refresh products in-memory without any URL changes or page reloads
+            initialBootTime = data.serverBootTime;
+            initialBuildTs = data.buildTs;
+            loadProducts();
+          }
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(checkLiveVersion, 30000);
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   // Sync with browser URL path (e.g. /product/:id, /orders, /cart, /admin)
@@ -232,6 +314,25 @@ function MainApp() {
 
   // Category selection handler
   const handleSelectCategory = (catName?: string, subcatName?: string) => {
+    // If a subcategory name was passed as catName without subcatName, map it to parent category
+    if (catName && !subcatName) {
+      for (const cat of CATEGORIES) {
+        if (cat.name.toLowerCase() === catName.toLowerCase()) {
+          setSelectedCategory(cat.name);
+          setSelectedSubcategory(undefined);
+          setSearchQuery('');
+          navigateTo('catalog');
+          return;
+        }
+        if (cat.subcategories.some(s => s.toLowerCase() === catName.toLowerCase())) {
+          setSelectedCategory(cat.name);
+          setSelectedSubcategory(catName);
+          setSearchQuery('');
+          navigateTo('catalog');
+          return;
+        }
+      }
+    }
     setSelectedCategory(catName);
     setSelectedSubcategory(subcatName);
     setSearchQuery('');
@@ -306,13 +407,7 @@ function MainApp() {
 
       {/* 3. Main Body Views */}
       <main className={`flex-1 ${isAdminView ? 'bg-[#0f172a]' : ''}`}>
-        {catalogLoading && products.length === 0 ? (
-          <div className="min-h-[400px] flex items-center justify-center text-sm text-gray-600 font-medium">
-            Loading Spinel Distribution Enterprise Hardware Catalog...
-          </div>
-        ) : (
-          <>
-            {currentView === 'home' && (
+        {currentView === 'home' && (
               <HomePage
                 products={products}
                 onSelectProduct={handleSelectProduct}
@@ -331,6 +426,7 @@ function MainApp() {
                 onSelectProduct={handleSelectProduct}
                 onSelectCategory={handleSelectCategory}
                 onRequestQuote={handleRequestQuote}
+                onRefreshCatalog={loadProducts}
               />
             )}
 
@@ -471,10 +567,9 @@ function MainApp() {
               <SignupPage
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
-                onNavigateToOtp={(email, fullName, devOtp) => {
+                onNavigateToOtp={(email, fullName) => {
                   setPendingAuthEmail(email);
                   setPendingAuthName(fullName);
-                  setPendingAuthOtp(devOtp);
                   setCurrentView('otp-verify');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
@@ -485,7 +580,6 @@ function MainApp() {
               <OtpVerificationPage
                 email={pendingAuthEmail}
                 fullName={pendingAuthName}
-                devOtp={pendingAuthOtp}
                 onSuccess={() => navigateTo('home')}
                 onNavigate={navigateTo}
                 onBackToSignup={() => {
@@ -515,8 +609,6 @@ function MainApp() {
                 />
               )
             )}
-          </>
-        )}
       </main>
 
       {/* 4. Footer - Hidden on unique login & signup pages */}

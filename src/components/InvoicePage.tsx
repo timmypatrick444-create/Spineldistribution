@@ -5,7 +5,6 @@ import {
   Printer, 
   Download, 
   ArrowLeft, 
-  ShieldCheck, 
   CreditCard, 
   Truck, 
   Building, 
@@ -58,39 +57,45 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
             ]
           },
           callback: async function (response: any) {
-            const ref = response.reference || `pstk_ref_${Date.now()}`;
-            await markOrderAsPaid(ref);
+            if (response && response.reference) {
+              await markOrderAsPaid(response.reference);
+            } else {
+              setIsProcessingPayment(false);
+              alert('Paystack payment was not authorized. Order remains pending.');
+            }
           },
           onClose: function () {
             setIsProcessingPayment(false);
+            console.log('[Paystack] Modal closed by user. Order remains pending.');
           }
         });
         handler.openIframe();
         return;
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Paystack inline retry error', err);
+        setIsProcessingPayment(false);
+        alert('Could not open Paystack payment modal: ' + (err.message || 'Please check your connection.'));
+        return;
       }
     }
 
-    // Direct confirmation fallback if sandbox restricts popups
-    const confirmPayment = window.confirm(
-      `Paystack Live Gateway Authorization:\n\nOrder: ${currentOrder.orderNumber}\nAmount: ₦${currentOrder.totalNGN.toLocaleString()} ($${currentOrder.totalUSD.toFixed(2)} USD)\n\nProceed to mark transaction as completed?`
-    );
-
-    if (confirmPayment) {
-      const generatedRef = `PSTK_LIVE_CONFIRMED_${Date.now()}`;
-      markOrderAsPaid(generatedRef);
-    } else {
-      setIsProcessingPayment(false);
-    }
+    setIsProcessingPayment(false);
+    alert('Paystack payment gateway is initializing or unavailable. Please refresh and try again.');
   };
 
   const markOrderAsPaid = async (ref: string) => {
     try {
+      const token = localStorage.getItem('spinel_user_token') || localStorage.getItem('spinel_admin_token');
       const res = await fetch(`/api/orders/${currentOrder.id}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentReference: ref })
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          paymentReference: ref,
+          customerEmail: currentOrder.customerEmail 
+        })
       });
 
       if (res.ok) {
@@ -98,25 +103,11 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
         setCurrentOrder(updated);
         if (onOrderUpdated) onOrderUpdated(updated);
       } else {
-        // Local state update
-        const updated: Order = {
-          ...currentOrder,
-          paymentStatus: 'paid',
-          status: 'completed',
-          paymentReference: ref
-        };
-        setCurrentOrder(updated);
-        if (onOrderUpdated) onOrderUpdated(updated);
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Paystack payment could not be verified by the server. Order remains pending.');
       }
-    } catch {
-      const updated: Order = {
-        ...currentOrder,
-        paymentStatus: 'paid',
-        status: 'completed',
-        paymentReference: ref
-      };
-      setCurrentOrder(updated);
-      if (onOrderUpdated) onOrderUpdated(updated);
+    } catch (err: any) {
+      alert('Network error communicating with verification server. Order remains pending.');
     } finally {
       setIsProcessingPayment(false);
     }
@@ -253,7 +244,7 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
           <div className="border-b border-gray-200 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1790454463/Spinel_Logo.png" 
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Black_Long_Logo_With_Smile.png" 
                 alt="SPINEL DISTRIBUTION"
                 className="h-12 sm:h-14 w-auto object-contain"
                 referrerPolicy="no-referrer"
@@ -422,25 +413,9 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
           </div>
 
           {/* Financial Totals & Summary */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-2">
-            {/* Payment / Bank Notes (Especially when Pending) */}
-            <div className="max-w-sm space-y-2 text-xs text-gray-500">
-              <span className="font-bold text-gray-800 uppercase tracking-wider text-[11px] block">
-                Direct Corporate Settlement
-              </span>
-              <p className="leading-relaxed">
-                For corporate direct bank wires, settle into our official institutional account citing Invoice #{currentOrder.orderNumber}:
-              </p>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 font-mono text-[11px] text-gray-700">
-                <div>Bank: <strong>Standard Chartered / Zenith Bank</strong></div>
-                <div>Account Name: <strong>SPINEL DISTRIBUTION LTD</strong></div>
-                <div>Account Number (NGN): <strong>0048192841</strong></div>
-                <div>Account Number (USD): <strong>5070291844</strong></div>
-              </div>
-            </div>
-
+          <div className="flex justify-end pt-2">
             {/* Calculations Box */}
-            <div className="w-full sm:w-72 space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs">
+            <div className="w-full sm:w-80 space-y-2.5 bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal (USD):</span>
                 <span className="font-semibold">${currentOrder.subtotalUSD.toFixed(2)}</span>
@@ -457,20 +432,6 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
                 Total in Naira: ₦{Math.round(currentOrder.subtotalUSD * (currentOrder.exchangeRateUsed || 1580)).toLocaleString()}
               </div>
             </div>
-          </div>
-
-          {/* Warranty & Terms Footer */}
-          <div className="border-t border-gray-200 pt-6 text-[11px] text-gray-500 space-y-2">
-            <div className="flex items-center gap-2 text-gray-700 font-bold">
-              <ShieldCheck size={16} className="text-emerald-600" />
-              <span>Official Spinel Distribution Commercial Guarantee</span>
-            </div>
-            <p className="leading-relaxed">
-              All enterprise hardware supplied carries official OEM factory warranty (1 to 3 years depending on manufacturer tier). Equipment returns are accepted within 30 days of shipment in original sealed packaging.
-            </p>
-            <p className="text-gray-400">
-              For technical inquiries, firmware licenses, or RMA assistance, email sales@spineldistribution.com or call +234 (0) 1 800-SPINEL.
-            </p>
           </div>
 
         </div>
