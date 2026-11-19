@@ -19,4 +19,4 @@ Disallow: /login
 Disallow: /signup
 Disallow: /reset-password
 
-Sitemap: https://ais-dev-dppywwu4xyxkdulz7bphco-877143898255.europe-west2.run.app/sitemap.xml
+Sitemap: https://spineldistribution.com/sitemap.xml

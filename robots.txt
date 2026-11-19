@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+Allow: /catalog
+Allow: /product/
+Allow: /about
+Allow: /contact
+Allow: /quote
+Allow: /terms-of-use
+Allow: /privacy-policy
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /invoice
+Disallow: /orders
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+
+Sitemap: https://spineldistribution.com/sitemap.xml

@@ -11,7 +11,27 @@ import { Product } from '../src/types';
 import { buildSitemapXml, buildRobotsTxt } from '../src/utils/sitemapBuilder';
 
 const rootDir = process.cwd();
-const siteUrl = (process.env.SITE_URL || process.env.APP_URL || 'https://spineldistribution.com').replace(/\/+$/, '');
+
+function resolveCanonicalSiteUrl(): string {
+  const siteEnv = (process.env.SITE_URL || '').trim().replace(/\/+$/, '');
+  if (siteEnv) return siteEnv;
+
+  const appEnv = (process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  if (
+    appEnv &&
+    !appEnv.includes('localhost') &&
+    !appEnv.includes('127.0.0.1') &&
+    !appEnv.includes('ais-dev-') &&
+    !appEnv.includes('ais-pre-') &&
+    !appEnv.includes('.run.app')
+  ) {
+    return appEnv;
+  }
+
+  return 'https://spineldistribution.com';
+}
+
+const siteUrl = resolveCanonicalSiteUrl();
 
 const allProducts: Product[] = [
   ...CUSTOM_UPLOADED_PRODUCTS,
@@ -34,18 +54,20 @@ const sitemapXml = buildSitemapXml({
 const robotsTxt = buildRobotsTxt(siteUrl);
 
 const targetDirs = [
+  rootDir,
   path.join(rootDir, 'public'),
   path.join(rootDir, 'dist'),
   path.join(rootDir, 'client-build')
 ];
 
-let urlCount = (sitemapXml.match(/<url>/g) || []).length;
+const urlCount = (sitemapXml.match(/<url>/g) || []).length;
 
 for (const dir of targetDirs) {
-  if (dir.endsWith('public') || fs.existsSync(dir)) {
+  if (dir === rootDir || dir.endsWith('public') || fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'sitemap.xml'), sitemapXml, 'utf8');
     fs.writeFileSync(path.join(dir, 'robots.txt'), robotsTxt, 'utf8');
-    console.log(`[SEO Sitemap] Wrote sitemap.xml (${urlCount} URLs) & robots.txt to ${path.relative(rootDir, dir)}/`);
+    const rel = path.relative(rootDir, dir) || '. (root)';
+    console.log(`[SEO Sitemap] Wrote sitemap.xml (${urlCount} URLs for ${siteUrl}) & robots.txt to ${rel}`);
   }
 }

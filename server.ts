@@ -3197,13 +3197,35 @@ app.get('/api/proxy-image', async (req, res) => {
 
 // SEO Sitemap & Robots.txt (Served dynamically from live productCatalog + categories)
 function resolveSiteBaseUrl(req: express.Request): string {
-  const configured = (process.env.SITE_URL || process.env.APP_URL || '').trim().replace(/\/+$/, '');
-  if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
-    return configured;
+  const siteEnv = (process.env.SITE_URL || '').trim().replace(/\/+$/, '');
+  if (siteEnv) return siteEnv;
+
+  const appEnv = (process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  if (
+    appEnv &&
+    !appEnv.includes('localhost') &&
+    !appEnv.includes('127.0.0.1') &&
+    !appEnv.includes('ais-dev-') &&
+    !appEnv.includes('ais-pre-') &&
+    !appEnv.includes('.run.app')
+  ) {
+    return appEnv;
   }
-  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
-  const host = String(req.headers['x-forwarded-host'] || req.get('host') || 'spineldistribution.com').split(',')[0].trim();
-  return `${proto}://${host}`.replace(/\/+$/, '');
+
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || '').split(',')[0].trim();
+  if (
+    host &&
+    !host.includes('localhost') &&
+    !host.includes('127.0.0.1') &&
+    !host.includes('ais-dev-') &&
+    !host.includes('ais-pre-') &&
+    !host.includes('.run.app')
+  ) {
+    const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  }
+
+  return 'https://spineldistribution.com';
 }
 
 app.get('/sitemap.xml', (req, res) => {
