@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import zlib from 'zlib';
 import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 import dns from 'dns';
@@ -15,6 +16,7 @@ import { UPLOADED_FIBER_CABLE_PRODUCTS } from './src/data/uploadedFiberCables';
 import { CUSTOM_UPLOADED_PRODUCTS } from './src/data/customUploadedProducts';
 import { CATEGORIES } from './src/data/categories';
 import { Product, Order, UserProfile } from './src/types';
+import { buildSitemapXml, buildRobotsTxt } from './src/utils/sitemapBuilder';
 
 dotenv.config();
 
@@ -42,6 +44,77 @@ const PORT = (rawPort && rawPort !== '8080') ? rawPort : 3000;
 // High body limits to easily receive thousands of product uploads via JSON or CSV
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Built-in gzip/brotli compression for API JSON, XML, HTML, JS, CSS (cuts /api/products payload by ~85-90%)
+app.use((req, res, next) => {
+  if (req.method === 'HEAD') return next();
+  const acceptEnc = String(req.headers['accept-encoding'] || '');
+  if (!acceptEnc || (!acceptEnc.includes('br') && !acceptEnc.includes('gzip'))) {
+    return next();
+  }
+
+  const origSend = res.send.bind(res);
+  (res as any).send = function (body?: any) {
+    try {
+      if (res.headersSent || res.getHeader('Content-Encoding') || body === undefined || body === null) {
+        return origSend(body);
+      }
+
+      const contentType = String(res.getHeader('Content-Type') || '');
+      const isBinaryBuf = Buffer.isBuffer(body) && contentType.startsWith('image/');
+      if (isBinaryBuf) {
+        return origSend(body);
+      }
+
+      let rawBuf: Buffer;
+      if (Buffer.isBuffer(body)) {
+        rawBuf = body;
+      } else if (typeof body === 'string') {
+        rawBuf = Buffer.from(body, 'utf8');
+      } else {
+        rawBuf = Buffer.from(JSON.stringify(body), 'utf8');
+        if (!contentType) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+      }
+
+      // Only compress payloads > 1KB with compressible MIME types (or untyped JSON/text)
+      const effectiveType = String(res.getHeader('Content-Type') || '').toLowerCase();
+      const compressible =
+        !effectiveType ||
+        effectiveType.includes('json') ||
+        effectiveType.includes('xml') ||
+        effectiveType.includes('html') ||
+        effectiveType.includes('text/') ||
+        effectiveType.includes('javascript') ||
+        effectiveType.includes('svg');
+
+      if (!compressible || rawBuf.length < 1024) {
+        return origSend(body);
+      }
+
+      let compressed: Buffer;
+      let encoding: 'br' | 'gzip';
+      if (acceptEnc.includes('gzip')) {
+        compressed = zlib.gzipSync(rawBuf, { level: 6 });
+        encoding = 'gzip';
+      } else {
+        compressed = zlib.brotliCompressSync(rawBuf, {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+        });
+        encoding = 'br';
+      }
+
+      res.setHeader('Content-Encoding', encoding);
+      res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('Content-Length', String(compressed.length));
+      return origSend(compressed);
+    } catch {
+      return origSend(body);
+    }
+  };
+  next();
+});
 
 // Serve Images/Request_Quotes directory statically on cPanel and dev server
 const baseImagesDir = path.join(process.cwd(), 'Images');
@@ -100,6 +173,14 @@ let productCatalog: Product[] = [
     id: p.id || `prod-${p.sku || index}`
   }))
 ];
+let catalogVersion = Date.now();
+const productsResponseCache = new Map<string, { etag: string; payload: string; ts: number }>();
+const invalidateCatalogCache = () => {
+  catalogVersion = Date.now();
+  productsResponseCache.clear();
+  sitemapCache.clear();
+};
+const sitemapCache = new Map<string, { xml: string; ts: number }>();
 let ordersStore: Order[] = [];
 let quotesStore: any[] = [];
 
@@ -1173,7 +1254,7 @@ app.get('/api/categories', (req, res) => {
   res.json(CATEGORIES);
 });
 
-// 3. Products Search & Catalog API
+// 3. Products Search & Catalog API (with ETag & in-memory response cache for sub-5ms repeat loads)
 // NOTE: Total master product count is purposely kept hidden from public store!
 app.get('/api/products', (req, res) => {
   const {
@@ -1186,8 +1267,37 @@ app.get('/api/products', (req, res) => {
     sort,
     featured,
     page = '1',
-    limit = '24'
+    limit = '24',
+    nocache
   } = req.query;
+
+  const cacheKey = JSON.stringify({
+    v: catalogVersion,
+    category,
+    subcategory,
+    search,
+    brand,
+    minPrice,
+    maxPrice,
+    sort,
+    featured,
+    page,
+    limit,
+    format: req.query.format
+  });
+
+  if (!nocache) {
+    const cached = productsResponseCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 300000) {
+      res.setHeader('ETag', cached.etag);
+      res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      if (req.headers['if-none-match'] === cached.etag) {
+        return res.status(304).end();
+      }
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.send(cached.payload);
+    }
+  }
 
   let filtered = [...productCatalog];
 
@@ -1252,17 +1362,31 @@ app.get('/api/products', (req, res) => {
     id: prod.id || `prod-${prod.sku ? prod.sku.toLowerCase().replace(/[^a-z0-9]/g, '-') : startIndex + idx}`
   }));
 
-  if (req.query.format === 'array') {
-    return res.json(paginated);
-  }
+  const payloadObj =
+    req.query.format === 'array'
+      ? paginated
+      : {
+          products: paginated,
+          resultsCount: filtered.length,
+          page: p,
+          totalPages: Math.ceil(filtered.length / l) || 1
+        };
 
-  // Return filtered count, current page, and products
-  res.json({
-    products: paginated,
-    resultsCount: filtered.length,
-    page: p,
-    totalPages: Math.ceil(filtered.length / l) || 1
-  });
+  const payload = JSON.stringify(payloadObj);
+  const etag = `W/"cat-${catalogVersion}-${filtered.length}-${payload.length}"`;
+
+  if (productsResponseCache.size > 40) {
+    productsResponseCache.clear();
+  }
+  productsResponseCache.set(cacheKey, { etag, payload, ts: Date.now() });
+
+  res.setHeader('ETag', etag);
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  if (!nocache && req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
+  }
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  return res.send(payload);
 });
 
 // 4. Single Product Detail
@@ -2090,6 +2214,7 @@ app.post('/api/products/batch', requireAdmin, (req, res) => {
   }
 
   const durationMs = Date.now() - startTime;
+  invalidateCatalogCache();
   console.log(`[Bulk Upload] Successfully ingested ${added} new and ${updated} updated products in ${durationMs}ms. Total catalog: ${productCatalog.length}`);
 
   res.json({
@@ -2110,6 +2235,7 @@ app.post('/api/products', requireAdmin, (req, res) => {
   }
   newProd.id = newProd.id || `prod-man-${Date.now()}`;
   productCatalog.unshift(newProd);
+  invalidateCatalogCache();
   res.status(201).json(newProd);
 });
 
@@ -2133,6 +2259,7 @@ app.put('/api/products/:id', requireAdmin, (req, res) => {
   };
 
   productCatalog[index] = updated;
+  invalidateCatalogCache();
   res.json(updated);
 });
 
@@ -2143,6 +2270,7 @@ app.delete('/api/products/:id', requireAdmin, (req, res) => {
   if (productCatalog.length === initialLen) {
     return res.status(404).json({ error: 'Product not found' });
   }
+  invalidateCatalogCache();
   res.json({ success: true, remaining: productCatalog.length });
 });
 
@@ -2150,12 +2278,14 @@ app.delete('/api/products/:id', requireAdmin, (req, res) => {
 app.delete('/api/products', requireAdmin, (req, res) => {
   const previousCount = productCatalog.length;
   productCatalog = [];
+  invalidateCatalogCache();
   res.json({ success: true, message: `Cleared all ${previousCount} products from catalog`, remaining: 0 });
 });
 
 app.post('/api/products/clear', requireAdmin, (req, res) => {
   const previousCount = productCatalog.length;
   productCatalog = [];
+  invalidateCatalogCache();
   res.json({ success: true, message: `Cleared all ${previousCount} products from catalog`, remaining: 0 });
 });
 
@@ -2973,11 +3103,23 @@ app.get(['/api/contact', '/api/contact-inquiry'], async (req, res) => {
   }
 });
 
-// Proxy image endpoint to bypass CORS when embedding product images into PDF invoices
+// Cached LRU image proxy (bypasses CORS for PDF invoices and accelerates slow third-party images)
+const proxyImageCache = new Map<string, { contentType: string; buffer: Buffer; ts: number }>();
+const proxyInFlight = new Map<string, Promise<{ contentType: string; buffer: Buffer } | null>>();
+let proxyCacheTotalBytes = 0;
+const MAX_PROXY_CACHE_ENTRIES = 250;
+const MAX_PROXY_CACHE_BYTES = 50 * 1024 * 1024;
+const PROXY_IMAGE_TTL_MS = 24 * 60 * 60 * 1000;
+
 app.get('/api/proxy-image', async (req, res) => {
-  const imageUrl = req.query.url as string;
+  let imageUrl = req.query.url as string;
   if (!imageUrl || typeof imageUrl !== 'string') {
     return res.status(400).send('Image URL is required');
+  }
+
+  // Normalize mixed-content S3/Cloudinary HTTP URLs to HTTPS
+  if (imageUrl.startsWith('http://avoweb1.s3-us-west-2.amazonaws.com')) {
+    imageUrl = 'https://' + imageUrl.slice('http://'.length);
   }
 
   try {
@@ -2986,27 +3128,113 @@ app.get('/api/proxy-image', async (req, res) => {
       return res.status(400).send('Invalid image protocol');
     }
 
-    const response = await fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).send('Failed to fetch remote image');
+    const cached = proxyImageCache.get(imageUrl);
+    if (cached && Date.now() - cached.ts < PROXY_IMAGE_TTL_MS) {
+      // Refresh LRU insertion order
+      proxyImageCache.delete(imageUrl);
+      proxyImageCache.set(imageUrl, cached);
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Content-Type', cached.contentType);
+      res.header('Cache-Control', 'public, max-age=604800, immutable');
+      res.header('X-Image-Cache', 'HIT');
+      return res.send(cached.buffer);
     }
 
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = Buffer.from(await response.arrayBuffer());
+    let pending = proxyInFlight.get(imageUrl);
+    if (!pending) {
+      pending = (async () => {
+        const response = await fetch(imageUrl, {
+          signal: AbortSignal.timeout(8000),
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        if (!response.ok) return null;
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return { contentType, buffer };
+      })().finally(() => {
+        proxyInFlight.delete(imageUrl);
+      });
+      proxyInFlight.set(imageUrl, pending);
+    }
+
+    const result = await pending;
+    if (!result) {
+      return res.status(404).send('Failed to fetch remote image');
+    }
+
+    // Store in bounded LRU cache (skip massive >2MB items)
+    if (result.buffer.length <= 2 * 1024 * 1024) {
+      while (
+        proxyImageCache.size >= MAX_PROXY_CACHE_ENTRIES ||
+        proxyCacheTotalBytes + result.buffer.length > MAX_PROXY_CACHE_BYTES
+      ) {
+        const oldestKey = proxyImageCache.keys().next().value;
+        if (!oldestKey) break;
+        const oldEntry = proxyImageCache.get(oldestKey);
+        if (oldEntry) proxyCacheTotalBytes -= oldEntry.buffer.length;
+        proxyImageCache.delete(oldestKey);
+      }
+      proxyImageCache.set(imageUrl, {
+        contentType: result.contentType,
+        buffer: result.buffer,
+        ts: Date.now()
+      });
+      proxyCacheTotalBytes += result.buffer.length;
+    }
 
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Content-Type', contentType);
-    res.header('Cache-Control', 'public, max-age=86400');
-    res.send(buffer);
+    res.header('Content-Type', result.contentType);
+    res.header('Cache-Control', 'public, max-age=604800, immutable');
+    res.header('X-Image-Cache', 'MISS');
+    res.send(result.buffer);
   } catch (err: any) {
     console.warn('[Proxy Image Error]', err.message);
-    res.status(500).send('Error proxying image');
+    res.status(504).send('Error proxying image');
   }
+});
+
+// SEO Sitemap & Robots.txt (Served dynamically from live productCatalog + categories)
+function resolveSiteBaseUrl(req: express.Request): string {
+  const configured = (process.env.SITE_URL || process.env.APP_URL || '').trim().replace(/\/+$/, '');
+  if (configured && !configured.includes('localhost') && !configured.includes('127.0.0.1')) {
+    return configured;
+  }
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.get('host') || 'spineldistribution.com').split(',')[0].trim();
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = resolveSiteBaseUrl(req);
+  const cacheKey = `${baseUrl}|${catalogVersion}`;
+  const cached = sitemapCache.get(cacheKey);
+
+  let xml: string;
+  if (cached && Date.now() - cached.ts < 300000) {
+    xml = cached.xml;
+  } else {
+    xml = buildSitemapXml({
+      baseUrl,
+      categories: CATEGORIES,
+      products: productCatalog
+    });
+    if (sitemapCache.size > 10) sitemapCache.clear();
+    sitemapCache.set(cacheKey, { xml, ts: Date.now() });
+  }
+
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.status(200).send(xml);
+});
+
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = resolveSiteBaseUrl(req);
+  const txt = buildRobotsTxt(baseUrl);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.status(200).send(txt);
 });
 
 // Global API error handler

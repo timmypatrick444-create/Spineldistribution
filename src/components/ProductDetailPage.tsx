@@ -18,6 +18,7 @@ import {
 import { Product } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
 import { useCart } from '../context/CartContext';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface ProductDetailPageProps {
   product: Product;
@@ -125,19 +126,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 className={`w-14 h-14 sm:w-16 sm:h-16 rounded-md border p-1 bg-white cursor-pointer transition-all ${activeImageIndex === idx ? 'border-[#e77600] ring-2 ring-[#e77600]/40' : 'border-gray-200 hover:border-gray-400'}`}
               >
                 <img 
-                  src={img} 
+                  src={optimizeImageUrl(img, 160)} 
                   alt="" 
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-contain" 
                   referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    if (!target.dataset.retried && img) {
-                      target.dataset.retried = 'true';
-                      target.src = `/api/proxy-image?url=${encodeURIComponent(img)}`;
-                    } else {
-                      target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                    }
-                  }}
+                  onError={(e) => handleProductImageError(e, img)}
                 />
               </button>
             ))}
@@ -146,20 +141,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           {/* Active Large Display */}
           <div className="flex-1 bg-white border border-gray-200 rounded-xl p-6 sm:p-8 flex items-center justify-center min-h-[340px] sm:min-h-[420px] max-h-[500px] shadow-xs">
             <img 
-              src={product.images[activeImageIndex] || product.images[0]} 
+              src={optimizeImageUrl(product.images[activeImageIndex] || product.images[0], 900)} 
               alt={product.name}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               className="max-h-full max-w-full object-contain hover:scale-105 transition-transform duration-300" 
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                const activeSrc = product.images[activeImageIndex] || product.images[0];
-                if (!target.dataset.retried && activeSrc) {
-                  target.dataset.retried = 'true';
-                  target.src = `/api/proxy-image?url=${encodeURIComponent(activeSrc)}`;
-                } else {
-                  target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                }
-              }}
+              onError={(e) => handleProductImageError(e, product.images[activeImageIndex] || product.images[0])}
             />
           </div>
 
@@ -443,10 +432,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   >
                     <div className="w-full h-44 bg-gray-50 rounded-lg flex items-center justify-center p-3 mb-3 overflow-hidden">
                       <img 
-                        src={rec.images[0]} 
+                        src={optimizeImageUrl(rec.images[0], 380)} 
                         alt={rec.name}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
+                        onError={(e) => handleProductImageError(e, rec.images[0])}
                       />
                     </div>
 

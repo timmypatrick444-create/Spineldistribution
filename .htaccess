@@ -22,29 +22,31 @@ FileETag None
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# 2. Zero-Cache Policy for HTML, JS, CSS, JSON & CSV (Ensures any file uploaded in cPanel File Manager reflects immediately)
+# 2. Fast Image/Asset Caching + Fresh HTML Delivery
 <IfModule mod_headers.c>
-  Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
-  Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-  Header unset ETag
-  Header unset Last-Modified
-
-  <FilesMatch "\.(html|htm|json|js|mjs|css|csv|xml|txt)$">
-    Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0"
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
-    Header set Surrogate-Control "no-store"
     Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
-    Header unset ETag
-    Header unset Last-Modified
+  </FilesMatch>
+
+  <FilesMatch "\.(webp|png|jpe?g|gif|svg|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=2592000, immutable"
+  </FilesMatch>
+
+  <FilesMatch "(sitemap\.xml|robots\.txt)$">
+    Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
 </IfModule>
 
-# 2.1 Explicit MIME Types for JavaScript, CSS, and Assets
+# 2.1 Explicit MIME Types for JavaScript, CSS, XML, and Assets
 <IfModule mod_mime.c>
   AddType application/javascript .js .mjs
   AddType text/css .css
   AddType application/json .json
+  AddType application/xml .xml
+  AddType text/plain .txt
   AddType image/svg+xml .svg
   AddType image/webp .webp
   AddType image/jpeg .jpg .jpeg
@@ -56,8 +58,8 @@ FileETag None
   RewriteEngine On
   RewriteBase /
 
-  # Never rewrite backend API, health check, image/upload routes, or already-resolved dist/client-build paths
-  RewriteRule ^(api|health|Images|images|uploads|dist|client-build)(/|$) - [L]
+  # Never rewrite backend API, health check, SEO files, image/upload routes, or already-resolved dist/client-build paths
+  RewriteRule ^(api|health|Images|images|uploads|dist|client-build|sitemap\.xml|robots\.txt)(/|$) - [L]
 
   # Map any legacy hashed bundle request (e.g. index-BkC2lal8.js) to deterministic /assets/index.js & /assets/index.css
   RewriteCond %{REQUEST_FILENAME} !-f

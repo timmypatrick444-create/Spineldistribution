@@ -7,6 +7,7 @@ import {
   ArrowRight 
 } from 'lucide-react';
 import { Product } from '../types';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface ProductSliderSectionProps {
   id?: string;
@@ -22,6 +23,10 @@ interface ProductSliderSectionProps {
   addedMap: Record<string, boolean>;
   emptyMessage?: string;
 }
+
+const INITIAL_SLIDE_BATCH = 12;
+const SLIDE_BATCH_STEP = 16;
+const MAX_SLIDE_ITEMS = 60;
 
 export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
   id,
@@ -40,16 +45,27 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_SLIDE_BATCH);
+
+  const totalCap = Math.min(products.length, MAX_SLIDE_ITEMS);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
       setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10 || visibleLimit < totalCap);
+
+      // Lazily mount next horizontal batch when user scrolls past 65% of current track
+      if (visibleLimit < totalCap && scrollLeft + clientWidth >= scrollWidth * 0.65) {
+        setVisibleLimit(prev => Math.min(totalCap, prev + SLIDE_BATCH_STEP));
+      }
     }
   };
 
   const handleScroll = (direction: 'left' | 'right') => {
+    if (direction === 'right' && visibleLimit < totalCap) {
+      setVisibleLimit(prev => Math.min(totalCap, prev + SLIDE_BATCH_STEP));
+    }
     if (scrollContainerRef.current) {
       const scrollAmount = direction === 'left' ? -350 : 350;
       scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
@@ -67,7 +83,7 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
         window.removeEventListener('resize', checkScroll);
       };
     }
-  }, [products]);
+  }, [products, visibleLimit]);
 
   return (
     <div id={id} className={className}>
@@ -133,9 +149,10 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
               ref={scrollContainerRef}
               className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto scroll-smooth scrollbar-none py-2 px-1"
             >
-              {products.slice(0, 60).map((prod, idx) => {
+              {products.slice(0, visibleLimit).map((prod, idx) => {
                 const isAdded = addedMap[prod.id];
                 const hasPrice = prod.priceUSD && prod.priceUSD > 0;
+                const rawImg = prod.images?.[0];
 
                 return (
                   <div
@@ -149,19 +166,13 @@ export const ProductSliderSection: React.FC<ProductSliderSectionProps> = ({
                       title={prod.name}
                     >
                       <img
-                        src={prod.images[0] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=400&q=80'}
+                        src={optimizeImageUrl(rawImg, 360)}
                         alt={prod.name}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-full max-w-full object-contain group-hover/card:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          if (!target.dataset.retried && prod.images[0]) {
-                            target.dataset.retried = 'true';
-                            target.src = `/api/proxy-image?url=${encodeURIComponent(prod.images[0])}`;
-                          } else {
-                            target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                          }
-                        }}
+                        onError={(e) => handleProductImageError(e, rawImg)}
                       />
                     </div>
 

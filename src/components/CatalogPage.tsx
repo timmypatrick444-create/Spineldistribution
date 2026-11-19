@@ -10,6 +10,7 @@ import { Product } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { useCurrency } from '../context/CurrencyContext';
 import { useCart } from '../context/CartContext';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface CatalogPageProps {
   products: Product[];
@@ -477,21 +478,14 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
                       {/* Image */}
                       <div className="w-full h-44 sm:h-48 bg-gray-50 rounded flex items-center justify-center p-2.5 mb-2.5">
                         <img
-                          src={prod.images[0]}
+                          src={optimizeImageUrl(prod.images[0], 380)}
                           alt={prod.name}
-                          loading="lazy"
+                          loading={idx < 5 ? 'eager' : 'lazy'}
+                          fetchPriority={idx < 5 ? 'high' : 'auto'}
                           decoding="async"
                           className="max-h-full max-w-full object-contain hover:scale-105 transition-transform"
                           referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement;
-                            if (!target.dataset.retried) {
-                              target.dataset.retried = 'true';
-                              target.src = `/api/proxy-image?url=${encodeURIComponent(prod.images[0])}`;
-                            } else {
-                              target.src = '/Images/Product_Images/Enclosures_Housings/Eaton_Crouse_Hinds_Cast_Metal_Junction_Box.jpg';
-                            }
-                          }}
+                          onError={(e) => handleProductImageError(e, prod.images[0])}
                         />
                       </div>
 

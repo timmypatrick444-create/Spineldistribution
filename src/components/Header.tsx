@@ -81,9 +81,10 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <img
             src={currency === 'USD' 
-              ? "https://res.cloudinary.com/bmv4hvtk/image/upload/v1788620186/usa-flag.png" 
-              : "https://res.cloudinary.com/bmv4hvtk/image/upload/v1788620186/nigeria-flag.png"}
+              ? "https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_64/v1788620186/usa-flag.png" 
+              : "https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_64/v1788620186/nigeria-flag.png"}
             alt={currency === 'USD' ? "USA Flag" : "Nigeria Flag"}
+            decoding="async"
             className="w-4 h-3 sm:w-5 sm:h-3.5 object-cover rounded-xs border border-white/30 shadow-xs"
             referrerPolicy="no-referrer"
           />
@@ -108,8 +109,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="flex items-center gap-2">
                 <img 
-                  src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788620186/usa-flag.png" 
+                  src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_64/v1788620186/usa-flag.png" 
                   alt="USA" 
+                  decoding="async"
                   className="w-4 h-3 object-cover rounded-xs"
                   referrerPolicy="no-referrer"
                 />
@@ -124,8 +126,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="flex items-center gap-2">
                 <img 
-                  src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1788620186/nigeria-flag.png" 
+                  src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_64/v1788620186/nigeria-flag.png" 
                   alt="Nigeria" 
+                  decoding="async"
                   className="w-4 h-3 object-cover rounded-xs"
                   referrerPolicy="no-referrer"
                 />
@@ -371,8 +374,10 @@ export const Header: React.FC<HeaderProps> = ({
             title="SPINEL DISTRIBUTION - Homepage"
           >
             <img 
-              src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+              src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_360,c_limit/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
               alt="SPINEL DISTRIBUTION"
+              fetchPriority="high"
+              decoding="async"
               className="h-10 xl:h-11 w-auto object-contain shrink-0"
               referrerPolicy="no-referrer"
             />
@@ -397,8 +402,10 @@ export const Header: React.FC<HeaderProps> = ({
               title="SPINEL DISTRIBUTION - Homepage"
             >
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_360,c_limit/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
                 alt="SPINEL DISTRIBUTION"
+                fetchPriority="high"
+                decoding="async"
                 className="h-6.5 sm:h-8 md:h-9 w-auto max-w-[155px] sm:max-w-[210px] md:max-w-[250px] object-contain shrink-0"
                 referrerPolicy="no-referrer"
               />

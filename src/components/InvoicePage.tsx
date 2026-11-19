@@ -18,6 +18,7 @@ import {
 import { Order } from '../types';
 import { downloadInvoicePDF } from '../utils/pdfGenerator';
 import { useCurrency } from '../context/CurrencyContext';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface InvoicePageProps {
   order: Order;
@@ -244,8 +245,9 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
           <div className="border-b border-gray-200 pb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <img 
-                src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363297/Spinel_Black_Long_Logo_With_Smile.png" 
+                src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_420,c_limit/v1794363297/Spinel_Black_Long_Logo_With_Smile.png" 
                 alt="SPINEL DISTRIBUTION"
+                decoding="async"
                 className="h-12 sm:h-14 w-auto object-contain"
                 referrerPolicy="no-referrer"
               />
@@ -376,10 +378,13 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3.5">
                             <img
-                              src={item.image || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=200'}
+                              src={optimizeImageUrl(item.image, 160)}
                               alt={item.name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-12 h-12 object-contain rounded-lg bg-white border border-gray-200 p-1 shrink-0 shadow-2xs"
                               referrerPolicy="no-referrer"
+                              onError={(e) => handleProductImageError(e, item.image)}
                             />
                             <div className="min-w-0">
                               <div className="font-bold text-gray-900 text-xs sm:text-sm line-clamp-1">{item.name}</div>

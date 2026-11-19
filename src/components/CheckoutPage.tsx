@@ -16,6 +16,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
 import { Order, ShippingAddress } from '../types';
 import { downloadInvoicePDF } from '../utils/pdfGenerator';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface CheckoutPageProps {
   onBackToCart: () => void;
@@ -491,7 +492,15 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 pr-1">
               {cart.map((item, idx) => (
                 <div key={`${item.product.id || 'checkout-item'}-${idx}`} className="py-2 flex items-center gap-2">
-                  <img src={item.product.images[0]} alt="" className="w-9 h-9 object-contain shrink-0" />
+                  <img
+                    src={optimizeImageUrl(item.product.images[0], 120)}
+                    alt={item.product.name}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => handleProductImageError(e, item.product.images[0])}
+                    className="w-9 h-9 object-contain shrink-0"
+                  />
                   <div className="flex-1 truncate">
                     <div className="font-medium text-gray-800 truncate">{item.product.name}</div>
                     <div className="text-[10px] text-gray-500">Qty: {item.quantity} × ${item.product.priceUSD}</div>

@@ -3,14 +3,75 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="https://res.cloudinary.com/bmv4hvtk/image/upload/v1794363298/Spinel_Orange_Short_Logo_Without_Smile.png" />
-    <title>SPINEL DISTRIBUTION - International E-Commerce & Security Systems</title>
+    <title>SPINEL DISTRIBUTION - International E-Commerce &amp; Security Systems</title>
     <meta name="description" content="International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and fiber optic cabling." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://spineldistribution.com/" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_64/v1794363298/Spinel_Orange_Short_Logo_Without_Smile.png" />
+
+    <!-- DNS Prefetch & Preconnect for Ultra-Fast Image CDN Delivery -->
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="preconnect" href="https://avoweb1.s3-us-west-2.amazonaws.com" crossorigin />
+    <link rel="dns-prefetch" href="https://avoweb1.s3-us-west-2.amazonaws.com" />
+    <link rel="dns-prefetch" href="https://www.axis.com" />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
+
+    <!-- Preload Primary LCP Hero Banner & Brand Logo -->
+    <link
+      rel="preload"
+      as="image"
+      fetchpriority="high"
+      href="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_1400,c_limit/v1794226019/Fiber_Optic_Cables.webp"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_360,c_limit/v1794363298/Spinel_White_Long_Logo_With_Smile.png"
+    />
+
+    <!-- OpenGraph & Twitter Social Cards -->
+    <meta property="og:site_name" content="SPINEL DISTRIBUTION" />
     <meta property="og:title" content="SPINEL DISTRIBUTION - International E-Commerce & Security Systems" />
     <meta property="og:description" content="International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and fiber optic cabling." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://spineldistribution.com/" />
+    <meta property="og:image" content="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_1200,c_limit/v1794226019/Fiber_Optic_Cables.webp" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Prevent stale browser caching on live cPanel deployments -->
+    <meta name="twitter:title" content="SPINEL DISTRIBUTION - International E-Commerce & Security Systems" />
+    <meta name="twitter:description" content="International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and fiber optic cabling." />
+    <meta name="twitter:image" content="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_1200,c_limit/v1794226019/Fiber_Optic_Cables.webp" />
+
+    <!-- Structured Data (JSON-LD) for Google Search -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "name": "SPINEL DISTRIBUTION",
+            "url": "https://spineldistribution.com/",
+            "logo": "https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto,w_500/v1794363298/Spinel_Orange_Short_Logo_Without_Smile.png",
+            "description": "International enterprise distributor of video surveillance, access control, networking, industrial enclosures, PAGA systems, telecommunications, and fiber optic cabling."
+          },
+          {
+            "@type": "WebSite",
+            "name": "SPINEL DISTRIBUTION",
+            "url": "https://spineldistribution.com/",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://spineldistribution.com/catalog?search={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
+
+    <!-- Prevent stale HTML caching while allowing fast CDN image caching -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -22,23 +83,12 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       (function () {
-        // Clear any stale Service Workers that could trap old assets in the browser
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function (regs) {
             for (var i = 0; i < regs.length; i++) {
               regs[i].unregister();
             }
           }).catch(function () {});
-        }
-        // Clear any browser Cache Storage instances from earlier visits
-        if ('caches' in window) {
-          try {
-            caches.keys().then(function (keys) {
-              for (var j = 0; j < keys.length; j++) {
-                caches.delete(keys[j]);
-              }
-            }).catch(function () {});
-          } catch (e) {}
         }
       })();
     </script>

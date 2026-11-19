@@ -17,6 +17,7 @@ import { Order } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { downloadInvoicePDF } from '../utils/pdfGenerator';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface OrdersPageProps {
   onSelectProductById: (productId: string) => void;
@@ -492,8 +493,12 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({
                       <div key={iIdx} className="py-5 flex items-center justify-between gap-6">
                         <div className="flex items-center gap-5 sm:gap-6">
                           <img 
-                            src={item.image} 
+                            src={optimizeImageUrl(item.image, 220)} 
                             alt={item.name} 
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => handleProductImageError(e, item.image)}
                             className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-xl border border-gray-200 p-2 shrink-0 bg-gray-50" 
                           />
                           <div>

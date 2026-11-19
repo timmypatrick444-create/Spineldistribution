@@ -30,14 +30,23 @@ function makeCpanelZip() {
     console.log('  + Added compiled 404.html directly to zip root');
   }
 
-  // 3. Add compiled assets directory to zip root (e.g. /public_html/assets/)
+  // 3. Add compiled sitemap.xml & robots.txt to zip root for Google SEO
+  ['sitemap.xml', 'robots.txt'].forEach((seoFile) => {
+    const seoPath = path.join(process.cwd(), 'dist', seoFile);
+    if (fs.existsSync(seoPath)) {
+      zip.addLocalFile(seoPath, '', seoFile);
+      console.log(`  + Added SEO ${seoFile} directly to zip root`);
+    }
+  });
+
+  // 4. Add compiled assets directory to zip root (e.g. /public_html/assets/)
   const compiledAssetsPath = path.join(process.cwd(), 'dist', 'assets');
   if (fs.existsSync(compiledAssetsPath)) {
     zip.addLocalFolder(compiledAssetsPath, 'assets');
     console.log('  + Added compiled assets/ directly to zip root');
   }
 
-  // 4. Standard deployment files and directories
+  // 5. Standard deployment files and directories
   const includeItems = [
     'app.js',
     'server.cjs',

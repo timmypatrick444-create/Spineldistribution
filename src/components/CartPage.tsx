@@ -14,6 +14,7 @@ import {
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface CartPageProps {
   products?: Product[];
@@ -108,10 +109,13 @@ export const CartPage: React.FC<CartPageProps> = ({
                       className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-50 border border-gray-200 rounded-lg shrink-0 p-2 flex items-center justify-center cursor-pointer hover:opacity-90"
                     >
                       <img 
-                        src={item.product.images[0]} 
+                        src={optimizeImageUrl(item.product.images[0], 240)} 
                         alt={item.product.name}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-full max-w-full object-contain" 
                         referrerPolicy="no-referrer"
+                        onError={(e) => handleProductImageError(e, item.product.images[0])}
                       />
                     </div>
 
@@ -337,10 +341,13 @@ export const CartPage: React.FC<CartPageProps> = ({
                   >
                     <div className="w-full h-32 bg-gray-50 rounded-lg flex items-center justify-center p-2 mb-2.5 overflow-hidden">
                       <img 
-                        src={rec.images[0]} 
+                        src={optimizeImageUrl(rec.images[0], 300)} 
                         alt={rec.name}
+                        loading="lazy"
+                        decoding="async"
                         className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
                         referrerPolicy="no-referrer"
+                        onError={(e) => handleProductImageError(e, rec.images[0])}
                       />
                     </div>
 

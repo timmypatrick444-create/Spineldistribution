@@ -18,8 +18,12 @@ console.log('\n[1/6] Cleaning previous build artifacts...');
   }
 });
 
-// Step 2: Run Vite build for client SPA
-console.log('\n[2/6] Compiling client frontend with Vite...');
+// Step 2: Generate SEO sitemap.xml & robots.txt in public/ (automatically copied to dist/)
+console.log('\n[2/6] Generating SEO sitemap.xml and robots.txt...');
+execSync('npx tsx scripts/generate-sitemap.ts', { stdio: 'inherit', cwd: rootDir });
+
+// Step 3: Run Vite build for client SPA
+console.log('\n[3/6] Compiling client frontend with Vite...');
 execSync('npx vite build', { stdio: 'inherit', cwd: rootDir });
 
 if (!fs.existsSync(path.join(rootDir, 'dist', 'index.html'))) {

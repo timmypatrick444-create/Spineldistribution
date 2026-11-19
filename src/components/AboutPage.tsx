@@ -99,10 +99,12 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, onSelectCatego
                     }}
                   >
                     <img
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792855297/Engr_Dotun.png"
+                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/f_auto,q_auto:good,w_700,c_limit/v1792855297/Engr_Dotun.png"
                       alt="Engr. Dotun - Spinel Distribution Ltd"
                       className="relative h-[460px] lg:h-[500px] xl:h-[540px] w-auto max-w-full object-contain object-bottom drop-shadow-2xl"
                       loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
                     />
 
                     {/* Gradient overlay ensuring seamless engraved blend into hero dark background */}

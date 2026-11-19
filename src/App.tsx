@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { CartProvider } from './context/CartContext';
@@ -6,24 +6,26 @@ import { Header } from './components/Header';
 import { NavigationDrawer } from './components/NavigationDrawer';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/HomePage';
-import { CatalogPage } from './components/CatalogPage';
-import { ProductDetailPage } from './components/ProductDetailPage';
-import { CartPage } from './components/CartPage';
-import { CheckoutPage } from './components/CheckoutPage';
-import { OrdersPage } from './components/OrdersPage';
-import { LoginPage } from './components/LoginPage';
-import { SignupPage } from './components/SignupPage';
-import { OtpVerificationPage } from './components/OtpVerificationPage';
-import { RequestQuotePage } from './components/RequestQuotePage';
-import { InvoicePage } from './components/InvoicePage';
-import { AboutPage } from './components/AboutPage';
-import { ContactPage } from './components/ContactPage';
-import { TermsOfUsePage } from './components/TermsOfUsePage';
-import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
-import { ResetPasswordPage } from './components/ResetPasswordPage';
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminDashboard } from './pages/AdminDashboard';
 import { Product, Order } from './types';
+
+// Lazy-load secondary pages so homepage JS downloads & executes dramatically faster
+const CatalogPage = lazy(() => import('./components/CatalogPage').then(m => ({ default: m.CatalogPage })));
+const ProductDetailPage = lazy(() => import('./components/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
+const CartPage = lazy(() => import('./components/CartPage').then(m => ({ default: m.CartPage })));
+const CheckoutPage = lazy(() => import('./components/CheckoutPage').then(m => ({ default: m.CheckoutPage })));
+const OrdersPage = lazy(() => import('./components/OrdersPage').then(m => ({ default: m.OrdersPage })));
+const LoginPage = lazy(() => import('./components/LoginPage').then(m => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('./components/SignupPage').then(m => ({ default: m.SignupPage })));
+const OtpVerificationPage = lazy(() => import('./components/OtpVerificationPage').then(m => ({ default: m.OtpVerificationPage })));
+const RequestQuotePage = lazy(() => import('./components/RequestQuotePage').then(m => ({ default: m.RequestQuotePage })));
+const InvoicePage = lazy(() => import('./components/InvoicePage').then(m => ({ default: m.InvoicePage })));
+const AboutPage = lazy(() => import('./components/AboutPage').then(m => ({ default: m.AboutPage })));
+const ContactPage = lazy(() => import('./components/ContactPage').then(m => ({ default: m.ContactPage })));
+const TermsOfUsePage = lazy(() => import('./components/TermsOfUsePage').then(m => ({ default: m.TermsOfUsePage })));
+const PrivacyPolicyPage = lazy(() => import('./components/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const ResetPasswordPage = lazy(() => import('./components/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })));
+const AdminLogin = lazy(() => import('./pages/AdminLogin').then(m => ({ default: m.AdminLogin })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 import { CATEGORIES } from './data/categories';
 import { SEED_PRODUCTS } from './data/seedProducts';
 import { UPLOADED_CATALOG_PRODUCTS } from './data/uploadedProducts';
@@ -80,9 +82,24 @@ function MainApp() {
     return null;
   });
   const [quoteInitialProduct, setQuoteInitialProduct] = useState<Product | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | undefined>(undefined);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/catalog') {
+      return new URLSearchParams(window.location.search).get('category') || undefined;
+    }
+    return undefined;
+  });
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/catalog') {
+      return new URLSearchParams(window.location.search).get('subcategory') || undefined;
+    }
+    return undefined;
+  });
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/catalog') {
+      return new URLSearchParams(window.location.search).get('search') || '';
+    }
+    return '';
+  });
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [currentInvoiceOrder, setCurrentInvoiceOrder] = useState<Order | null>(() => {
     try {
@@ -232,6 +249,10 @@ function MainApp() {
       } else if (path === '/invoice') {
         setCurrentView('invoice');
       } else if (path === '/catalog') {
+        const params = new URLSearchParams(window.location.search);
+        setSelectedCategory(params.get('category') || undefined);
+        setSelectedSubcategory(params.get('subcategory') || undefined);
+        setSearchQuery(params.get('search') || '');
         setCurrentView('catalog');
       } else if (path === '/quote' || path === '/request-quote') {
         setCurrentView('quote');
@@ -258,6 +279,36 @@ function MainApp() {
     window.addEventListener('popstate', handleLocation);
     return () => window.removeEventListener('popstate', handleLocation);
   }, [products, isAdmin]);
+
+  // Dynamic SEO document title & meta description per route/category/product
+  useEffect(() => {
+    let pageTitle = 'SPINEL DISTRIBUTION - International E-Commerce & Security Systems';
+    let pageDesc = 'International enterprise e-commerce platform for video surveillance, access control, networking, telecommunications, and fiber optic cabling.';
+
+    if (currentView === 'product' && selectedProduct) {
+      pageTitle = `${selectedProduct.name} | SPINEL DISTRIBUTION`;
+      pageDesc = (selectedProduct.description || `${selectedProduct.brand} ${selectedProduct.name} (${selectedProduct.sku}) - Enterprise security & ICT distribution.`).slice(0, 158);
+    } else if (currentView === 'catalog') {
+      const catLabel = selectedSubcategory
+        ? `${selectedSubcategory} - ${selectedCategory || 'Catalog'}`
+        : selectedCategory || (searchQuery ? `Search: ${searchQuery}` : 'Enterprise Hardware Catalog');
+      pageTitle = `${catLabel} | SPINEL DISTRIBUTION`;
+    } else if (currentView === 'quote') {
+      pageTitle = 'Request Enterprise Quotation (RFQ) | SPINEL DISTRIBUTION';
+    } else if (currentView === 'about') {
+      pageTitle = 'About Spinel Distribution Ltd | Global ICT & Security Systems';
+    } else if (currentView === 'contact') {
+      pageTitle = 'Contact Spinel Distribution | Enterprise Support & Sales';
+    } else if (currentView === 'terms-of-use') {
+      pageTitle = 'Terms of Use | SPINEL DISTRIBUTION';
+    } else if (currentView === 'privacy-policy') {
+      pageTitle = 'Privacy Policy | SPINEL DISTRIBUTION';
+    }
+
+    document.title = pageTitle;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', pageDesc);
+  }, [currentView, selectedProduct, selectedCategory, selectedSubcategory, searchQuery]);
 
   // Update browser URL on navigation
   const navigateTo = (view: string, param?: string) => {
@@ -314,37 +365,56 @@ function MainApp() {
 
   // Category selection handler
   const handleSelectCategory = (catName?: string, subcatName?: string) => {
+    let nextCat = catName;
+    let nextSub = subcatName;
     // If a subcategory name was passed as catName without subcatName, map it to parent category
     if (catName && !subcatName) {
       for (const cat of CATEGORIES) {
         if (cat.name.toLowerCase() === catName.toLowerCase()) {
-          setSelectedCategory(cat.name);
-          setSelectedSubcategory(undefined);
-          setSearchQuery('');
-          navigateTo('catalog');
-          return;
+          nextCat = cat.name;
+          nextSub = undefined;
+          break;
         }
         if (cat.subcategories.some(s => s.toLowerCase() === catName.toLowerCase())) {
-          setSelectedCategory(cat.name);
-          setSelectedSubcategory(catName);
-          setSearchQuery('');
-          navigateTo('catalog');
-          return;
+          nextCat = cat.name;
+          nextSub = catName;
+          break;
         }
       }
     }
-    setSelectedCategory(catName);
-    setSelectedSubcategory(subcatName);
+    setSelectedCategory(nextCat);
+    setSelectedSubcategory(nextSub);
     setSearchQuery('');
-    navigateTo('catalog');
+    setCurrentView('catalog');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const params = new URLSearchParams();
+    if (nextCat) params.set('category', nextCat);
+    if (nextSub) params.set('subcategory', nextSub);
+    const qs = params.toString();
+    const targetUrl = qs ? `/catalog?${qs}` : '/catalog';
+    if (window.location.pathname + window.location.search !== targetUrl) {
+      window.history.pushState({}, '', targetUrl);
+    }
   };
 
   // Search keyword submission
   const handleSearchSubmit = (query: string, categoryFilter?: string) => {
+    const nextCat = categoryFilter === 'All' ? undefined : categoryFilter;
     setSearchQuery(query);
-    setSelectedCategory(categoryFilter === 'All' ? undefined : categoryFilter);
+    setSelectedCategory(nextCat);
     setSelectedSubcategory(undefined);
-    navigateTo('catalog');
+    setCurrentView('catalog');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const params = new URLSearchParams();
+    if (nextCat) params.set('category', nextCat);
+    if (query) params.set('search', query);
+    const qs = params.toString();
+    const targetUrl = qs ? `/catalog?${qs}` : '/catalog';
+    if (window.location.pathname + window.location.search !== targetUrl) {
+      window.history.pushState({}, '', targetUrl);
+    }
   };
 
   // Product Selection handler - updates URL to navigated product details page
@@ -408,15 +478,16 @@ function MainApp() {
       {/* 3. Main Body Views */}
       <main className={`flex-1 ${isAdminView ? 'bg-[#0f172a]' : ''}`}>
         {currentView === 'home' && (
-              <HomePage
-                products={products}
-                onSelectProduct={handleSelectProduct}
-                onSelectCategory={handleSelectCategory}
-                onNavigate={navigateTo}
-                onRequestQuote={handleRequestQuote}
-              />
-            )}
+          <HomePage
+            products={products}
+            onSelectProduct={handleSelectProduct}
+            onSelectCategory={handleSelectCategory}
+            onNavigate={navigateTo}
+            onRequestQuote={handleRequestQuote}
+          />
+        )}
 
+        <Suspense fallback={<div className="min-h-[60vh]" />}>
             {currentView === 'catalog' && (
               <CatalogPage
                 products={products}
@@ -609,6 +680,7 @@ function MainApp() {
                 />
               )
             )}
+        </Suspense>
       </main>
 
       {/* 4. Footer - Hidden on unique login & signup pages */}

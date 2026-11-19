@@ -18,6 +18,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useCart } from '../context/CartContext';
 import { CATEGORIES } from '../data/categories';
 import { ProductSliderSection } from './ProductSliderSection';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
 interface HomePageProps {
   products: Product[];
@@ -328,13 +329,16 @@ export const HomePage: React.FC<HomePageProps> = ({
     return shuffleArray(pool);
   }, [safeProducts]);
 
-  // Eagerly preload all hero slide images into browser cache immediately
+  // Preload only the upcoming hero slide after initial render so slide 1 (LCP) loads at full speed
   useEffect(() => {
-    HERO_SLIDES.forEach(s => {
+    const nextIdx = (currentSlide + 1) % HERO_SLIDES.length;
+    const timer = setTimeout(() => {
       const img = new Image();
-      img.src = s.image;
-    });
-  }, []);
+      img.decoding = 'async';
+      img.src = optimizeImageUrl(HERO_SLIDES[nextIdx].image, 1400);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [currentSlide]);
 
   // Auto-advance hero slides every 6 seconds
   useEffect(() => {
@@ -345,6 +349,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   }, []);
 
   const slide = HERO_SLIDES[currentSlide];
+  const prevSlideIdx = (currentSlide - 1 + HERO_SLIDES.length) % HERO_SLIDES.length;
+  const nextSlideIdx = (currentSlide + 1) % HERO_SLIDES.length;
 
   return (
     <div className="min-h-screen bg-[#eaeded] pb-0 font-sans">
@@ -352,26 +358,33 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* 1. HERO BANNER WITH GRADIENT OVERLAY */}
       <div className="relative h-[380px] sm:h-[440px] md:h-[500px] w-full overflow-hidden bg-black select-none">
         
-        {/* Pre-rendered Stacked Slide Images for Instant Switching */}
-        {HERO_SLIDES.map((s, idx) => (
-          <div
-            key={s.id}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-              idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
-            }`}
-          >
-            <img
-              src={s.image}
-              alt={s.title}
-              loading={idx === 0 ? 'eager' : 'lazy'}
-              decoding="async"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-center transform scale-105"
-            />
-            {/* Gradient Tint */}
-            <div className={`absolute inset-0 bg-gradient-to-r ${s.accentColor} via-black/50 to-transparent`} />
-          </div>
-        ))}
+        {/* Render only current & adjacent slides for instant LCP and smooth transitions */}
+        {HERO_SLIDES.map((s, idx) => {
+          const shouldMount = idx === currentSlide || idx === nextSlideIdx || idx === prevSlideIdx;
+          if (!shouldMount) return null;
+          const isCurrent = idx === currentSlide;
+          return (
+            <div
+              key={s.id}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                isCurrent ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
+              }`}
+            >
+              <img
+                src={optimizeImageUrl(s.image, 1400)}
+                alt={s.title}
+                loading={idx === 0 || isCurrent ? 'eager' : 'lazy'}
+                fetchPriority={idx === 0 ? 'high' : 'auto'}
+                decoding={idx === 0 ? 'sync' : 'async'}
+                referrerPolicy="no-referrer"
+                onError={(e) => handleProductImageError(e, s.image)}
+                className="w-full h-full object-cover object-center transform scale-105"
+              />
+              {/* Gradient Tint */}
+              <div className={`absolute inset-0 bg-gradient-to-r ${s.accentColor} via-black/50 to-transparent`} />
+            </div>
+          );
+        })}
 
         {/* Hero Slide Content: 50px downward on mobile, 50px rightward on tablet, 100px rightward on desktop */}
         <div className="relative w-full h-full px-4 sm:px-6 lg:px-8 flex flex-col justify-start pt-3 sm:pt-6 md:pt-8 text-white z-20">
@@ -433,8 +446,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/bullet.jpg" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/bullet.jpg', 360)} 
                       alt="Bullet Cameras"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -449,8 +464,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/ptz.jpg" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/ptz.jpg', 360)} 
                       alt="PTZ Cameras"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -465,8 +482,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/dome_camera.jpg" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/dome_camera.jpg', 360)} 
                       alt="Dome Cameras"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -483,6 +502,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/Sarix%20Enhanced%20Duo/Sarix-Enh-Duo-500x500%20%282%29.png" 
                       alt="Thermal Cameras"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -516,8 +537,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793895919/SP-FOC-PR-29.webp" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793895919/SP-FOC-PR-29.webp', 360)} 
                       alt="Fiber Outdoor Cables"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -532,8 +555,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793825243/SP-HC-JF-15.webp" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793825243/SP-HC-JF-15.webp', 360)} 
                       alt="Hybrid Composite Cables"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -548,8 +573,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719299/SP-RA-EN-RI-WME-19.webp" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719299/SP-RA-EN-RI-WME-19.webp', 360)} 
                       alt="Equipment Enclosures"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -564,8 +591,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1789729131/ups.jpg" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789729131/ups.jpg', 360)} 
                       alt="Online Rack UPS"
+                      loading="eager"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -597,8 +626,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674795/SP-RA-EN-FHF-037.png" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674795/SP-RA-EN-FHF-037.png', 360)} 
                       alt="IT Racks"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -613,8 +644,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792589887/SP-EN-FHF-016.png" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792589887/SP-EN-FHF-016.png', 360)} 
                       alt="Equipment Enclosures"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -629,8 +662,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674799/SP-EN-FHF-034.png" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674799/SP-EN-FHF-034.png', 360)} 
                       alt="Mounting Enclosures"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -645,8 +680,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
-                      src="https://res.cloudinary.com/bmv4hvtk/image/upload/v1792411705/SP-EX-EN-FHF-006.png" 
+                      src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792411705/SP-EX-EN-FHF-006.png', 360)} 
                       alt="Explosion-Proof Enclosures"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -680,6 +717,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SC_MTMSK15_HO_071620.jpg" 
                       alt="Access Control Readers"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -696,6 +735,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/AC-HID-MOB-MID-SUB-T100_071820.jpg" 
                       alt="Access Credentials"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -712,6 +753,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/SALTO/AC-SALTO-BLUENET-BLACK-GATEWAYB3CUS-03242021.jpg" 
                       alt="Electronic Locks"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />
@@ -728,6 +771,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SCH_PIM400-TD2_SR_071620.jpg" 
                       alt="Wireless Locks"
+                      loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
                     />

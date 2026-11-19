@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
+import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 import { useAuth } from '../context/AuthContext';
 import { downloadQuotationPDF } from '../utils/pdfGenerator';
 
@@ -361,8 +362,12 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
               <div className="flex items-center gap-4">
                 {submittedQuote.product.image ? (
                   <img 
-                    src={submittedQuote.product.image} 
+                    src={optimizeImageUrl(submittedQuote.product.image, 180)} 
                     alt={submittedQuote.product.name} 
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => handleProductImageError(e, submittedQuote.product.image)}
                     className="w-16 h-16 object-contain bg-white rounded-lg border border-gray-200 p-1"
                   />
                 ) : (
@@ -458,8 +463,12 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
             <div className="bg-amber-50/60 border-b border-amber-200 p-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
                 <img 
-                  src={initialProduct.images[0] || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=400'} 
+                  src={optimizeImageUrl(initialProduct.images[0], 180)} 
                   alt={initialProduct.name}
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => handleProductImageError(e, initialProduct.images[0])}
                   className="w-16 h-16 object-contain bg-white rounded-lg border border-gray-200 p-1 shrink-0"
                 />
                 <div>
@@ -534,8 +543,12 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
                     <div className="flex items-center gap-3 min-w-0">
                       {q.product?.image ? (
                         <img 
-                          src={q.product.image} 
+                          src={optimizeImageUrl(q.product.image, 140)} 
                           alt={q.product.name} 
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => handleProductImageError(e, q.product.image)}
                           className="w-12 h-12 object-contain bg-gray-50 rounded-lg border border-gray-200 p-1 shrink-0" 
                         />
                       ) : (
@@ -617,8 +630,12 @@ export const RequestQuotePage: React.FC<RequestQuotePageProps> = ({
                 <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                   {selectedViewQuote.product?.image ? (
                     <img 
-                      src={selectedViewQuote.product.image} 
+                      src={optimizeImageUrl(selectedViewQuote.product.image, 180)} 
                       alt={selectedViewQuote.product.name} 
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => handleProductImageError(e, selectedViewQuote.product.image)}
                       className="w-16 h-16 object-contain bg-white rounded-lg border border-gray-200 p-1 shrink-0" 
                     />
                   ) : (
