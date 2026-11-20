@@ -90,22 +90,24 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     <div className="w-full px-[20px] py-6 font-sans">
       
       {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mb-6 flex-wrap">
-        <span 
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 mb-6 flex-wrap">
+        <button
+          type="button"
           onClick={() => onSelectCategory(product.category)}
           className="hover:underline cursor-pointer hover:text-blue-700 font-medium"
         >
           {product.category}
-        </span>
-        <ChevronRight size={14} className="text-gray-400" />
-        <span 
+        </button>
+        <ChevronRight size={14} aria-hidden="true" className="text-gray-400" />
+        <button
+          type="button"
           onClick={() => onSelectCategory(product.category, product.subcategory)}
           className="hover:underline cursor-pointer hover:text-blue-700 font-medium"
         >
           {product.subcategory}
-        </span>
-        <ChevronRight size={14} className="text-gray-400" />
-        <span className="text-gray-900 font-semibold truncate max-w-xs sm:max-w-md">
+        </button>
+        <ChevronRight size={14} aria-hidden="true" className="text-gray-400" />
+        <span aria-current="page" className="text-gray-900 font-semibold truncate max-w-xs sm:max-w-md">
           {product.sku}
         </span>
       </nav>
@@ -122,12 +124,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <button
                 key={idx}
                 type="button"
+                aria-label={`View image ${idx + 1} of ${product.name}`}
+                aria-current={activeImageIndex === idx ? 'true' : undefined}
                 onClick={() => setActiveImageIndex(idx)}
                 className={`w-14 h-14 sm:w-16 sm:h-16 rounded-md border p-1 bg-white cursor-pointer transition-all ${activeImageIndex === idx ? 'border-[#e77600] ring-2 ring-[#e77600]/40' : 'border-gray-200 hover:border-gray-400'}`}
               >
                 <img 
                   src={optimizeImageUrl(img, 160)} 
-                  alt="" 
+                  alt=""
+                  aria-hidden="true"
+                  width={64}
+                  height={64}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-full object-contain" 
@@ -175,8 +182,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               </span>
             )}
 
-            <div className="flex items-center gap-1.5">
-              <div className="flex text-amber-500">
+            <div className="flex items-center gap-1.5" aria-label={`Rated ${product.rating} out of 5 stars`}>
+              <div className="flex text-amber-500" aria-hidden="true">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
@@ -188,7 +195,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <span className="font-bold text-gray-800">{product.rating}</span>
             </div>
 
-            <span className="text-blue-700 hover:underline cursor-pointer">
+            <span className="text-blue-700 font-medium">
               {product.reviewCount} customer reviews
             </span>
           </div>
@@ -422,18 +429,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {relatedRecommendations.map((rec) => {
               const recHasPrice = !!(rec.priceUSD && rec.priceUSD > 0);
               return (
-                <div
+                <article
                   key={rec.id}
                   className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl p-4 flex flex-col justify-between transition-all hover:shadow-md group"
                 >
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => onSelectProduct?.(rec)}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-left w-full"
                   >
                     <div className="w-full h-44 bg-gray-50 rounded-lg flex items-center justify-center p-3 mb-3 overflow-hidden">
                       <img 
                         src={optimizeImageUrl(rec.images[0], 380)} 
                         alt={rec.name}
+                        width={220}
+                        height={176}
                         loading="lazy"
                         decoding="async"
                         className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300"
@@ -442,7 +452,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       />
                     </div>
 
-                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    <div className="text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                       {rec.brand} • {rec.category}
                     </div>
 
@@ -450,8 +460,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       {rec.name}
                     </h3>
 
-                    <div className="flex items-center gap-1 mb-2.5">
-                      <div className="flex text-amber-500">
+                    <div className="flex items-center gap-1 mb-2.5" aria-label={`Rated ${rec.rating} out of 5 stars (${rec.reviewCount} reviews)`}>
+                      <div className="flex text-amber-500" aria-hidden="true">
                         {[...Array(5)].map((_, i) => (
                           <Star 
                             key={i} 
@@ -460,7 +470,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                           />
                         ))}
                       </div>
-                      <span className="text-xs text-gray-600 font-medium">({rec.reviewCount})</span>
+                      <span className="text-xs text-gray-700 font-medium">({rec.reviewCount})</span>
                     </div>
 
                     <div className="mb-3">
@@ -474,7 +484,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
 
                   <div>
                     {recHasPrice ? (
@@ -499,7 +509,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       </button>
                     )}
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

@@ -95,14 +95,14 @@ app.use((req, res, next) => {
 
       let compressed: Buffer;
       let encoding: 'br' | 'gzip';
-      if (acceptEnc.includes('gzip')) {
-        compressed = zlib.gzipSync(rawBuf, { level: 6 });
-        encoding = 'gzip';
-      } else {
+      if (acceptEnc.includes('br')) {
         compressed = zlib.brotliCompressSync(rawBuf, {
           params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
         });
         encoding = 'br';
+      } else {
+        compressed = zlib.gzipSync(rawBuf, { level: 6 });
+        encoding = 'gzip';
       }
 
       res.setHeader('Content-Encoding', encoding);
@@ -174,7 +174,7 @@ let productCatalog: Product[] = [
   }))
 ];
 let catalogVersion = Date.now();
-const productsResponseCache = new Map<string, { etag: string; payload: string; ts: number }>();
+const productsResponseCache = new Map<string, { etag: string; payload: string; gzipBuf?: Buffer; brBuf?: Buffer; ts: number }>();
 const invalidateCatalogCache = () => {
   catalogVersion = Date.now();
   productsResponseCache.clear();
@@ -1295,6 +1295,19 @@ app.get('/api/products', (req, res) => {
         return res.status(304).end();
       }
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      const acceptEnc = String(req.headers['accept-encoding'] || '');
+      if (acceptEnc.includes('br') && cached.brBuf) {
+        res.setHeader('Content-Encoding', 'br');
+        res.setHeader('Vary', 'Accept-Encoding');
+        res.setHeader('Content-Length', String(cached.brBuf.length));
+        return res.status(200).end(cached.brBuf);
+      }
+      if (acceptEnc.includes('gzip') && cached.gzipBuf) {
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Vary', 'Accept-Encoding');
+        res.setHeader('Content-Length', String(cached.gzipBuf.length));
+        return res.status(200).end(cached.gzipBuf);
+      }
       return res.send(cached.payload);
     }
   }
@@ -1375,10 +1388,22 @@ app.get('/api/products', (req, res) => {
   const payload = JSON.stringify(payloadObj);
   const etag = `W/"cat-${catalogVersion}-${filtered.length}-${payload.length}"`;
 
+  let gzipBuf: Buffer | undefined;
+  let brBuf: Buffer | undefined;
+  try {
+    const rawBuf = Buffer.from(payload, 'utf8');
+    if (rawBuf.length >= 1024) {
+      gzipBuf = zlib.gzipSync(rawBuf, { level: 6 });
+      brBuf = zlib.brotliCompressSync(rawBuf, {
+        params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 }
+      });
+    }
+  } catch {}
+
   if (productsResponseCache.size > 40) {
     productsResponseCache.clear();
   }
-  productsResponseCache.set(cacheKey, { etag, payload, ts: Date.now() });
+  productsResponseCache.set(cacheKey, { etag, payload, gzipBuf, brBuf, ts: Date.now() });
 
   res.setHeader('ETag', etag);
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
@@ -1386,6 +1411,19 @@ app.get('/api/products', (req, res) => {
     return res.status(304).end();
   }
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  const acceptEnc = String(req.headers['accept-encoding'] || '');
+  if (acceptEnc.includes('br') && brBuf) {
+    res.setHeader('Content-Encoding', 'br');
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.setHeader('Content-Length', String(brBuf.length));
+    return res.status(200).end(brBuf);
+  }
+  if (acceptEnc.includes('gzip') && gzipBuf) {
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.setHeader('Content-Length', String(gzipBuf.length));
+    return res.status(200).end(gzipBuf);
+  }
   return res.send(payload);
 });
 

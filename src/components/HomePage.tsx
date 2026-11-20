@@ -1,22 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronLeft, 
-  ChevronRight, 
-  Star, 
-  Check, 
-  ShieldCheck, 
-  Zap, 
-  Truck, 
-  Flame,
-  ArrowRight,
-  TrendingUp,
-  ShoppingCart,
-  CheckCircle2
+  ChevronRight,
+  Pause,
+  Play
 } from 'lucide-react';
 import { Product } from '../types';
-import { useCurrency } from '../context/CurrencyContext';
 import { useCart } from '../context/CartContext';
-import { CATEGORIES } from '../data/categories';
 import { ProductSliderSection } from './ProductSliderSection';
 import { optimizeImageUrl, handleProductImageError } from '../utils/imageOptimizer';
 
@@ -119,6 +109,16 @@ const HERO_SLIDES: HeroSlide[] = [
   }
 ];
 
+// Helper to shuffle an array uniformly (Fisher-Yates)
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
 export const HomePage: React.FC<HomePageProps> = ({
   products,
   onSelectProduct,
@@ -126,10 +126,10 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
   onRequestQuote
 }) => {
-  const safeProducts = Array.isArray(products) ? products : [];
-  const { formatPrice, currency, exchangeRate } = useCurrency();
+  const safeProducts = useMemo(() => (Array.isArray(products) ? products : []), [products]);
   const { addToCart } = useCart();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isHeroPaused, setIsHeroPaused] = useState(false);
 
   // Added notification map for individual products
   const [addedMap, setAddedMap] = useState<Record<string, boolean>>({});
@@ -143,52 +143,64 @@ export const HomePage: React.FC<HomePageProps> = ({
     }, 1500);
   };
 
-  // Helper to shuffle an array uniformly (Fisher-Yates) on every page refresh/render
-  const shuffleArray = <T,>(arr: T[]): T[] => {
-    const copy = [...arr];
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  };
+  // Single O(N) pass over all products to populate all 8 homepage slider buckets efficiently
+  const {
+    accessCredentialProducts,
+    videoSurveillanceProducts,
+    accessControlReaderProducts,
+    videoManagementProducts,
+    pagaProducts,
+    enclosureProducts,
+    hybridCompositeProducts,
+    fiberOutdoorProducts
+  } = useMemo(() => {
+    const creds: Product[] = [];
+    const credsFallback: Product[] = [];
+    const vids: Product[] = [];
+    const vidsFallback: Product[] = [];
+    const readers: Product[] = [];
+    const readersFallback: Product[] = [];
+    const vmr: Product[] = [];
+    const vmrFallback: Product[] = [];
+    const paga: Product[] = [];
+    const pagaFallback: Product[] = [];
+    const enclosures: Product[] = [];
+    const hybrid: Product[] = [];
+    const fiberOutdoor: Product[] = [];
 
-  // 1. Filter Access Credentials products and display in random order on each refresh
-  const accessCredentialProducts = useMemo(() => {
-    const creds = safeProducts.filter(p => {
-      const sub = (p.subcategory || '').toLowerCase().trim();
+    for (let i = 0; i < safeProducts.length; i++) {
+      const p = safeProducts[i];
       const cat = (p.category || '').toLowerCase().trim();
+      const sub = (p.subcategory || '').toLowerCase().trim();
       const name = (p.name || '').toLowerCase().trim();
-      return (
+      const sku = p.sku || '';
+
+      // 1. Access Credentials
+      if (cat.includes('access')) credsFallback.push(p);
+      if (
         sub === 'access credentials' ||
         sub.includes('credential') ||
         (cat.includes('access control') && (
-          sub.includes('card') || 
-          sub.includes('fob') || 
-          name.includes('credential') || 
-          name.includes('keyfob') || 
-          name.includes('fob') || 
-          name.includes('card') || 
-          name.includes('smart card') || 
-          name.includes('tag') || 
-          name.includes('mifare') || 
-          name.includes('desfire') || 
+          sub.includes('card') ||
+          sub.includes('fob') ||
+          name.includes('credential') ||
+          name.includes('keyfob') ||
+          name.includes('fob') ||
+          name.includes('card') ||
+          name.includes('smart card') ||
+          name.includes('tag') ||
+          name.includes('mifare') ||
+          name.includes('desfire') ||
           name.includes('hid') ||
           name.includes('prox')
         ))
-      );
-    });
+      ) {
+        creds.push(p);
+      }
 
-    const pool = creds.length >= 6 ? creds : safeProducts.filter(p => (p.category || '').toLowerCase().includes('access'));
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 2. Filter Video Surveillance & Cameras products and display in random order on each refresh
-  const videoSurveillanceProducts = useMemo(() => {
-    const vids = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
+      // 2. Video Surveillance & Cameras
+      if (cat.includes('surveillance') || cat.includes('camera')) vidsFallback.push(p);
+      if (
         cat === 'video surveillance & cameras' ||
         cat.includes('video surveillance') ||
         cat.includes('cameras') ||
@@ -196,23 +208,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         sub.includes('nvr') ||
         sub.includes('dvr') ||
         sub.includes('ptz')
-      );
-    });
+      ) {
+        vids.push(p);
+      }
 
-    const pool = vids.length >= 6 ? vids : safeProducts.filter(p => 
-      (p.category || '').toLowerCase().includes('surveillance') || 
-      (p.category || '').toLowerCase().includes('camera')
-    );
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 3. Filter Access Control Readers products and display in random order on each refresh
-  const accessControlReaderProducts = useMemo(() => {
-    const readers = safeProducts.filter(p => {
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      const cat = (p.category || '').toLowerCase().trim();
-      const name = (p.name || '').toLowerCase().trim();
-      return (
+      // 3. Access Control Readers
+      if (name.includes('reader')) readersFallback.push(p);
+      if (
         sub === 'access control readers' ||
         sub === 'card readers' ||
         sub === 'biometric readers' ||
@@ -224,20 +226,13 @@ export const HomePage: React.FC<HomePageProps> = ({
           name.includes('biometric') ||
           name.includes('fingerprint')
         ))
-      );
-    });
+      ) {
+        readers.push(p);
+      }
 
-    const pool = readers.length >= 6 ? readers : safeProducts.filter(p => (p.name || '').toLowerCase().includes('reader'));
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 4. Filter Video Management & Recording products and display in random order on each refresh
-  const videoManagementProducts = useMemo(() => {
-    const vmr = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      const name = (p.name || '').toLowerCase().trim();
-      return (
+      // 4. Video Management & Recording
+      if (cat.includes('surveillance')) vmrFallback.push(p);
+      if (
         cat === 'video management & recording' ||
         cat.includes('video management') ||
         sub.includes('nvr') ||
@@ -253,20 +248,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         name.includes('dockcontroller') ||
         name.includes('recording') ||
         name.includes('workstation')
-      );
-    });
+      ) {
+        vmr.push(p);
+      }
 
-    const pool = vmr.length >= 6 ? vmr : safeProducts.filter(p => (p.category || '').toLowerCase().includes('surveillance'));
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 5. Filter Public Address (PAGA) System products and display in random order on each refresh
-  const pagaProducts = useMemo(() => {
-    const paga = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      const name = (p.name || '').toLowerCase().trim();
-      return (
+      // 5. Public Address (PAGA) System
+      if (cat.includes('public address')) pagaFallback.push(p);
+      if (
         cat === 'public address (paga) system' ||
         cat.includes('public address') ||
         cat.includes('paga') ||
@@ -283,51 +271,54 @@ export const HomePage: React.FC<HomePageProps> = ({
         name.includes('sounder') ||
         name.includes('loudspeaker') ||
         name.includes('paga')
-      );
-    });
+      ) {
+        paga.push(p);
+      }
 
-    const pool = paga.length >= 4 ? paga : safeProducts.filter(p => (p.category || '').toLowerCase().includes('public address'));
-    return shuffleArray(pool);
-  }, [safeProducts]);
+      // 6. Enclosures & Housings
+      if (cat === 'enclosures & housings') {
+        enclosures.push(p);
+      }
 
-  // 7. Filter Enclosures & Housings products and display in random order on each refresh
-  const enclosureProducts = useMemo(() => {
-    const pool = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      return cat === 'enclosures & housings';
-    });
-    return shuffleArray(pool);
-  }, [safeProducts]);
-
-  // 8. Filter Hybrid Composite Cables products and display in random order on each refresh
-  const hybridCompositeProducts = useMemo(() => {
-    const pool = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
+      // 7. Hybrid Composite Cables
+      if (
         sub === 'hybrid composite cables' ||
         cat === 'hybrid composite cables' ||
         (cat === 'fiber optic & hybrid cables' && sub.includes('hybrid')) ||
-        (p.sku || '').startsWith('SP-HC-')
-      );
-    });
-    return shuffleArray(pool);
-  }, [safeProducts]);
+        sku.startsWith('SP-HC-')
+      ) {
+        hybrid.push(p);
+      }
 
-  // 9. Filter Fiber Outdoor Cables products and display in random order on each refresh
-  const fiberOutdoorProducts = useMemo(() => {
-    const pool = safeProducts.filter(p => {
-      const cat = (p.category || '').toLowerCase().trim();
-      const sub = (p.subcategory || '').toLowerCase().trim();
-      return (
+      // 8. Fiber Outdoor Cables
+      if (
         sub === 'fiber outdoor cables' ||
         cat === 'fiber outdoor cables' ||
         (cat === 'fiber optic & hybrid cables' && sub.includes('outdoor')) ||
-        (p.sku || '').startsWith('SP-FOC-')
-      );
-    });
-    return shuffleArray(pool);
+        sku.startsWith('SP-FOC-')
+      ) {
+        fiberOutdoor.push(p);
+      }
+    }
+
+    return {
+      accessCredentialProducts: shuffleArray(creds.length >= 6 ? creds : credsFallback),
+      videoSurveillanceProducts: shuffleArray(vids.length >= 6 ? vids : vidsFallback),
+      accessControlReaderProducts: shuffleArray(readers.length >= 6 ? readers : readersFallback),
+      videoManagementProducts: shuffleArray(vmr.length >= 6 ? vmr : vmrFallback),
+      pagaProducts: shuffleArray(paga.length >= 4 ? paga : pagaFallback),
+      enclosureProducts: shuffleArray(enclosures),
+      hybridCompositeProducts: shuffleArray(hybrid),
+      fiberOutdoorProducts: shuffleArray(fiberOutdoor)
+    };
   }, [safeProducts]);
+
+  // Respect user's reduced-motion preference for hero auto-advance
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setIsHeroPaused(true);
+    }
+  }, []);
 
   // Preload only the upcoming hero slide after initial render so slide 1 (LCP) loads at full speed
   useEffect(() => {
@@ -340,13 +331,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     return () => clearTimeout(timer);
   }, [currentSlide]);
 
-  // Auto-advance hero slides every 6 seconds
+  // Auto-advance hero slides every 6 seconds when not paused
   useEffect(() => {
+    if (isHeroPaused) return;
     const timer = setInterval(() => {
       setCurrentSlide(prev => (prev + 1) % HERO_SLIDES.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isHeroPaused]);
 
   const slide = HERO_SLIDES[currentSlide];
   const prevSlideIdx = (currentSlide - 1 + HERO_SLIDES.length) % HERO_SLIDES.length;
@@ -356,7 +348,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     <div className="min-h-screen bg-[#eaeded] pb-0 font-sans">
       
       {/* 1. HERO BANNER WITH GRADIENT OVERLAY */}
-      <div className="relative h-[380px] sm:h-[440px] md:h-[500px] w-full overflow-hidden bg-black select-none">
+      <section
+        role="region"
+        aria-roledescription="carousel"
+        aria-label="Featured Hardware Categories"
+        onMouseEnter={() => setIsHeroPaused(true)}
+        onMouseLeave={() => setIsHeroPaused(false)}
+        className="relative h-[380px] sm:h-[440px] md:h-[500px] w-full overflow-hidden bg-black select-none"
+      >
         
         {/* Render only current & adjacent slides for instant LCP and smooth transitions */}
         {HERO_SLIDES.map((s, idx) => {
@@ -366,6 +365,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           return (
             <div
               key={s.id}
+              aria-hidden={!isCurrent}
               className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                 isCurrent ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
               }`}
@@ -373,8 +373,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               <img
                 src={optimizeImageUrl(s.image, 1400)}
                 alt={s.title}
+                width={1400}
+                height={500}
                 loading={idx === 0 || isCurrent ? 'eager' : 'lazy'}
-                fetchPriority={idx === 0 ? 'high' : 'auto'}
+                fetchPriority={idx === 0 ? 'high' : 'low'}
                 decoding={idx === 0 ? 'sync' : 'async'}
                 referrerPolicy="no-referrer"
                 onError={(e) => handleProductImageError(e, s.image)}
@@ -399,7 +401,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectCategory(slide.category, slide.subcategory)}
-                className="bg-[#febd69] hover:bg-[#f3a847] text-[#131921] font-bold px-5 sm:px-6 py-2 sm:py-2.5 rounded shadow-lg text-xs sm:text-sm transition-all transform hover:scale-[1.02] cursor-pointer"
+                className="bg-[#febd69] hover:bg-[#f3a847] text-[#131921] font-bold px-5 sm:px-6 py-2.5 rounded shadow-lg text-xs sm:text-sm transition-all transform hover:scale-[1.02] cursor-pointer min-h-[40px]"
               >
                 {slide.ctaText}
               </button>
@@ -409,26 +411,56 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         {/* Hero Slider Nav Arrows aligned with the visible text area */}
         <button
+          type="button"
           onClick={() => setCurrentSlide(prev => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
-          className="absolute left-2 top-[35%] sm:top-[38%] -translate-y-1/2 z-30 p-2 text-white/80 hover:text-white bg-black/30 hover:bg-black/60 rounded-r transition-colors"
-          aria-label="Previous Slide"
+          className="absolute left-2 top-[35%] sm:top-[38%] -translate-y-1/2 z-30 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-white/90 hover:text-white bg-black/40 hover:bg-black/70 rounded transition-colors cursor-pointer"
+          aria-label="Previous slide"
         >
-          <ChevronLeft size={32} />
+          <ChevronLeft size={28} aria-hidden="true" />
         </button>
         <button
+          type="button"
           onClick={() => setCurrentSlide(prev => (prev + 1) % HERO_SLIDES.length)}
-          className="absolute right-2 top-[35%] sm:top-[38%] -translate-y-1/2 z-30 p-2 text-white/80 hover:text-white bg-black/30 hover:bg-black/60 rounded-l transition-colors"
-          aria-label="Next Slide"
+          className="absolute right-2 top-[35%] sm:top-[38%] -translate-y-1/2 z-30 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-white/90 hover:text-white bg-black/40 hover:bg-black/70 rounded transition-colors cursor-pointer"
+          aria-label="Next slide"
         >
-          <ChevronRight size={32} />
+          <ChevronRight size={28} aria-hidden="true" />
         </button>
+
+        {/* Accessible Carousel Controls: Pause/Play & Slide Indicators */}
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 bg-black/45 backdrop-blur-xs px-2.5 py-1.5 rounded-full">
+          <button
+            type="button"
+            onClick={() => setIsHeroPaused(prev => !prev)}
+            className="text-white hover:text-[#febd69] p-1 rounded-full cursor-pointer flex items-center justify-center"
+            aria-label={isHeroPaused ? 'Play featured slide rotation' : 'Pause featured slide rotation'}
+            aria-pressed={isHeroPaused}
+          >
+            {isHeroPaused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}
+          </button>
+          <div className="flex items-center gap-1" role="tablist" aria-label="Choose featured slide">
+            {HERO_SLIDES.map((s, idx) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={currentSlide === idx}
+                aria-label={`Slide ${idx + 1}: ${s.title}`}
+                onClick={() => setCurrentSlide(idx)}
+                className={`h-2 rounded-full transition-all cursor-pointer ${
+                  currentSlide === idx ? 'w-5 bg-[#febd69]' : 'w-2 bg-white/60 hover:bg-white'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
 
         {/* Bottom Gradient Fade into Gray Background */}
         <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-[#eaeded] via-[#eaeded]/70 to-transparent pointer-events-none z-20" />
-      </div>
+      </section>
 
       {/* 2. OVERLAPPING 4-ITEM / FEATURED BENTO CARDS with 20px gutter */}
-      <div className="w-full px-[20px] relative -mt-24 sm:-mt-36 z-20">
+      <section aria-label="Featured Hardware Departments" className="w-full px-[20px] relative -mt-24 sm:-mt-36 z-20">
         
         {/* 4-Column Grid with 10px gap increasing the width of the 4 sections */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[10px]">
@@ -436,18 +468,21 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Box 1: Video Surveillance */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
+              <h2 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
                 Video Surveillance &amp; Cameras
-              </h3>
+              </h2>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
-                <div 
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Video Surveillance & Cameras', 'Bullet Cameras')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/bullet.jpg', 360)} 
                       alt="Bullet Cameras"
+                      width={160}
+                      height={128}
                       loading="eager"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -457,15 +492,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Bullet Cameras
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Video Surveillance & Cameras', 'PTZ Cameras')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/ptz.jpg', 360)} 
                       alt="PTZ Cameras"
+                      width={160}
+                      height={128}
                       loading="eager"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -475,15 +513,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     PTZ Cameras
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Video Surveillance & Cameras', 'Dome Cameras')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789800516/dome_camera.jpg', 360)} 
                       alt="Dome Cameras"
+                      width={160}
+                      height={128}
                       loading="eager"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -493,16 +534,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Dome Cameras
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Video Surveillance & Cameras', 'Thermal Cameras')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/Sarix%20Enhanced%20Duo/Sarix-Enh-Duo-500x500%20%282%29.png" 
                       alt="Thermal Cameras"
-                      loading="eager"
+                      width={160}
+                      height={128}
+                      loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
@@ -511,12 +555,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Thermal Cameras
                   </span>
-                </div>
+                </button>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => onSelectCategory('Video Surveillance & Cameras')}
-              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
+              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left min-h-[32px] inline-flex items-center cursor-pointer"
             >
               See all 12 camera categories
             </button>
@@ -526,19 +571,22 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold text-gray-900 leading-snug">
+                <h2 className="text-lg font-bold text-gray-900 leading-snug">
                   Fiber Optic &amp; Hybrid Cables
-                </h3>
+                </h2>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
-                <div 
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Fiber Outdoor Cables')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793895919/SP-FOC-PR-29.webp', 360)} 
                       alt="Fiber Outdoor Cables"
+                      width={160}
+                      height={128}
                       loading="eager"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -548,15 +596,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Fiber Outdoor
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables', 'Hybrid Composite Cables')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793825243/SP-HC-JF-15.webp', 360)} 
                       alt="Hybrid Composite Cables"
+                      width={160}
+                      height={128}
                       loading="eager"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -566,16 +617,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Hybrid Composite
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Enclosures & Housings')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1793719299/SP-RA-EN-RI-WME-19.webp', 360)} 
                       alt="Equipment Enclosures"
-                      loading="eager"
+                      width={160}
+                      height={128}
+                      loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
@@ -584,16 +638,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Enclosures &amp; Boxes
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Power & Electrical Systems', 'UPS Systems')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1789729131/ups.jpg', 360)} 
                       alt="Online Rack UPS"
-                      loading="eager"
+                      width={160}
+                      height={128}
+                      loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-contain rounded-[10px] group-hover:scale-105 transition-transform duration-200" 
@@ -602,12 +659,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Online Rack UPS
                   </span>
-                </div>
+                </button>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => onSelectCategory('Fiber Optic & Hybrid Cables')}
-              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
+              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left min-h-[32px] inline-flex items-center cursor-pointer"
             >
               Explore Fiber &amp; Hybrid Cables
             </button>
@@ -616,18 +674,21 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Box 3: Networking & Connectivity */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
+              <h2 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
                 Networking &amp; Connectivity
-              </h3>
+              </h2>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
-                <div 
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Enclosures & Housings', 'IT Racks')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674795/SP-RA-EN-FHF-037.png', 360)} 
                       alt="IT Racks"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -637,15 +698,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     IT Racks
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Enclosures & Housings', 'Equipment Enclosures')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792589887/SP-EN-FHF-016.png', 360)} 
                       alt="Equipment Enclosures"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -655,15 +719,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Equipment Enclosures
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Enclosures & Housings', 'Mounting Enclosures')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792674799/SP-EN-FHF-034.png', 360)} 
                       alt="Mounting Enclosures"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -673,15 +740,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Mounting Enclosures
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Enclosures & Housings', 'Explosion-Proof Enclosures')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src={optimizeImageUrl('https://res.cloudinary.com/bmv4hvtk/image/upload/v1792411705/SP-EX-EN-FHF-006.png', 360)} 
                       alt="Explosion-Proof Enclosures"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -691,12 +761,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Explosion-Proof Enclosures
                   </span>
-                </div>
+                </button>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => onSelectCategory('Networking & Connectivity')}
-              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
+              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left min-h-[32px] inline-flex items-center cursor-pointer"
             >
               Explore all enterprise networking
             </button>
@@ -705,18 +776,21 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* Box 4: Access Control & Biometrics */}
           <div className="bg-white p-4.5 rounded-[20px] shadow-sm border border-gray-200 flex flex-col justify-between">
             <div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
+              <h2 className="text-lg font-bold text-gray-900 mb-3 leading-snug">
                 Access Control &amp; Biometrics
-              </h3>
+              </h2>
               <div className="grid grid-cols-2 gap-3 mb-3.5">
-                <div 
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Access Control & Door Security', 'Access Control Readers')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SC_MTMSK15_HO_071620.jpg" 
                       alt="Access Control Readers"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -726,15 +800,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Access Control Readers
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Access Control & Door Security', 'Access Credentials')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/AC-HID-MOB-MID-SUB-T100_071820.jpg" 
                       alt="Access Credentials"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -744,15 +821,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Access Credentials
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Access Control & Door Security', 'Electronic Locks')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/PRODUCT%20MARKETING/SALTO/AC-SALTO-BLUENET-BLACK-GATEWAYB3CUS-03242021.jpg" 
                       alt="Electronic Locks"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -762,15 +842,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Electronic Locks
                   </span>
-                </div>
-                <div 
+                </button>
+                <button
+                  type="button"
                   onClick={() => onSelectCategory('Access Control & Door Security', 'Wireless Locks')}
-                  className="cursor-pointer group flex flex-col"
+                  className="cursor-pointer group flex flex-col text-left rounded-[10px]"
                 >
                   <div className="w-full h-28 sm:h-32 bg-white flex items-center justify-center overflow-hidden rounded-[10px]">
                     <img 
                       src="https://avoweb1.s3-us-west-2.amazonaws.com/Prod/ACM/SCH_PIM400-TD2_SR_071620.jpg" 
                       alt="Wireless Locks"
+                      width={160}
+                      height={128}
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
@@ -780,12 +863,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-xs font-medium text-gray-800 line-clamp-1 mt-1.5 group-hover:text-blue-700 transition-colors">
                     Wireless Locks
                   </span>
-                </div>
+                </button>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => onSelectCategory('Access Control & Door Security')}
-              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left"
+              className="text-xs text-blue-700 hover:text-[#c45500] hover:underline font-semibold text-left min-h-[32px] inline-flex items-center cursor-pointer"
             >
               Shop Access Control &amp; Gates
             </button>
@@ -793,7 +877,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         </div>
 
-      </div>
+      </section>
 
       {/* 2.4 POWER & CONNECTIVITY IN ONE CABLE - Hybrid Composite Cables */}
       <ProductSliderSection

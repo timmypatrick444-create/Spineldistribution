@@ -4,11 +4,13 @@ html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
 }
 
 body {
   overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
   margin: 0;
   padding: 0;
@@ -18,6 +20,27 @@ body {
   html {
     font-size: 16.5px;
   }
+}
+
+/* Global accessible keyboard focus indicator (preserves clean mouse/touch UI) */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #e77600;
+  outline-offset: 2px;
+}
+
+/* Off-screen rendering optimization for heavy mobile/tablet carousels */
+.perf-section-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
+/* Cross-browser clean horizontal scrollbar hiding for carousels/sub-nav */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes slowBlink {
@@ -33,4 +56,18 @@ body {
 
 .animate-slow-blink {
   animation: slowBlink 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-slow-blink {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

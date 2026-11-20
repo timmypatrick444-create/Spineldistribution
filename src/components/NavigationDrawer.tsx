@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronRight, User, ArrowLeft, Home } from 'lucide-react';
 import { CATEGORIES } from '../data/categories';
 import { useAuth } from '../context/AuthContext';
@@ -19,13 +19,32 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 }) => {
   const { user, customerLogout } = useAuth();
   const [activeCategory, setActiveCategory] = useState<CategoryDefinition | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Category & Store Navigation Menu"
+      className="fixed inset-0 z-[100] flex"
+    >
       {/* Dimmed Overlay */}
-      <div 
+      <div
+        aria-hidden="true"
         className="fixed inset-0 bg-black/65 transition-opacity"
         onClick={onClose}
       />
@@ -35,27 +54,40 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
         
         {/* Drawer Header (Navy) */}
         <div className="bg-[#232f3e] text-white px-6 py-4 flex items-center justify-between shrink-0">
-          <div 
-            onClick={() => {
-              if (!user) {
+          {user ? (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                <User aria-hidden="true" size={20} className="text-white" />
+              </div>
+              <div className="font-bold text-base">
+                {`Hello, ${user.fullName}`}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
                 onNavigate('login');
                 onClose();
-              }
-            }}
-            className={`flex items-center gap-3 ${!user ? 'cursor-pointer hover:opacity-90' : ''}`}
-          >
-            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-              <User size={20} className="text-white" />
-            </div>
-            <div className="font-bold text-base">
-              {user ? `Hello, ${user.fullName}` : 'Hello, Sign In'}
-            </div>
-          </div>
+              }}
+              className="flex items-center gap-3 cursor-pointer hover:opacity-90 text-left rounded"
+            >
+              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                <User aria-hidden="true" size={20} className="text-white" />
+              </div>
+              <span className="font-bold text-base">
+                Hello, Sign In
+              </span>
+            </button>
+          )}
           <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label="Close navigation menu"
             onClick={onClose}
-            className="text-gray-300 hover:text-white p-1 rounded-full hover:bg-gray-700/50"
+            className="text-gray-200 hover:text-white p-2 rounded-full hover:bg-gray-700/50 cursor-pointer"
           >
-            <X size={22} />
+            <X size={22} aria-hidden="true" />
           </button>
         </div>
 

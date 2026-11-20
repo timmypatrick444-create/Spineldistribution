@@ -37,13 +37,35 @@ export const InvoicePage: React.FC<InvoicePageProps> = ({
 
   const isCompleted = currentOrder.paymentStatus === 'paid' || currentOrder.status === 'completed';
 
+  const ensurePaystackScript = () => {
+    return new Promise<boolean>((resolve) => {
+      if ((window as any).PaystackPop) {
+        resolve(true);
+        return;
+      }
+      const existing = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(Boolean((window as any).PaystackPop)));
+        setTimeout(() => resolve(Boolean((window as any).PaystackPop)), 4000);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      script.onload = () => resolve(Boolean((window as any).PaystackPop));
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  };
+
   // Handler to allow paying a pending order via Paystack directly from invoice
-  const handlePaystackRetry = () => {
+  const handlePaystackRetry = async () => {
     setIsProcessingPayment(true);
     const amountInKobo = Math.round(currentOrder.totalNGN * 100);
+    const isLoaded = await ensurePaystackScript();
     const PaystackPop = (window as any).PaystackPop;
 
-    if (PaystackPop && typeof PaystackPop.setup === 'function') {
+    if (isLoaded && PaystackPop && typeof PaystackPop.setup === 'function') {
       try {
         const handler = PaystackPop.setup({
           key: 'pk_test_sample_spinel_public_key',

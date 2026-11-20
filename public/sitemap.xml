@@ -3,49 +3,49 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://spineldistribution.com/</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/quote</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/about</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/contact</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/terms-of-use</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/privacy-policy</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -55,79 +55,79 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Box%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Bullet%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Dome%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=PTZ%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Panoramic%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Fisheye%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Thermal%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Multisensor%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Network%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Explosion-Proof%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Specialty%20Cameras</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Surveillance%20%26%20Cameras&amp;subcategory=Camera%20Bundles</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -137,61 +137,61 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Network%20Video%20Recorders%20(NVR)</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Management%20Software%20(VMS)</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Analytics</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=AI%20Analytics</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Encoders</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Decoders</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Recording%20Servers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Storage</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Video%20Management%20%26%20Recording&amp;subcategory=Video%20Workstations</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -201,91 +201,91 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Access%20Control%20Panels</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Door%20Controllers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Access%20Control%20Readers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Card%20Readers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Biometric%20Readers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Smart%20Cards</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Key%20Fobs</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Access%20Credentials</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Electronic%20Locks</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Wireless%20Locks</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Door%20Hardware</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Visitor%20Management</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Access%20Control%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Access%20Control%20%26%20Door%20Security&amp;subcategory=Access%20Control%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -295,61 +295,61 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=IP%20Intercoms</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Video%20Intercoms</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Audio%20Intercoms</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Door%20Stations</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Indoor%20Stations</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Master%20Stations</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=IP%20Phones</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Emergency%20Communication</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Intercom%20%26%20IP%20Communication&amp;subcategory=Intercom%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -359,67 +359,67 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Network%20Switches</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Managed%20Switches</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Unmanaged%20Switches</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=PoE%20Switches</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Industrial%20Switches</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Routers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Wireless%20Access%20Points</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Wi-Fi%20Equipment</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Network%20Adapters</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Networking%20%26%20Connectivity&amp;subcategory=Network%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -429,55 +429,55 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Motion%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Intrusion%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Perimeter%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Radar%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Environmental%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Occupancy%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Audio%20Detection</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Sensors%20%26%20Detection&amp;subcategory=Emergency%20Sensors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -487,73 +487,73 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Network%20Speakers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=IP%20Speakers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Horn%20Speakers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Ceiling%20Speakers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Wall%20Speakers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Amplifiers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Microphones</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Audio%20Controllers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Public%20Address%20Systems</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Emergency%20Audio%20Systems</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Public%20Address%20(PAGA)%20System&amp;subcategory=Audio%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -563,61 +563,61 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Video%20Management%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Access%20Control%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Analytics%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=AI%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Cloud%20Software</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Software%20Licenses</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Subscription%20Licenses</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Feature%20Licenses</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Security%20Software%20%26%20Licenses&amp;subcategory=Integration%20Licenses</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -627,49 +627,49 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Network%20Storage</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Video%20Storage</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Storage%20Servers</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Hard%20Drives</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Storage%20Expansion</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Storage%20Appliances</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Storage%20%26%20Data%20Infrastructure&amp;subcategory=Storage%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -679,55 +679,55 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Power%20Supplies</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=PoE%20Power%20Supplies</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Power%20Adapters</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=UPS%20Systems</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Batteries</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Backup%20Power</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Power%20Distribution</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Power%20%26%20Electrical%20Systems&amp;subcategory=Power%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -737,43 +737,43 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=Camera%20Housings</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=Explosion-Proof%20Enclosures</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=Junction%20Boxes</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=IT%20Racks</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=Equipment%20Enclosures</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Enclosures%20%26%20Housings&amp;subcategory=Mounting%20Enclosures</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -783,79 +783,79 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Camera%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Wall%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Ceiling%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Pole%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Pendant%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Corner%20Mounts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Mounting%20Brackets</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Sun%20Shields</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Junction%20Boxes</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Back%20Boxes</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Cables%20%26%20Connectors</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Mounting%20%26%20Surveillance%20Accessories&amp;subcategory=Installation%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -865,43 +865,43 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=IR%20Illuminators</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=White%20Light%20Illuminators</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=Security%20Lighting</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=Camera%20Lighting</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=LED%20Lighting</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Lighting%20%26%20Visual%20Deterrence&amp;subcategory=Lighting%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -911,67 +911,67 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Microwave%20Radio</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Micro%20Radio</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=UHF%20Equipment</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=VHF%20Equipment</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Wireless%20Communication</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Backhaul%20Equipment</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Satellite%20Communication</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Telecom%20Supervisory%20Systems</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Radio%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Telecommunication%20%26%20Communication%20Equipment&amp;subcategory=Communication%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -981,67 +981,67 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Camera%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Access%20Control%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Intercom%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Network%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Audio%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Power%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Mounting%20Accessories</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Replacement%20Parts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Spare%20Parts</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Accessories%20%26%20Replacement%20Parts&amp;subcategory=Upgrade%20Kits</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Fiber%20Optic%20%26%20Hybrid%20Cables</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
@@ -1051,13 +1051,13 @@
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Fiber%20Optic%20%26%20Hybrid%20Cables&amp;subcategory=Fiber%20Outdoor%20Cables</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://spineldistribution.com/catalog?category=Fiber%20Optic%20%26%20Hybrid%20Cables&amp;subcategory=Hybrid%20Composite%20Cables</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

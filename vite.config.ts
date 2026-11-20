@@ -69,11 +69,16 @@ export default defineConfig(() => {
     base: '/',
     plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
     build: {
+      target: 'es2020',
+      cssCodeSplit: true,
       sourcemap: false,
       chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
           manualChunks(id) {
+            if (id.includes('/src/data/')) {
+              return 'catalog-data';
+            }
             if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
               return 'vendor-pdf';
             }

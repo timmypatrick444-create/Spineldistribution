@@ -452,7 +452,13 @@ function MainApp() {
   const isAuthView = currentView === 'login' || currentView === 'signup' || currentView === 'otp-verify' || currentView === 'reset-password';
 
   return (
-    <div className={`min-h-screen flex flex-col ${isAdminView ? 'bg-[#0f172a]' : isAuthView ? 'bg-[#f3f4f6]' : 'bg-[#eaeded]'} text-[#0F1111] font-sans antialiased w-full max-w-full overflow-x-hidden`}>
+    <div className={`min-h-screen flex flex-col ${isAdminView ? 'bg-[#0f172a]' : isAuthView ? 'bg-[#f3f4f6]' : 'bg-[#eaeded]'} text-[#0F1111] font-sans antialiased w-full max-w-full overflow-x-clip`}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[200] focus:px-4 focus:py-2.5 focus:bg-[#febd69] focus:text-[#131921] focus:font-bold focus:rounded-md focus:shadow-xl"
+      >
+        Skip to main content
+      </a>
       {/* 1. Main Header - Hidden on standalone login & signup pages */}
       {!isAuthView && (
         <Header
@@ -476,7 +482,7 @@ function MainApp() {
       )}
 
       {/* 3. Main Body Views */}
-      <main className={`flex-1 ${isAdminView ? 'bg-[#0f172a]' : ''}`}>
+      <main id="main-content" tabIndex={-1} className={`flex-1 outline-none ${isAdminView ? 'bg-[#0f172a]' : ''}`}>
         {currentView === 'home' && (
           <HomePage
             products={products}
@@ -487,7 +493,13 @@ function MainApp() {
           />
         )}
 
-        <Suspense fallback={<div className="min-h-[60vh]" />}>
+        <Suspense
+          fallback={
+            <div role="status" aria-live="polite" className="min-h-[60vh] flex items-center justify-center p-8 text-sm font-medium text-gray-700">
+              <span>Loading content…</span>
+            </div>
+          }
+        >
             {currentView === 'catalog' && (
               <CatalogPage
                 products={products}
